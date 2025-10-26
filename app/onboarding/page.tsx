@@ -46,11 +46,40 @@ export default function OnboardingPage() {
   };
 
   const completeOnboarding = async () => {
-    // TODO: Save to Raindrop backend via API
-    console.log('Onboarding complete:', data);
+    try {
+      // Save onboarding data to backend via API
+      const response = await fetch('/api/onboarding', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: 'user@example.com', // TODO: Get from auth
+          zipCode: data.zipCode,
+          interests: data.interests,
+          emailNotifications: data.emailNotifications,
+          audioEnabled: data.audioEnabled,
+          audioFrequencies: data.audioFrequencies,
+        }),
+      });
 
-    // For now, just redirect to dashboard
-    router.push('/dashboard');
+      if (!response.ok) {
+        const error = await response.json();
+        console.error('Failed to save onboarding data:', error);
+        // Still redirect even if save fails (graceful degradation)
+      } else {
+        const result = await response.json();
+        console.log('Onboarding saved successfully:', result);
+        // TODO: Store userId in session/cookie
+      }
+
+      // Redirect to dashboard
+      router.push('/dashboard');
+    } catch (error) {
+      console.error('Error completing onboarding:', error);
+      // Redirect anyway (graceful degradation)
+      router.push('/dashboard');
+    }
   };
 
   return (

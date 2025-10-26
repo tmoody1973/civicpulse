@@ -8,7 +8,8 @@ application "civic-pulse" {
 
   // SmartSQL database - SQLite with AI query capabilities
   smartsql "civic_db" {
-    // Stores users, bills, representatives, podcasts, tracked_bills
+    // Database initialized via service startup
+    // Tables: users, bills, representatives, user_bills, podcasts, rss_articles, vote_records
   }
 
   // Optional: Bucket for podcast audio files (if audio feature enabled)
