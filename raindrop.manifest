@@ -1,0 +1,22 @@
+application "civic-pulse" {
+
+  // Main web service - serves Next.js frontend and API endpoints
+  service "web" {
+    visibility = "public"
+    // Automatic URL assignment for external access
+  }
+
+  // SmartSQL database - SQLite with AI query capabilities
+  smartsql "civic_db" {
+    // Stores users, bills, representatives, podcasts, tracked_bills
+  }
+
+  // Optional: Bucket for podcast audio files (if audio feature enabled)
+  bucket "podcast-audio" {
+    // Stores generated podcast MP3 files
+    // Accessed via Vultr S3-compatible API
+  }
+
+  // Optional: SmartMemory for AI agent context (future enhancement)
+  // smartmemory "civic_memory" {}
+}
