@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import {
   Heart, Stethoscope, GraduationCap, Leaf, DollarSign, Shield, Home,
-  Users, Flask, Cpu, Briefcase, Calculator, Globe, Truck, Sprout, Scale
+  Users, FlaskRound as Flask, Cpu, Briefcase, Calculator, Globe, Truck, Sprout, Scale
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -74,19 +74,30 @@ export function Step2Interests({ initialData, onNext, onBack }: Step2Props) {
             onClick={() => toggleInterest(id)}
             className={`
               flex items-center gap-3 p-4 rounded-lg border-2 transition-all cursor-pointer
+              min-h-[56px] min-w-[200px]
               ${selected.includes(id)
                 ? 'border-primary bg-primary/5'
                 : 'border-border hover:border-primary/50 hover:bg-muted/50'
               }
             `}
+            role="button"
+            tabIndex={0}
+            aria-pressed={selected.includes(id)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                toggleInterest(id);
+              }
+            }}
           >
-            <div className={`flex-shrink-0 ${color}`}>
+            <div className={`flex-shrink-0 ${color}`} aria-hidden="true">
               <Icon className="w-6 h-6" />
             </div>
-            <span className="flex-1 text-left font-medium">{label}</span>
+            <span className="flex-1 text-left font-medium text-sm sm:text-base">{label}</span>
             <Checkbox
               checked={selected.includes(id)}
               onCheckedChange={() => toggleInterest(id)}
+              aria-label={`Select ${label}`}
             />
           </div>
         ))}

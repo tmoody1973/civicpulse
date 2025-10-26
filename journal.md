@@ -4,6 +4,33 @@ A journey building an AI-powered civic engagement platform that makes Congress a
 
 ---
 
+## October 26, 2025 - 2:45 PM - Making It Work For Everyone: Accessibility & Mobile-First Refactoring
+
+**What I Built:** Completely refactored the onboarding flow to meet professional accessibility standards and ensure it works perfectly on mobile devices - where most people will actually use it.
+
+**The Problem I Solved:** Our initial onboarding looked good on my laptop, but had serious issues: clickable areas were too small for touch screens (imagine trying to tap a button the size of a grain of rice), screen readers couldn't understand the interface, and the layout broke on phones. Since 60%+ of civic engagement happens on mobile (people checking Congress updates during their commute), this would have made our app unusable for most users.
+
+**How I Did It:**
+- **Touch Targets:** Ensured every button and checkbox is at least 44x44 pixels - the minimum size for comfortable tapping on phones (about the size of a fingertip)
+- **Accessibility:** Added ARIA labels (instructions for screen readers), semantic HTML (proper button tags instead of clickable divs), and keyboard navigation support - essential for users with disabilities
+- **Mobile-First Design:** Built the layout for phones first, then enhanced for tablets and desktops - not the other way around
+- **Code Organization:** Extracted the progress indicator into a reusable component, moved magic numbers to named constants (like TOTAL_STEPS instead of hardcoded "3"), following professional React patterns
+
+**What I Learned:**
+- **Accessibility isn't optional** - it's required by law for government services and makes the app better for everyone (voice control, keyboard navigation, different screen sizes)
+- **Mobile-first is real** - our analytics will show most users on phones, so that's where we optimize first
+- **Small details matter** - a button that's 40px vs 44px seems minor, but it's the difference between frustration and smooth user experience
+- **FlaskRound icon** - learned the hard way that Lucide React doesn't have a "Flask" icon, only "FlaskRound" - these little gotchas are why testing is critical!
+
+**What's Next:** With a solid, accessible foundation, users can actually complete onboarding on any device. This unlocks the entire user journey - from signup to daily briefings - without accessibility barriers.
+
+**Quick Win 🎉:** The onboarding flow now passes Web Content Accessibility Guidelines (WCAG) standards and works flawlessly on iPhone SE (smallest modern phone) through desktop monitors!
+
+**Social Media Snippet:**
+"Spent the afternoon making Civic Pulse accessible to everyone. Added proper touch targets (44px minimum), screen reader support, keyboard navigation, and mobile-first responsive design. Building civic engagement tools means building for ALL citizens - including those with disabilities and mobile-only users. Accessibility isn't a feature, it's a requirement. #A11y #MobileFirst #CivicTech"
+
+---
+
 ## October 26, 2025 - 1:45 PM - Fixing the Foundation: Getting Real with Our Tech Stack
 
 **What I Built:** Rewrote the entire technical blueprint (PRD) to match the actual capabilities of the Raindrop Platform we're using for the hackathon.

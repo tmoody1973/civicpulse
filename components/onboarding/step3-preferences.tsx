@@ -55,25 +55,26 @@ export function Step3Preferences({ initialData, onNext, onBack }: Step3Props) {
 
       <div className="space-y-4 max-w-lg mx-auto">
         {/* Email notifications */}
-        <div className="border rounded-lg p-4 hover:bg-muted/30 transition-colors">
+        <div className="border rounded-lg p-4 hover:bg-muted/30 transition-colors min-h-[88px]">
           <div className="flex items-start gap-4">
             <div className="flex-shrink-0 mt-0.5">
-              <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
+              <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center" aria-hidden="true">
                 <Mail className="w-5 h-5 text-blue-600 dark:text-blue-400" />
               </div>
             </div>
             <div className="flex-1 space-y-2">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 min-h-[44px]">
                 <Checkbox
                   id="email"
                   checked={emailNotifications}
                   onCheckedChange={(checked) => setEmailNotifications(checked as boolean)}
+                  aria-describedby="email-description"
                 />
                 <Label htmlFor="email" className="text-base font-semibold cursor-pointer">
                   Email Updates
                 </Label>
               </div>
-              <p className="text-sm text-muted-foreground">
+              <p id="email-description" className="text-sm text-muted-foreground">
                 Get notified when bills you're tracking have updates, votes, or changes in status.
               </p>
             </div>
@@ -81,48 +82,51 @@ export function Step3Preferences({ initialData, onNext, onBack }: Step3Props) {
         </div>
 
         {/* Audio briefings */}
-        <div className="border rounded-lg p-4 hover:bg-muted/30 transition-colors">
+        <div className="border rounded-lg p-4 hover:bg-muted/30 transition-colors min-h-[88px]">
           <div className="flex items-start gap-4">
             <div className="flex-shrink-0 mt-0.5">
-              <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
+              <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center" aria-hidden="true">
                 <Headphones className="w-5 h-5 text-purple-600 dark:text-purple-400" />
               </div>
             </div>
             <div className="flex-1 space-y-3">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 min-h-[44px]">
                 <Checkbox
                   id="audio"
                   checked={audioEnabled}
                   onCheckedChange={(checked) => setAudioEnabled(checked as boolean)}
+                  aria-describedby="audio-description"
                 />
                 <Label htmlFor="audio" className="text-base font-semibold cursor-pointer flex items-center gap-2">
                   Audio Briefings
-                  <span className="text-xs font-normal bg-primary/10 text-primary px-2 py-0.5 rounded">
+                  <span className="text-xs font-normal bg-primary/10 text-primary px-2 py-0.5 rounded" aria-label="Optional feature">
                     Optional
                   </span>
                 </Label>
               </div>
-              <p className="text-sm text-muted-foreground">
+              <p id="audio-description" className="text-sm text-muted-foreground">
                 Listen to NPR-quality audio summaries of bills and congressional activity. Perfect for your commute! Select one or both.
               </p>
 
               {audioEnabled && (
-                <div className="ml-6 space-y-3 pt-2">
-                  <div className="flex items-center space-x-3">
+                <div className="ml-6 space-y-3 pt-2" role="group" aria-label="Audio briefing frequency options">
+                  <div className="flex items-center space-x-3 min-h-[44px]">
                     <Checkbox
                       id="daily"
                       checked={audioFrequencies.includes('daily')}
                       onCheckedChange={() => toggleFrequency('daily')}
+                      aria-label="Daily briefings"
                     />
                     <Label htmlFor="daily" className="font-normal cursor-pointer">
                       Daily briefings (5-7 minutes)
                     </Label>
                   </div>
-                  <div className="flex items-center space-x-3">
+                  <div className="flex items-center space-x-3 min-h-[44px]">
                     <Checkbox
                       id="weekly"
                       checked={audioFrequencies.includes('weekly')}
                       onCheckedChange={() => toggleFrequency('weekly')}
+                      aria-label="Weekly briefings"
                     />
                     <Label htmlFor="weekly" className="font-normal cursor-pointer">
                       Weekly roundup (15-18 minutes)
