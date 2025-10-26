@@ -50,17 +50,19 @@
 
 - **Daily Brief**: 5-7 minute morning update (NYT Daily style)
 - **Weekly Deep Dive**: 15-18 minute comprehensive analysis (NPR style)
-- **Interactive Dashboard**: Bill tracking, rep profiles, voting records
+- **News Integration**: The Hill RSS feeds blend breaking news with bill tracking (Marketplace-style)
+- **Interactive Dashboard**: Bill tracking, rep profiles, voting records, personalized news feeds
 - **Action Tools**: Direct contact with representatives
 - **Transparent**: Uses actual Congressional Record speeches
 
 ### 1.4 Unique Value Propositions
 
 1. **Dual Podcast Format**: Quick daily updates + deep weekly analysis
-2. **Authenticity**: Uses actual Congressional Record speeches
-3. **Personalization**: Your representatives, your issues, your community
-4. **Professional Quality**: NPR-style production with dual hosts
-5. **Launch-Ready**: Full authentication, payment processing, scalable infrastructure
+2. **News-Driven Context**: The Hill RSS integration provides current events context (Marketplace model)
+3. **Authenticity**: Uses actual Congressional Record speeches
+4. **Personalization**: Your representatives, your issues, your community, your news feeds
+5. **Professional Quality**: NPR-style production with dual hosts
+6. **Launch-Ready**: Full authentication, payment processing, scalable infrastructure
 
 ### 1.5 Hackathon Innovation
 
@@ -1130,6 +1132,331 @@ export async function generatePodcast(
   return episodeId;
 }
 ```
+
+### 8.2 News Integration: The Hill RSS Feeds (Marketplace-Style Engagement)
+
+**INSPIRED BY:** NPR's Marketplace - https://www.marketplace.org/shows/marketplace
+
+**CONCEPT:** Blend breaking news from The Hill with bill tracking to create contextual, engaging podcasts that feel like professional journalism rather than dry legislative summaries.
+
+#### 8.2.1 The Hill RSS Feed Architecture
+
+**Available Feeds:**
+
+**News Feeds** (Everyone Gets These):
+- **Senate**: https://thehill.com/rss/feed/senate
+- **House**: https://thehill.com/rss/feed/house-of-representatives
+- **Administration**: https://thehill.com/rss/feed/administration
+- **Campaign**: https://thehill.com/rss/feed/campaign
+
+**Policy Feeds** (Based on User Interests):
+- **Healthcare**: https://thehill.com/rss/feed/healthcare
+- **Defense**: https://thehill.com/rss/feed/defense
+- **Energy & Environment**: https://thehill.com/rss/feed/energy-environment
+- **Finance**: https://thehill.com/rss/feed/finance
+- **Technology**: https://thehill.com/rss/feed/technology
+- **Transportation**: https://thehill.com/rss/feed/transportation
+- **International**: https://thehill.com/rss/feed/international
+
+#### 8.2.2 Interest-to-Feed Mapping
+
+```typescript
+// lib/rss/the-hill-feeds.ts
+
+export const INTEREST_TO_FEED_MAP: Record<string, string[]> = {
+  'healthcare': ['healthcare'],
+  'defense': ['defense'],
+  'climate': ['energy-environment'],
+  'economy': ['finance'],
+  'technology': ['technology'],
+  'housing': ['finance'],
+  'education': ['finance'],
+  'immigration': ['administration'],
+  'justice': ['administration'],
+  'agriculture': ['energy-environment'],
+  'veterans': ['defense'],
+  'trade': ['international'],
+  'transportation': ['transportation'],
+  'infrastructure': ['finance', 'transportation'],
+  'civil-rights': ['administration']
+};
+
+export function getFeedsForInterests(interests: string[]): RSSFeed[] {
+  const feedIds = new Set<string>();
+
+  // Always include general feeds
+  feedIds.add('senate');
+  feedIds.add('house');
+
+  // Add policy feeds based on interests
+  interests.forEach(interest => {
+    const mappedFeeds = INTEREST_TO_FEED_MAP[interest] || [];
+    mappedFeeds.forEach(feedId => feedIds.add(feedId));
+  });
+
+  return THE_HILL_FEEDS.filter(feed => feedIds.has(feed.id));
+}
+```
+
+#### 8.2.3 Enhanced Podcast Generation with News Context
+
+**Updated Pipeline:**
+
+```typescript
+// lib/podcast/generator-with-news.ts
+
+import { parseRSSFeed } from '@/lib/rss/parser';
+import { getFeedsForInterests } from '@/lib/rss/the-hill-feeds';
+import { generateDialogueScript } from '@/lib/ai/claude';
+import { generateDialogue } from '@/lib/ai/elevenlabs';
+import { uploadPodcast } from '@/lib/storage/vultr';
+import { mcp } from '@raindrop/mcp';
+
+export async function generatePodcastWithNews(
+  userId: string,
+  type: 'daily' | 'weekly'
+): Promise<string> {
+
+  const startTime = Date.now();
+
+  // 1. Get user data
+  const userResult = await mcp.sql.executeQuery({
+    database_id: 'civic-pulse-db',
+    query: `SELECT * FROM users WHERE id = '${userId}'`
+  });
+  const userData = userResult.rows[0];
+
+  // 2. Get representatives and bills
+  const representatives = await getRepresentatives(userData.zip_code);
+  const bills = await getFeaturedBills(userData, type);
+
+  // 3. **NEW: Fetch relevant news from The Hill**
+  const userInterests = JSON.parse(userData.interests);
+  const feeds = getFeedsForInterests(userInterests);
+
+  const newsArticles = await Promise.all(
+    feeds.map(feed => parseRSSFeed(feed.url))
+  ).then(results => results.flat());
+
+  // 4. **NEW: Match news to bills** (same issue categories)
+  const newsWithBills = matchNewsToBills(newsArticles, bills);
+
+  // 5. Generate Marketplace-style script with Claude
+  const script = await generateDialogueScriptWithNews(
+    bills,
+    newsWithBills,
+    representatives,
+    type
+  );
+
+  // 6. Generate complete audio with ElevenLabs (single call)
+  const audioBuffer = await generateDialogue(script);
+
+  // 7. Upload to Vultr Object Storage
+  const audioUrl = await uploadPodcast(audioBuffer, userId, type, {
+    duration: calculateDuration(audioBuffer),
+    billsCovered: bills.map(b => b.id),
+    generatedAt: new Date()
+  });
+
+  // 8. Save episode to database (with news references)
+  const episodeId = generateUUID();
+  await mcp.sql.executeQuery({
+    database_id: 'civic-pulse-db',
+    query: `
+      INSERT INTO podcast_episodes (
+        id, user_id, episode_type, title, audio_url,
+        featured_bills, featured_representatives,
+        script_json, generation_status, generation_duration_seconds
+      ) VALUES (
+        '${episodeId}', '${userId}', '${type}', '${script.title}',
+        '${audioUrl}', '${JSON.stringify(bills.map(b => b.id))}',
+        '${JSON.stringify(representatives.map(r => r.id))}',
+        '${JSON.stringify({ news: newsWithBills, script })}',
+        'completed', ${Math.floor((Date.now() - startTime) / 1000)}
+      )
+    `
+  });
+
+  return episodeId;
+}
+```
+
+#### 8.2.4 News-Enhanced Dialogue Script Generation
+
+**Claude Prompt (Updated for Marketplace Style):**
+
+```typescript
+// lib/ai/claude-with-news.ts
+
+export async function generateDialogueScriptWithNews(
+  bills: Bill[],
+  newsArticles: NewsArticle[],
+  representatives: Representative[],
+  type: 'daily' | 'weekly'
+) {
+  const prompt = `
+You are creating a Marketplace-style podcast (NPR format) with hosts Sarah and James.
+Blend breaking news from The Hill with congressional bill tracking for engaging, contextual discussion.
+
+**STYLE GUIDE:**
+- Start with news (what's happening NOW)
+- Transition to related bills naturally
+- Explain connections between news and legislation
+- Use conversational tone with contractions
+- Include acknowledgments ("That's right", "Exactly", "Good point")
+- Plain language - no jargon
+- Professional but accessible (like Marketplace or The Daily)
+
+**FORMAT:**
+Return JSON array:
+[
+  { "host": "sarah", "text": "..." },
+  { "host": "james", "text": "..." }
+]
+
+**STRUCTURE (${type === 'daily' ? 'Daily 5-7 min' : 'Weekly 15-18 min'}):**
+
+${type === 'daily' ? `
+1. Opening (30s)
+   Sarah: "Good morning! Here's your daily brief for [date]"
+
+2. News + Bill #1 (2 min)
+   - Start with breaking news from The Hill
+   - Transition: "This connects directly to [Bill Number]..."
+   - Explain the bill in context of the news
+
+3. News + Bill #2 (2 min)
+   - Same pattern
+
+4. Your Representatives (1 min)
+   - Quick update on what your reps are doing
+
+5. Closing (30s)
+   - "Here's what to watch for next..."
+` : `
+1. Opening (1 min)
+   Sarah: "Welcome to your weekly deep dive for [date]"
+   James: "This week in Congress..."
+
+2. Week in Review (2 min)
+   - Top 3 news stories from The Hill
+   - What's driving the conversation
+
+3. Deep Dive: News + Bills (10 min)
+   - For each major bill:
+     * Start with related news context
+     * Break down the bill provisions
+     * Explain real-world impact
+     * Your representatives' positions
+
+4. What This Means for You (3 min)
+   - Practical implications
+   - How to take action
+
+5. Looking Ahead (2 min)
+   - What's coming next week
+   - Bills to watch
+
+6. Closing (1 min)
+   - Call to action
+`}
+
+**EXAMPLE DIALOGUE OPENING:**
+
+Sarah: "Good morning! The Hill just reported that the House Ways and Means Committee advanced healthcare reform legislation yesterday. James, what's behind this move?"
+
+James: "Well Sarah, this ties directly into H.R. 1234 - the Healthcare Access Act - that many of our listeners are tracking. The committee vote happened just two days after the CBO released cost estimates showing this could save families an average of $800 per year."
+
+Sarah: "So let's break down what this bill actually does..."
+
+**NEWS ARTICLES:**
+${JSON.stringify(newsArticles, null, 2)}
+
+**BILLS:**
+${JSON.stringify(bills.map(b => ({
+  number: b.number,
+  title: b.title,
+  summary: b.plain_english_summary,
+  issueCategories: b.issue_categories
+})), null, 2)}
+
+**YOUR REPRESENTATIVES:**
+${representatives.map(r => `${r.name} (${r.party}) - ${r.chamber}`).join(', ')}
+
+Create an engaging, informative dialogue that makes legislation accessible through current events.
+`;
+
+  const result = await env.AI.run('claude-sonnet-4-20250514', {
+    messages: [{ role: 'user', content: prompt }],
+    max_tokens: type === 'daily' ? 3000 : 6000
+  });
+
+  return JSON.parse(result.content[0].text);
+}
+```
+
+#### 8.2.5 News-to-Bill Matching Logic
+
+```typescript
+// lib/podcast/news-matcher.ts
+
+interface NewsWithBill {
+  article: NewsArticle;
+  relatedBills: Bill[];
+}
+
+export function matchNewsToBills(
+  newsArticles: NewsArticle[],
+  bills: Bill[]
+): NewsWithBill[] {
+  return newsArticles.map(article => {
+    // Match based on keywords in title/description
+    const articleText = `${article.title} ${article.description}`.toLowerCase();
+
+    const relatedBills = bills.filter(bill => {
+      const billCategories = JSON.parse(bill.issue_categories || '[]');
+
+      // Check if any bill category appears in article text
+      return billCategories.some(category =>
+        articleText.includes(category.toLowerCase())
+      );
+    });
+
+    return {
+      article,
+      relatedBills: relatedBills.slice(0, 2) // Max 2 related bills per article
+    };
+  }).filter(news => news.relatedBills.length > 0); // Only include news with matching bills
+}
+```
+
+#### 8.2.6 User Benefits
+
+**Why This Approach:**
+
+1. **Context**: News explains WHY a bill matters right now
+2. **Engagement**: Feels like listening to NPR, not reading legislative text
+3. **Relevance**: Connects legislation to breaking events users already hear about
+4. **Natural Flow**: Hosts have something to react to and discuss
+5. **Marketplace Model**: Professional journalism format with accessible language
+
+**Example Daily Brief Flow (6 minutes):**
+
+- **0:00-0:30** - Opening: "Here's what's happening today"
+- **0:30-2:30** - The Hill news story #1 + related bill H.R. 1234
+- **2:30-4:30** - The Hill news story #2 + related bill S. 567
+- **4:30-5:30** - Your representatives: What they're doing this week
+- **5:30-6:00** - Closing: "Here's what to watch for tomorrow"
+
+**Example Weekly Deep Dive (16 minutes):**
+
+- **0:00-1:00** - Opening: "Welcome to your weekly deep dive"
+- **1:00-3:00** - Week in review: Top 3 stories from The Hill
+- **3:00-10:00** - Deep dive on 2-3 major bills with news context
+- **10:00-13:00** - "What this means for you" - practical impacts
+- **13:00-15:00** - Looking ahead: Bills to watch, upcoming votes
+- **15:00-16:00** - Closing: Call to action
 
 ---
 

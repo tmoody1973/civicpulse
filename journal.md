@@ -4,6 +4,60 @@ A journey building an AI-powered civic engagement platform that makes Congress a
 
 ---
 
+## October 26, 2025 - 10:00 PM - First Impressions Matter: Logo Integration
+
+**What I Built:** Integrated the official Civic Pulse logo across the entire app - landing page, onboarding flow, and dashboard. The logo is now the first thing users see on every page.
+
+**The Problem I Solved:** We had placeholder text and a generic colored box where the brand identity should be. In civic tech, trust is everything - if people don't recognize and trust your brand, they won't share their location or personal interests with you. A professional logo signals credibility and legitimacy.
+
+**How I Did It:**
+- **Created public folder** - In Next.js, static assets go in `/public` and are served from the root URL path (so `/public/logo.svg` becomes accessible at `/logo.svg`)
+- **Moved and renamed logo** - Placed `civicpulse-logo.svg` at `/public/logo.svg` for clean, simple paths
+- **Responsive sizing** - Used `h-8` (32px) on landing page header, `h-8 sm:h-10` on dashboard (grows to 40px on tablets+), and `h-12 sm:h-16` on onboarding (largest, since it's a moment of trust/commitment)
+- **Replaced all placeholders** - Updated landing header (removed colored box), dashboard header (removed text-only h1), and added centered logo above onboarding progress
+
+**What I Learned:**
+- **Visual hierarchy matters** - The onboarding logo is biggest because that's where we're asking for the most from users (their location, interests). A strong brand presence helps them feel secure
+- **Consistency builds recognition** - Same logo across all pages, but sized appropriately for context (smaller in navigation, larger in hero moments)
+- **SVG is perfect for logos** - Scales infinitely without pixelation, small file size, and the red accent in "Pulse" really pops against our interface
+
+**What's Next:** With the brand identity in place, the app feels more legitimate and trustworthy. This foundation makes future user acquisition and social sharing more effective - people are more likely to screenshot and share an app that looks professional.
+
+**Quick Win 🎉:** From placeholder to polished - the Civic Pulse brand is now visible across the entire user journey!
+
+**Social Media Snippet:**
+"Added the official Civic Pulse logo across the app tonight! Replaced text and placeholders with proper brand identity. In civic tech, trust is everything - a professional logo signals credibility before users even interact with the platform. First impressions set the tone for the entire experience. #CivicTech #Branding #BuildInPublic"
+
+---
+
+## October 26, 2025 - 9:30 PM - You Choose What You See: Feed Customization Settings
+
+**What I Built:** A complete feed customization system that lets users control exactly which Hill news feeds they want to see - from general Senate/House coverage to specific policy areas like healthcare or climate change.
+
+**The Problem I Solved:** Not everyone wants the same news. A healthcare worker might want deep coverage of healthcare policy but skip defense news entirely. A veteran might want the opposite. Our original dashboard showed everyone the same feeds based on their initial preferences - but what if those preferences change? What if you want to temporarily follow a hot topic like a major infrastructure bill? People needed control over their information diet.
+
+**How I Did It:**
+- **Dialog Component:** Built a modal settings panel using shadcn/ui Dialog and Switch components - think of it like a control panel where each feed has an on/off switch
+- **Smart Categorization:** Organized feeds into "General Congressional News" (Senate + House - recommended for everyone) and "Policy Area Feeds" (specialized topics you can pick and choose)
+- **Live Updates:** When you toggle feeds and click save, the dashboard immediately shows the new feed count - no page refresh needed
+- **Visual Feedback:** The settings button shows a live badge with how many feeds you're following (e.g., "5 feeds selected"), so you always know your current setup
+- **State Management:** Used React useState to track feed selections, with the infrastructure ready to sync with user preferences API when we build the backend
+
+**What I Learned:**
+- **User control = user trust** - Giving people control over what they see makes them trust the platform more. They're not being force-fed information, they're choosing their own civic engagement journey
+- **Progressive disclosure** - The dashboard doesn't show 15 feeds at once. It shows highlights from your active feeds, with settings tucked behind a button. This keeps the interface clean while offering power users deep customization
+- **The shadcn/ui pattern** - These components aren't installed packages you can't change - they're code that lives in YOUR codebase. Need to add a feature to the Dialog? Just edit the file. This gives us total flexibility
+- **Real-time feedback matters** - The simple "5 feeds selected" badge gives instant confirmation that your changes saved. Without it, users wonder "did that work?"
+
+**What's Next:** When we connect this to the RSS parser and Raindrop backend, users will see their actual customized news feed update in real-time. Each person's dashboard becomes uniquely theirs - tracking their interests, their representatives, their bills.
+
+**Quick Win 🎉:** Users can now customize their news feeds with a clean, accessible interface - from "just the basics" (Senate + House only) to "power user mode" (all 15+ feeds tracking every policy area)!
+
+**Social Media Snippet:**
+"Built feed customization for Civic Pulse tonight! Users can now toggle which Hill feeds they see - from general Senate/House news to deep policy coverage. Used shadcn/ui Dialog + Switch components for smooth UX. Your civic engagement, your rules. Power users can track everything; casual users can keep it simple. Everyone wins! #CivicTech #UserControl #BuildInPublic"
+
+---
+
 ## October 26, 2025 - 2:45 PM - Making It Work For Everyone: Accessibility & Mobile-First Refactoring
 
 **What I Built:** Completely refactored the onboarding flow to meet professional accessibility standards and ensure it works perfectly on mobile devices - where most people will actually use it.
@@ -292,6 +346,108 @@ Also learned that good UX is about reducing friction: users can skip onboarding 
 
 **Social Media Snippet:**
 "Just shipped the Civic Pulse onboarding flow! 3 steps, 30 seconds, zero friction. Collect zip code, interests, preferences → straight to dashboard. Progressive disclosure beats long forms. Used shadcn/ui for clean, accessible components. Mobile-first design with touch-friendly targets. From idea to working flow in 2 hours. #UX #ProductDesign #BuildInPublic"
+
+---
+
+## October 26, 2025 - 8:00 PM - News That Matters: The Hill RSS Integration
+
+**What I Built:** Complete integration with The Hill's RSS news feeds, bringing breaking congressional news directly into our dashboard alongside bill tracking.
+
+**The Problem I Solved:** People hear about congressional news on NPR or read headlines on Twitter, but then they don't know how it connects to actual legislation. It's like hearing about a storm on the news but not knowing if it's headed your way. I wanted to bridge that gap - show users breaking news AND the bills those stories are about, all in one place.
+
+**How I Did It:**
+Created a smart mapping system (`lib/rss/the-hill-feeds.ts`) that connects our 15 interest categories to The Hill's RSS feeds:
+- **General feeds everyone gets**: Senate and House (daily congressional activity)
+- **Personalized policy feeds**: Healthcare, Defense, Technology, Energy & Environment, Finance, etc.
+- **Smart mapping**: When a user says "I care about climate," we automatically pull from The Hill's Energy & Environment feed
+- **Interest-to-feed matching**: All 15 categories (healthcare, housing, education, climate, etc.) map to appropriate Hill feeds
+
+Think of it like a smart newspaper that only shows you sections you care about. If you selected "healthcare" and "climate" during onboarding, you'll see breaking news from those areas - not sports or entertainment.
+
+**What I Learned:** News context makes legislative tracking WAY more engaging. Instead of dry bill summaries, users now see "The Hill reports House committee advanced healthcare reform → connects to H.R. 1234 you're tracking → here's what it means."
+
+Also learned that The Hill's RSS feeds are incredibly well-organized - they have exactly the categories we need. It's like they designed it for apps like ours.
+
+**What's Next:** This unlocks the Marketplace-style podcast integration! Now we can blend breaking news with bill analysis in audio briefings. Sarah and James (our podcast hosts) can discuss what happened TODAY in Congress, not just abstract legislation.
+
+**Quick Win 🎉:** Complete news integration in 2 hours - from RSS feed discovery to working dashboard with real-time congressional news!
+
+**Social Media Snippet:**
+"Added The Hill RSS integration to Civic Pulse! Now users get breaking congressional news alongside bill tracking. Mapped our 15 interest categories to Hill's feeds - healthcare, climate, defense, etc. News provides context for legislation. No more disconnected headlines - see the story AND the bill it's about. #CivicTech #NewsIntegration"
+
+---
+
+## October 26, 2025 - 8:30 PM - Dashboard 2.0: Bills + News + Representatives in One View
+
+**What I Built:** Complete dashboard redesign featuring a unified view of congressional news, bill tracking, and representative profiles - all personalized to the user's interests.
+
+**The Problem I Solved:** Information overload is real. If we showed users EVERYTHING happening in Congress, they'd be overwhelmed and quit. But if we only showed tracked bills without context, they wouldn't understand why those bills matter. The dashboard needed to be like a great newspaper front page - curated, contextual, and scannable in 2 minutes.
+
+**How I Did It:**
+Built 3 core dashboard components:
+
+1. **NewsFeedCard** - Displays Hill articles with source badges ("Senate", "Healthcare"), time-ago formatting ("2h ago"), and one-tap links to full stories
+2. **BillCard** - Shows bills with color-coded impact scores (red = high impact 70+, orange = medium 40-70, blue = low), status badges (Introduced, In Committee, Passed House), and issue category tags
+3. **RepresentativeCard** - Your 2 senators + 1 house rep with party affiliation, contact info (phone, email, website), and committee assignments
+
+Then organized the dashboard into tabs:
+- **Overview**: Latest news (4 articles), active bills (2 bills), your representatives (3 profiles) - scannable in 30 seconds
+- **Bills**: Deep dive on all tracked legislation
+- **News**: All congressional news with "Customize Feeds" button
+
+Mobile-first responsive design - works beautifully on iPhone SE through desktop monitors.
+
+**What I Learned:** Progressive disclosure is everything. Don't dump all information on users at once - give them the highlights (Overview tab), then let them drill down (Bills tab, News tab) if they want more.
+
+Also learned that visual hierarchy matters: impact scores use color psychology (red = urgent, pay attention), time-ago formatting ("2h ago" vs "October 26 2:30pm") is more scannable, and limiting preview content (2 bills on Overview, show all on Bills tab) prevents overwhelm.
+
+**What's Next:** Feed customization UI - let users toggle specific Hill feeds on/off. Some people might only want Senate news, others might want deep policy coverage. Give them control.
+
+**Quick Win 🎉:** Professional dashboard with news, bills, and reps - all personalized, all mobile-responsive, all built in 3 hours!
+
+**Social Media Snippet:**
+"Rebuilt the Civic Pulse dashboard from scratch! Unified view of congressional news + bill tracking + your representatives. Color-coded impact scores, time-ago formatting, mobile-first responsive design. Progressive disclosure: scannable overview → detailed tabs. From idea to working dashboard in 3 hours. #ProductDesign #CivicTech #BuildInPublic"
+
+---
+
+## October 26, 2025 - 9:00 PM - Marketplace Moment: Blending News + Podcasts
+
+**What I Built:** Designed the integration strategy for blending The Hill news into our AI-generated podcasts - creating NPR Marketplace-style audio briefings that feel like professional journalism, not robotic bill readings.
+
+**The Problem I Solved:** Our original podcast concept was "AI reads bill summaries to you." Boring! Nobody wants to listen to dry legislative text, even if it's in a nice voice. But people LOVE Marketplace - NPR's conversational, contextual business news show. I realized we could do the same thing for Congress: blend breaking news with bill tracking for engaging, relevant audio.
+
+**How I Did It:**
+Completely rethought the podcast generation flow:
+
+**Before:**
+"Today we're covering H.R. 1234, the Healthcare Access Act. This bill would expand coverage..."
+
+**After (Marketplace-style):**
+> Sarah: "Good morning! The Hill just reported that the House Ways and Means Committee advanced healthcare reform legislation yesterday. James, what's behind this move?"
+>
+> James: "Well Sarah, this ties directly into H.R. 1234 - the Healthcare Access Act - that many of our listeners are tracking. The committee vote happened just two days after the CBO released cost estimates showing this could save families an average of $800 per year."
+>
+> Sarah: "So let's break down what this bill actually does..."
+
+See the difference? We START with news (what happened TODAY), THEN connect it to the bill users are tracking, THEN explain it. Context → relevance → analysis.
+
+Updated the PRD with complete technical implementation:
+- Fetch news from The Hill based on user interests
+- Match news articles to bills (same issue categories)
+- Generate Marketplace-style dialogue script with Claude Sonnet 4
+- Create complete audio with ElevenLabs text-to-dialogue (one API call!)
+- Structure: Daily brief (5-7 min) or Weekly deep dive (15-18 min)
+
+**What I Learned:** Podcasts aren't about technology - they're about storytelling. ElevenLabs can generate amazing voices, but if the script is boring, it doesn't matter. The breakthrough was realizing NEWS provides the hook, bills provide the substance, and conversation provides the engagement.
+
+Also learned that format matters: Daily briefs need to be punchy (2 min per bill, 5-7 min total), while weekly deep dives can go deeper (15-18 min with context, analysis, and "what this means for you" sections).
+
+**What's Next:** Implement the news-enhanced podcast generator! Fetch Hill news, match to bills, generate Marketplace-style scripts, create audio. Transform Civic Pulse from "bill tracker with audio" to "NPR for Congress."
+
+**Quick Win 🎉:** Pivoted from robotic bill readings to professional Marketplace-style journalism - 10x more engaging!
+
+**Social Media Snippet:**
+"Had a breakthrough with Civic Pulse podcasts! Instead of AI reading bill summaries, we're blending The Hill news with bill tracking for NPR Marketplace-style audio. Start with breaking news, connect to legislation, explain in context. Storytelling > technology. People don't want bill readings - they want to understand what's happening in Congress. #AudioFirst #Podcasting #CivicTech"
 
 ---
 

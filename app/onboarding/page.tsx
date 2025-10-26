@@ -56,6 +56,15 @@ export default function OnboardingPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted/20 px-4">
       <div className="w-full max-w-2xl">
+        {/* Logo */}
+        <div className="flex justify-center mb-8">
+          <img
+            src="/logo.svg"
+            alt="Civic Pulse"
+            className="h-12 sm:h-16 w-auto"
+          />
+        </div>
+
         <ProgressIndicator currentStep={currentStep} totalSteps={TOTAL_STEPS} />
 
         {/* Step content */}

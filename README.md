@@ -1,13 +1,15 @@
-# Civic Pulse 🏛️
+<div align="center">
+  <img src="logo-github.svg" alt="Civic Pulse" width="400" />
 
-> **Know What Congress Is Doing** - An AI-powered civic engagement platform that makes congressional activity accessible to everyone.
+  <p><strong>Know What Congress Is Doing</strong> - An AI-powered civic engagement platform that makes congressional activity accessible to everyone.</p>
 
-![Next.js](https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js)
-![React](https://img.shields.io/badge/React-19-blue?style=flat-square&logo=react)
-![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue?style=flat-square&logo=typescript)
-![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)
+  ![Next.js](https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js)
+  ![React](https://img.shields.io/badge/React-19-blue?style=flat-square&logo=react)
+  ![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue?style=flat-square&logo=typescript)
+  ![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)
+</div>
 
-Built for the [Liquid Metal Hackathon](https://liquidmetal.ai) - showcasing AI for Public Good and Voice Agent capabilities.
+Built for [The AI Champion Ship Hackathon](https://liquidmetal.devpost.com/) - showcasing AI for Public Good and Voice Agent capabilities.
 
 ## 🎯 The Problem
 
@@ -243,7 +245,7 @@ netlify env:set ANTHROPIC_API_KEY "your-key"
 
 ## 🤝 Contributing
 
-This project was built for the Liquid Metal Hackathon. While we're not accepting contributions during the judging period, we welcome feedback and suggestions!
+This project was built for The AI Champion Ship. While we're not accepting contributions during the judging period, we welcome feedback and suggestions!
 
 ### Development Workflow
 
@@ -264,7 +266,7 @@ MIT License - see [LICENSE](LICENSE) file for details
 
 ## 🙏 Acknowledgments
 
-- **[Liquid Metal Hackathon](https://liquidmetal.ai)** - For hosting this amazing event
+- **[The AI Champion Ship](https://liquidmetal.devpost.com/)** - For hosting this amazing event
 - **[Raindrop Platform](https://raindrop.ai/)** - Serverless backend infrastructure
 - **[Netlify](https://www.netlify.com/)** - Deployment and hosting sponsor
 - **[Vultr](https://www.vultr.com/)** - Object storage and CDN sponsor

@@ -7,8 +7,11 @@ export function Header() {
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary" />
-            <span className="font-bold text-xl">Civic Pulse</span>
+            <img
+              src="/logo.svg"
+              alt="Civic Pulse"
+              className="h-8 w-auto"
+            />
           </div>
 
           {/* Navigation */}
