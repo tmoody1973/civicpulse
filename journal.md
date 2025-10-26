@@ -4,6 +4,44 @@ A journey building an AI-powered civic engagement platform that makes Congress a
 
 ---
 
+## October 26, 2025 - 11:15 PM - The Case of the Missing Senators: API Pagination Detective Work! 🕵️
+
+**What I Built:** Successfully integrated the Congress.gov API to fetch user's representatives - 2 senators plus their house representative. Now users can see exactly who represents them in Congress with photos, party affiliation, and full details.
+
+**The Problem I Solved:** After setting up the representatives API endpoint, I discovered it was only returning House members, not senators. California should have 2 senators (Adam B. Schiff and Alex Padilla) but the API was returning 0. I debugged through multiple issues:
+1. **State filter broken** - API parameter `state=CA` didn't work, returned members from all states
+2. **State name format mismatch** - API returns "California" (full name) but users provide "CA" (abbreviation)
+3. **Terms data structure** - API returns `terms: {item: [...]}` not `terms: [...]`
+4. **Chamber detection failing** - Even with all fixes above, still getting 0 senators
+
+**How I Did It:**
+- **Client-side filtering** - Since API's state filter doesn't work, I fetch all 250 members and filter by state in JavaScript
+- **State name mapping** - Created `STATE_NAMES` object to convert "CA" → "California" for matching
+- **Terms parsing fix** - Changed code to access `member.terms?.item || []` instead of `member.terms`
+- **The breakthrough discovery** - Used curl to test the API directly and discovered: **senators don't appear in the first 250 results!** The Congress.gov API returns House members first (positions 0-249), then senators after (position 250+)
+- **Dual API calls** - Updated `fetchMembers` to make TWO parallel requests: `fetchBatch(0, 250)` for House and `fetchBatch(250, 250)` for Senate
+- **Combined results** - Merged both batches and filtered by state to get complete results
+
+**What I Learned:**
+- **Never assume API documentation is complete** - The Congress.gov docs didn't mention that members are ordered by chamber with House first and Senate starting at offset 250
+- **Raw API testing reveals hidden patterns** - By using `curl` directly, I could test pagination and discovered senators only appear after offset 250
+- **Client-side filtering is sometimes necessary** - Even official government APIs have quirks. When the API filter doesn't work, do it yourself
+- **Debug with logs at every step** - Adding console.logs showing "34 California members, 0 senators" immediately revealed where the issue was
+- **Promise.all for parallel requests** - Making both API calls simultaneously (House + Senate) keeps the endpoint fast despite doubling the requests
+
+**What's Next:** With representatives working, I can now:
+- Store them in the Raindrop database for fast lookups
+- Display them on the dashboard with photos and voting records
+- Fetch bills that each representative has sponsored or co-sponsored
+- Build the personalized "Your Representatives" section showing what they're working on
+
+**Quick Win 🎉:** From "0 senators returned" to "full representative lookup working" by discovering the API's hidden pagination behavior!
+
+**Social Media Snippet:**
+"Spent 2 hours debugging why the Congress.gov API wasn't returning senators for California. Turned out the API returns House members first (0-249), then senators after position 250! Classic pagination gotcha. Fixed by making two parallel API calls - one for House, one for Senate. Now users can see all 3 of their representatives (2 senators + 1 house rep) with photos and party info. #APIsAreHard #DebuggingVictory #GovTech #BuildInPublic"
+
+---
+
 ## October 26, 2025 - 10:45 PM - The URL That Was There All Along: Backend Discovery! 🎯
 
 **What I Built:** Discovered and connected the working Raindrop backend URL after hours of thinking the platform was broken. Turns out the backend was running perfectly - we just had the wrong address!
