@@ -18,6 +18,10 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'bioguide.congress.gov',
       },
+      {
+        protocol: 'https',
+        hostname: 'www.congress.gov',
+      },
     ],
   },
 

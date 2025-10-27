@@ -64,6 +64,12 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(false);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+  const [mounted, setMounted] = useState(false);
+
+  // Prevent hydration mismatch
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Fetch counts for all tables on mount
   useEffect(() => {
@@ -137,14 +143,30 @@ export default function AdminDashboard() {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <span className="text-sm text-muted-foreground">
-                Last refresh: {lastRefresh.toLocaleTimeString()}
-              </span>
+              <Badge variant="outline" className="text-xs">
+                Raindrop v01k8kf2b3gre3k5my2x4mnrn58
+              </Badge>
+              {mounted && (
+                <span className="text-sm text-muted-foreground">
+                  Last refresh: {lastRefresh.toLocaleTimeString()}
+                </span>
+              )}
               <Button onClick={handleRefresh} size="sm" variant="outline">
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Refresh
               </Button>
             </div>
+          </div>
+
+          {/* Backend Status */}
+          <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+            <div className="flex items-center gap-1">
+              <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div>
+              <span>Backend:</span>
+            </div>
+            <code className="bg-muted px-2 py-0.5 rounded">
+              svc-01k8kf2fkj3423r7zpm53cfkgz...lmapp.run
+            </code>
           </div>
         </div>
       </header>
@@ -217,6 +239,22 @@ export default function AdminDashboard() {
                     </div>
                     {loading && <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" />}
                   </div>
+
+                  {/* Geocodio Info Banner for Representatives Table */}
+                  {selectedTable === 'representatives' && tableData.length > 0 && (
+                    <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
+                      <div className="flex items-start gap-2">
+                        <UserCheck className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5" />
+                        <div className="text-sm">
+                          <p className="font-medium text-blue-900 dark:text-blue-100">Geocodio Integration Active</p>
+                          <p className="text-blue-700 dark:text-blue-300 mt-1">
+                            Representatives are populated from Geocodio API using ZIP code lookup.
+                            Fields include: bioguide_id, name, party, state, district, chamber, phone, website, committees.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </CardHeader>
                 <CardContent>
                   {tableData.length === 0 ? (

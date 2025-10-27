@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { executeQuery, upsert } from '@/lib/db/client';
 
-const RAINDROP_SERVICE_URL = process.env.RAINDROP_SERVICE_URL || 'http://localhost:8787';
+// Force Node.js runtime to allow HTTPS agent for SSL bypass
+export const runtime = 'nodejs';
 
 /**
  * POST /api/onboarding
@@ -21,40 +23,47 @@ export async function POST(request: NextRequest) {
     // Generate user ID (in production, this would come from auth provider)
     const userId = `user_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
-    // Call Raindrop service to save user data
-    // Note: RAINDROP_SERVICE_URL already includes /api/mock, so we just add /users
-    const response = await fetch(`${RAINDROP_SERVICE_URL}/users`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        id: userId,
-        email: body.email,
-        name: body.name,
-        zipCode: body.zipCode,
-        interests: body.interests || [],
-        emailNotifications: body.emailNotifications ?? true,
-        audioEnabled: body.audioEnabled ?? true,
-        audioFrequencies: body.audioFrequencies || ['daily', 'weekly'],
-      }),
+    // Save user to Raindrop SQL database using centralized client
+    await upsert('users', {
+      id: userId,
+      email: body.email,
+      zip_code: body.zipCode || null,
+      state: body.state || null,
+      district: body.district || null,
+      interests: JSON.stringify(body.interests || []),
+      email_notifications: body.emailNotifications ? 1 : 0,
+      audio_enabled: body.audioEnabled ? 1 : 0,
+      audio_frequencies: JSON.stringify(body.audioFrequencies || ['daily', 'weekly']),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     });
+    console.log(`✅ Saved user ${userId} to database`);
 
-    if (!response.ok) {
-      const error = await response.json();
-      return NextResponse.json(
-        { error: error.message || 'Failed to save onboarding data' },
-        { status: response.status }
-      );
+    // Save representatives to database
+    if (body.representatives && Array.isArray(body.representatives)) {
+      for (const rep of body.representatives) {
+        await upsert('representatives', {
+          bioguide_id: rep.bioguide_id,
+          name: rep.name,
+          party: rep.party,
+          chamber: rep.chamber,
+          state: rep.state || body.state,
+          district: rep.district || null,
+          image_url: rep.photo || null,
+          phone: rep.phone || null,
+          website_url: rep.website || null,
+          twitter_handle: rep.twitter || null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+      }
+      console.log(`✅ Saved ${body.representatives.length} representatives to database`);
     }
-
-    const data = await response.json();
 
     return NextResponse.json({
       success: true,
       userId,
       message: 'Onboarding completed successfully',
-      data,
     });
 
   } catch (error) {

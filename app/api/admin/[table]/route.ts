@@ -33,7 +33,7 @@ export async function GET(
 
     // For now, we'll call the Raindrop backend directly with a SQL query
     // In production, you'd want to add specific endpoints for this
-    const response = await fetch(`${RAINDROP_SERVICE_URL}/api/admin/query`, {
+    const fetchOptions: RequestInit = {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -42,7 +42,18 @@ export async function GET(
         table,
         query: `SELECT * FROM ${table} ORDER BY created_at DESC LIMIT 100`
       }),
-    });
+    };
+
+    // In development, disable SSL verification for self-signed certificates
+    // @ts-ignore - Node.js fetch doesn't have this in types but it works
+    if (process.env.NODE_ENV === 'development') {
+      // @ts-ignore
+      fetchOptions.agent = new (await import('https')).Agent({
+        rejectUnauthorized: false
+      });
+    }
+
+    const response = await fetch(`${RAINDROP_SERVICE_URL}/api/admin/query`, fetchOptions);
 
     if (!response.ok) {
       // If the backend doesn't have this endpoint yet, return mock data

@@ -1,0 +1,365 @@
+Congressional Districts
+Field name: cd, cd113, cd114, cd115, cd116, cd117, cd118, cd119
+
+To get cd field appends for an address or a coordinate:
+
+const Geocodio = require('geocodio-library-node');
+const geocodio = new Geocodio('YOUR_API_KEY');
+
+geocoder.geocode('1109 N Highland St, Arlington VA', ['cd'])
+  .then(response => {
+    console.log(response);
+  })
+  .catch(err => {
+    console.error(err);
+  }
+);
+
+geocoder.reverse('38.886672,-77.094735', ['cd'])
+  .then(response => {
+    console.log(response);
+  })
+  .catch(err => {
+    console.error(err);
+  }
+);
+Example for "1109 N Highland St, Arlington VA":
+
+...
+  "fields": {
+    "congressional_districts": [
+      {
+        "name": "Congressional District 8",
+        "district_number": 8,
+        "ocd_id": "ocd-division/country:us/state:va/cd:8",
+        "congress_number": "119th",
+        "congress_years": "2025-2027",
+        "proportion": 1,
+        "current_legislators": [
+          {
+            "type": "representative",
+            "seniority": null,
+            "bio": {
+              "last_name": "Beyer",
+              "first_name": "Donald",
+              "birthday": "1950-06-20",
+              "gender": "M",
+              "party": "Democrat",
+              "photo_url": "https://www.congress.gov/img/member/b001292_200.jpg",
+              "photo_attribution": "Image courtesy of the Member"
+            },
+            "contact": {
+              "url": "https://beyer.house.gov",
+              "address": "1226 Longworth House Office Building Washington DC 20515-4608",
+              "phone": "202-225-4376",
+              "contact_form": null
+            },
+            "social": {
+              "rss_url": null,
+              "twitter": "RepDonBeyer",
+              "facebook": "RepDonBeyer",
+              "youtube": null,
+              "youtube_id": "UCPJGVbOVcAVGiBwq8qr_T9w"
+            },
+            "references": {
+              "bioguide_id": "B001292",
+              "thomas_id": "02272",
+              "opensecrets_id": "N00036018",
+              "lis_id": null,
+              "cspan_id": "21141",
+              "govtrack_id": "412657",
+              "votesmart_id": "1707",
+              "ballotpedia_id": "Don Beyer",
+              "washington_post_id": null,
+              "icpsr_id": "21554",
+              "wikipedia_id": "Don Beyer"
+            },
+            "source": "Legislator data collected by the @unitedstates project (https://github.com/unitedstates/)"
+          },
+          {
+            "type": "senator",
+            "seniority": "senior",
+            "bio": {
+              "last_name": "Warner",
+              "first_name": "Mark",
+              "birthday": "1954-12-15",
+              "gender": "M",
+              "party": "Democrat",
+              "photo_url": "https://www.congress.gov/img/member/w000805_200.jpg",
+              "photo_attribution": "Courtesy U.S. Senate Historical Office (http://www.senate.gov/artandhistory/history/common/generic/Photo_Collection_of_the_Senate_Historical_Office.htm)"
+            },
+            "contact": {
+              "url": "https://www.warner.senate.gov",
+              "address": "703 Hart Senate Office Building Washington DC 20510",
+              "phone": "202-224-2023",
+              "contact_form": "https://www.warner.senate.gov/public/index.cfm?p=Contact"
+            },
+            "social": {
+              "rss_url": "http://www.warner.senate.gov/public/?a=rss.feed",
+              "twitter": "MarkWarner",
+              "facebook": "MarkRWarner",
+              "youtube": "SenatorMarkWarner",
+              "youtube_id": "UCwyivNlEGf4sGd1oDLfY5jw"
+            },
+            "references": {
+              "bioguide_id": "W000805",
+              "thomas_id": "01897",
+              "opensecrets_id": "N00002097",
+              "lis_id": "S327",
+              "cspan_id": "7630",
+              "govtrack_id": "412321",
+              "votesmart_id": "535",
+              "ballotpedia_id": "Mark Warner",
+              "washington_post_id": null,
+              "icpsr_id": "40909",
+              "wikipedia_id": "Mark Warner"
+            },
+            "source": "Legislator data collected by the @unitedstates project (https://github.com/unitedstates/)"
+          },
+          {
+            "type": "senator",
+            "seniority": "junior",
+            "bio": {
+              "last_name": "Kaine",
+              "first_name": "Timothy",
+              "birthday": "1958-02-26",
+              "gender": "M",
+              "party": "Democrat",
+              "photo_url": "https://www.congress.gov/img/member/k000384_200.jpg",
+              "photo_attribution": "Courtesy U.S. Senate Historical Office (http://www.senate.gov/artandhistory/history/common/generic/Photo_Collection_of_the_Senate_Historical_Office.htm)"
+            },
+            "contact": {
+              "url": "https://www.kaine.senate.gov",
+              "address": "231 Russell Senate Office Building Washington DC 20510",
+              "phone": "202-224-4024",
+              "contact_form": "https://www.kaine.senate.gov/contact"
+            },
+            "social": {
+              "rss_url": "http://www.kaine.senate.gov/rss/feeds/?type=all",
+              "twitter": null,
+              "facebook": "SenatorKaine",
+              "youtube": "SenatorTimKaine",
+              "youtube_id": "UC27LgTZlUnBQoNEQFZdn9LA"
+            },
+            "references": {
+              "bioguide_id": "K000384",
+              "thomas_id": "02176",
+              "opensecrets_id": "N00033177",
+              "lis_id": "S362",
+              "cspan_id": "49219",
+              "govtrack_id": "412582",
+              "votesmart_id": "50772",
+              "ballotpedia_id": "Tim Kaine",
+              "washington_post_id": null,
+              "icpsr_id": "41305",
+              "wikipedia_id": "Tim Kaine"
+            },
+            "source": "Legislator data collected by the @unitedstates project (https://github.com/unitedstates/)"
+          }
+        ]
+      }
+    ]
+  }
+...
+Geocodio can return the Congressional district and Representative/Senator information for an address or coordinate pair via any one of the valid parameter names in the fields query parameter. cd will always return the Congressional district for the current Congress, while e.g. cd113 will continue to show the Congressional district for the 113th Congress.
+
+The field returns the full name of the Congressional district, the district number, the Congress number, and the year range. If the current Congress (i.e. cd or cd119) is specified, Geocodio will also return detailed information about the current legislators.
+
+ The list of legislators is always ordered with the Representative first then Senators.
+ Per U.S. Census Bureau specifications, the following rules apply:
+States with a single Congressional district return a special "district_number" of 0 (i.e. Vermont).
+Districts with non-voting delegates return a special "district_number" of 98 (i.e. Washington DC).
+OCD Identifiers
+Open Civic Data Division Identifiers (OCD-IDs) are returned for each district when using cd119.
+
+This ID can be used as a unique identifier for each district. You can see the full list of districts returned by Geocodio and their corresponding OCD-IDs here.
+
+When requesting boundaries for other congressional periods, the ocd_id property is still present, but set to null.
+
+Look up Congressional districts with ZIP codes
+Geocodio can return the most likely Congressional districts given a ZIP code. In cases where there may be multiple possible Congressional districts for a ZIP code, we will return multiple Congressional districts, and rank them each using a proportion key. This key is a decimal percentage representation of how much of the district boundary that intersect with the ZIP code boundary (i.e., a bigger number means it's more likely to be the correct district for residents in that ZIP code).
+
+Districts are always sorted by the proportion value in descending order (largest first).
+
+Congressional Districts
+Field name: cd, cd113, cd114, cd115, cd116, cd117, cd118, cd119
+
+To get cd field appends for an address or a coordinate:
+
+const Geocodio = require('geocodio-library-node');
+const geocodio = new Geocodio('YOUR_API_KEY');
+
+geocoder.geocode('1109 N Highland St, Arlington VA', ['cd'])
+  .then(response => {
+    console.log(response);
+  })
+  .catch(err => {
+    console.error(err);
+  }
+);
+
+geocoder.reverse('38.886672,-77.094735', ['cd'])
+  .then(response => {
+    console.log(response);
+  })
+  .catch(err => {
+    console.error(err);
+  }
+);
+Example for "1109 N Highland St, Arlington VA":
+
+...
+  "fields": {
+    "congressional_districts": [
+      {
+        "name": "Congressional District 8",
+        "district_number": 8,
+        "ocd_id": "ocd-division/country:us/state:va/cd:8",
+        "congress_number": "119th",
+        "congress_years": "2025-2027",
+        "proportion": 1,
+        "current_legislators": [
+          {
+            "type": "representative",
+            "seniority": null,
+            "bio": {
+              "last_name": "Beyer",
+              "first_name": "Donald",
+              "birthday": "1950-06-20",
+              "gender": "M",
+              "party": "Democrat",
+              "photo_url": "https://www.congress.gov/img/member/b001292_200.jpg",
+              "photo_attribution": "Image courtesy of the Member"
+            },
+            "contact": {
+              "url": "https://beyer.house.gov",
+              "address": "1226 Longworth House Office Building Washington DC 20515-4608",
+              "phone": "202-225-4376",
+              "contact_form": null
+            },
+            "social": {
+              "rss_url": null,
+              "twitter": "RepDonBeyer",
+              "facebook": "RepDonBeyer",
+              "youtube": null,
+              "youtube_id": "UCPJGVbOVcAVGiBwq8qr_T9w"
+            },
+            "references": {
+              "bioguide_id": "B001292",
+              "thomas_id": "02272",
+              "opensecrets_id": "N00036018",
+              "lis_id": null,
+              "cspan_id": "21141",
+              "govtrack_id": "412657",
+              "votesmart_id": "1707",
+              "ballotpedia_id": "Don Beyer",
+              "washington_post_id": null,
+              "icpsr_id": "21554",
+              "wikipedia_id": "Don Beyer"
+            },
+            "source": "Legislator data collected by the @unitedstates project (https://github.com/unitedstates/)"
+          },
+          {
+            "type": "senator",
+            "seniority": "senior",
+            "bio": {
+              "last_name": "Warner",
+              "first_name": "Mark",
+              "birthday": "1954-12-15",
+              "gender": "M",
+              "party": "Democrat",
+              "photo_url": "https://www.congress.gov/img/member/w000805_200.jpg",
+              "photo_attribution": "Courtesy U.S. Senate Historical Office (http://www.senate.gov/artandhistory/history/common/generic/Photo_Collection_of_the_Senate_Historical_Office.htm)"
+            },
+            "contact": {
+              "url": "https://www.warner.senate.gov",
+              "address": "703 Hart Senate Office Building Washington DC 20510",
+              "phone": "202-224-2023",
+              "contact_form": "https://www.warner.senate.gov/public/index.cfm?p=Contact"
+            },
+            "social": {
+              "rss_url": "http://www.warner.senate.gov/public/?a=rss.feed",
+              "twitter": "MarkWarner",
+              "facebook": "MarkRWarner",
+              "youtube": "SenatorMarkWarner",
+              "youtube_id": "UCwyivNlEGf4sGd1oDLfY5jw"
+            },
+            "references": {
+              "bioguide_id": "W000805",
+              "thomas_id": "01897",
+              "opensecrets_id": "N00002097",
+              "lis_id": "S327",
+              "cspan_id": "7630",
+              "govtrack_id": "412321",
+              "votesmart_id": "535",
+              "ballotpedia_id": "Mark Warner",
+              "washington_post_id": null,
+              "icpsr_id": "40909",
+              "wikipedia_id": "Mark Warner"
+            },
+            "source": "Legislator data collected by the @unitedstates project (https://github.com/unitedstates/)"
+          },
+          {
+            "type": "senator",
+            "seniority": "junior",
+            "bio": {
+              "last_name": "Kaine",
+              "first_name": "Timothy",
+              "birthday": "1958-02-26",
+              "gender": "M",
+              "party": "Democrat",
+              "photo_url": "https://www.congress.gov/img/member/k000384_200.jpg",
+              "photo_attribution": "Courtesy U.S. Senate Historical Office (http://www.senate.gov/artandhistory/history/common/generic/Photo_Collection_of_the_Senate_Historical_Office.htm)"
+            },
+            "contact": {
+              "url": "https://www.kaine.senate.gov",
+              "address": "231 Russell Senate Office Building Washington DC 20510",
+              "phone": "202-224-4024",
+              "contact_form": "https://www.kaine.senate.gov/contact"
+            },
+            "social": {
+              "rss_url": "http://www.kaine.senate.gov/rss/feeds/?type=all",
+              "twitter": null,
+              "facebook": "SenatorKaine",
+              "youtube": "SenatorTimKaine",
+              "youtube_id": "UC27LgTZlUnBQoNEQFZdn9LA"
+            },
+            "references": {
+              "bioguide_id": "K000384",
+              "thomas_id": "02176",
+              "opensecrets_id": "N00033177",
+              "lis_id": "S362",
+              "cspan_id": "49219",
+              "govtrack_id": "412582",
+              "votesmart_id": "50772",
+              "ballotpedia_id": "Tim Kaine",
+              "washington_post_id": null,
+              "icpsr_id": "41305",
+              "wikipedia_id": "Tim Kaine"
+            },
+            "source": "Legislator data collected by the @unitedstates project (https://github.com/unitedstates/)"
+          }
+        ]
+      }
+    ]
+  }
+...
+Geocodio can return the Congressional district and Representative/Senator information for an address or coordinate pair via any one of the valid parameter names in the fields query parameter. cd will always return the Congressional district for the current Congress, while e.g. cd113 will continue to show the Congressional district for the 113th Congress.
+
+The field returns the full name of the Congressional district, the district number, the Congress number, and the year range. If the current Congress (i.e. cd or cd119) is specified, Geocodio will also return detailed information about the current legislators.
+
+ The list of legislators is always ordered with the Representative first then Senators.
+ Per U.S. Census Bureau specifications, the following rules apply:
+States with a single Congressional district return a special "district_number" of 0 (i.e. Vermont).
+Districts with non-voting delegates return a special "district_number" of 98 (i.e. Washington DC).
+OCD Identifiers
+Open Civic Data Division Identifiers (OCD-IDs) are returned for each district when using cd119.
+
+This ID can be used as a unique identifier for each district. You can see the full list of districts returned by Geocodio and their corresponding OCD-IDs here.
+
+When requesting boundaries for other congressional periods, the ocd_id property is still present, but set to null.
+
+Look up Congressional districts with ZIP codes
+Geocodio can return the most likely Congressional districts given a ZIP code. In cases where there may be multiple possible Congressional districts for a ZIP code, we will return multiple Congressional districts, and rank them each using a proportion key. This key is a decimal percentage representation of how much of the district boundary that intersect with the ZIP code boundary (i.e., a bigger number means it's more likely to be the correct district for residents in that ZIP code).
+
+Districts are always sorted by the proportion value in descending order (largest first).

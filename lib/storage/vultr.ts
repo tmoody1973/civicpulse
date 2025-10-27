@@ -56,6 +56,7 @@ export async function uploadPodcast(
         Key: filename,
         Body: audioBuffer,
         ContentType: 'audio/mpeg',
+        ACL: 'public-read', // Make files publicly accessible
         CacheControl: 'public, max-age=31536000', // Cache for 1 year
         Metadata: {
           userId: metadata.userId,

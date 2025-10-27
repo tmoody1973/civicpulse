@@ -1,0 +1,228 @@
+SQL
+SQL provides persistent database storage with SQLite-compatible syntax. You can execute queries, prepare statements, and manage data with familiar SQL commands.
+
+The SQL component supports prepared statements for secure parameter binding. You get automatic query optimization and protection against SQL injection attacks.
+
+Database operations return detailed metadata including execution time, rows affected, and database size changes.
+
+Creating
+Configure SQL databases in your raindrop.manifest file:
+
+application "demo-sql-app" {
+    sql_database "demosql" {}
+
+    service "demo-sql" {
+        visibility = "public"
+    }
+}
+
+Accessing
+Access SQL databases through environment bindings in your service code:
+
+export default {
+    async fetch(request: Request, env: Env) {
+        // Access the configured SQL database
+        const db = env.demosql;
+
+        // Execute a simple query
+        const result = await db.exec("SELECT 1 as test");
+        return new Response(JSON.stringify(result));
+    }
+}
+
+Core Concepts
+Main interfaces for SQL operations:
+
+SqlDatabase - Primary database interface with prepare, batch, and exec methods
+SqlPreparedStatement - Prepared statement with bind, run, all, first, and raw methods
+SqlResult - Query results with data and metadata
+SqlResponse - Base response with success status and operation metadata
+SqlExecResult - Execution result for direct queries
+SqlMeta - Operation metadata with performance and change information
+SqlResponse
+Base response structure for successful SQL operations:
+
+interface SqlResponse {
+    // Indicates successful completion
+    success: true;
+    // Metadata about the operation
+    meta: SqlMeta & Record<string, unknown>;
+    // Error never present for successful operations
+    error?: never;
+}
+
+SqlResult
+Query results containing data and metadata:
+
+type SqlResult<T = unknown> = SqlResponse & {
+    // Array of query results
+    results: T[];
+};
+
+SqlExecResult
+Execution result for direct SQL statements:
+
+interface SqlExecResult {
+    // Number of statements executed
+    count: number;
+    // Duration of execution in milliseconds
+    duration: number;
+}
+
+SqlMeta
+Operation metadata with performance information:
+
+interface SqlMeta {
+    // Duration of the operation in milliseconds
+    duration: number;
+    // Size of the database after the operation in bytes
+    size_after: number;
+    // Number of rows read during the operation
+    rows_read: number;
+    // Number of rows written during the operation
+    rows_written: number;
+    // ID of the last inserted row
+    last_row_id: number;
+    // Whether the database was modified
+    changed_db: boolean;
+    // Number of rows modified
+    changes: number;
+}
+
+System Limits
+Maximum database size: 10 GB
+Rate limit: 1000 queries per service
+SQL dialect: Subset of SQLite
+prepare
+Input
+Output
+// Prepare a SQL statement for execution
+prepare(query: string): SqlPreparedStatement
+
+Creates a prepared statement from a SQL query string.
+
+// Prepare an INSERT statement with parameters
+const stmt = db.prepare("INSERT INTO users (name, email) VALUES (?, ?)");
+
+// Bind values and execute
+const result = await stmt.bind("Alice", "alice@example.com").run();
+
+batch
+Input
+Output
+// Execute multiple prepared statements in a batch
+batch<T = unknown>(statements: SqlPreparedStatement[]): Promise<SqlResult<T>[]>
+
+Executes multiple prepared statements in a single batch operation.
+
+// Prepare multiple statements
+const insertUser = db.prepare("INSERT INTO users (name) VALUES (?)");
+const insertPost = db.prepare("INSERT INTO posts (title, user_id) VALUES (?, ?)");
+
+// Execute as batch
+const results = await db.batch([
+    insertUser.bind("Bob"),
+    insertPost.bind("Hello World", 1)
+]);
+
+exec
+Input
+Output
+// Execute a SQL query directly
+exec(query: string): Promise<SqlExecResult>
+
+Executes a SQL query directly without preparation.
+
+// Create a table with direct execution
+const result = await db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY,
+        name TEXT NOT NULL,
+        email TEXT UNIQUE
+    )
+`);
+
+console.log(`Executed ${result.count} statements in ${result.duration}ms`);
+
+bind
+Input
+Output
+// Bind values to the prepared statement
+bind(...values: unknown[]): SqlPreparedStatement
+
+Binds parameter values to a prepared statement.
+
+// Bind parameters to a prepared statement
+const stmt = db.prepare("SELECT * FROM users WHERE age > ? AND city = ?");
+const boundStmt = stmt.bind(25, "New York");
+
+// Execute the bound statement
+const results = await boundStmt.all();
+
+first
+Input
+Output
+// Get the first result column by name
+first<T = unknown>(colName: string): Promise<T | null>
+// Get the first result row
+first<T = Record<string, unknown>>(): Promise<T | null>
+
+Gets the first result column by name or the first result row.
+
+// Get first column value
+const count = await db.prepare("SELECT COUNT(*) as total FROM users").first<number>("total");
+
+// Get first row
+const user = await db.prepare("SELECT * FROM users WHERE id = ?").bind(1).first<User>();
+
+run
+Input
+Output
+// Execute the statement and return results
+run<T = Record<string, unknown>>(): Promise<SqlResult<T>>
+
+Executes the prepared statement and returns results with metadata.
+
+// Execute an INSERT statement
+const result = await db.prepare("INSERT INTO users (name) VALUES (?)")
+    .bind("Charlie")
+    .run();
+
+// Check execution metadata
+console.log(`Inserted row ${result.meta.last_row_id}`);
+console.log(`Database changed: ${result.meta.changed_db}`);
+
+all
+Input
+Output
+// Execute the statement and return all results
+all<T = Record<string, unknown>>(): Promise<SqlResult<T>>
+
+Executes the prepared statement and returns all matching results.
+
+// Get all users from the database
+const result = await db.prepare("SELECT * FROM users WHERE active = ?")
+    .bind(true)
+    .all<User>();
+
+// Access results array
+for (const user of result.results) {
+    console.log(`User: ${user.name}`);
+}
+
+raw
+Input
+Output
+// Get raw results with optional column names
+raw<T = unknown[]>(options: { columnNames: true }): Promise<[string[], ...T[]]>
+raw<T = unknown[]>(options?: { columnNames?: false }): Promise<T[]>
+
+Gets raw query results as arrays with optional column names.
+
+// Get raw results with column names
+const withColumns = await db.prepare("SELECT name, email FROM users")
+    .raw({ columnNames: true });
+const [columns, ...rows] = withColumns;
+
+// Get raw results without column names
+const rawRows = await db.prepare("SELECT name, email FROM users").raw();

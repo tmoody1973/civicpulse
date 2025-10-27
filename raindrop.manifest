@@ -6,10 +6,10 @@ application "civic-pulse" {
     // Automatic URL assignment for external access
   }
 
-  // SmartSQL database - SQLite with AI query capabilities
-  smartsql "civic_db" {
+  // SQL database - SQLite for persistent data storage
+  sql_database "civic-db" {
     // Database initialized via service startup
-    // Tables: users, bills, representatives, user_bills, podcasts, rss_articles, vote_records
+    // Tables: users, bills, representatives, user-bills, podcasts, rss-articles, vote-records
   }
 
   // Optional: Bucket for podcast audio files (if audio feature enabled)

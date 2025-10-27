@@ -1,4 +1,4 @@
-globalThis.__RAINDROP_GIT_COMMIT_SHA = "239eee67196d0705d218d8fd4e4156c7d2a1cdc7"; 
+globalThis.__RAINDROP_GIT_COMMIT_SHA = "e3c35bd9d8b63f416e3117e1ae0eacd35910c3b0"; 
 
 // node_modules/@liquidmetal-ai/raindrop-framework/dist/core/cors.js
 var matchOrigin = (request, env, config) => {
@@ -108,134 +108,147 @@ var web_default = class extends Service {
    * Initialize database schema on service startup
    */
   async initializeDatabase() {
-    await this.env.CIVIC_DB.executeQuery({
-      sqlQuery: `
-        CREATE TABLE IF NOT EXISTS users (
-          id TEXT PRIMARY KEY,
-          email TEXT UNIQUE NOT NULL,
-          name TEXT,
-          zip_code TEXT,
-          state TEXT,
-          district TEXT,
-          interests TEXT,
-          email_notifications BOOLEAN DEFAULT true,
-          audio_enabled BOOLEAN DEFAULT true,
-          audio_frequencies TEXT,
-          subscription_tier TEXT DEFAULT 'free',
-          stripe_customer_id TEXT,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-      `
-    });
-    await this.env.CIVIC_DB.executeQuery({
-      sqlQuery: "CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)"
-    });
-    await this.env.CIVIC_DB.executeQuery({
-      sqlQuery: "CREATE INDEX IF NOT EXISTS idx_users_zip ON users(zip_code)"
-    });
-    await this.env.CIVIC_DB.executeQuery({
-      sqlQuery: `
-        CREATE TABLE IF NOT EXISTS bills (
-          id TEXT PRIMARY KEY,
-          congress INTEGER NOT NULL,
-          bill_type TEXT NOT NULL,
-          bill_number INTEGER NOT NULL,
-          title TEXT NOT NULL,
-          summary TEXT,
-          full_text TEXT,
-          sponsor_bioguide_id TEXT,
-          sponsor_name TEXT,
-          introduced_date TEXT,
-          latest_action_date TEXT,
-          latest_action_text TEXT,
-          status TEXT,
-          issue_categories TEXT,
-          impact_score INTEGER,
-          congress_gov_url TEXT,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          UNIQUE(congress, bill_type, bill_number)
-        )
-      `
-    });
-    await this.env.CIVIC_DB.executeQuery({
-      sqlQuery: `
-        CREATE TABLE IF NOT EXISTS representatives (
-          bioguide_id TEXT PRIMARY KEY,
-          name TEXT NOT NULL,
-          party TEXT,
-          chamber TEXT NOT NULL,
-          state TEXT NOT NULL,
-          district TEXT,
-          image_url TEXT,
-          office_address TEXT,
-          phone TEXT,
-          website_url TEXT,
-          twitter_handle TEXT,
-          in_office BOOLEAN DEFAULT true,
-          term_start TEXT,
-          term_end TEXT,
-          committees TEXT,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-      `
-    });
-    await this.env.CIVIC_DB.executeQuery({
-      sqlQuery: `
-        CREATE TABLE IF NOT EXISTS user_bills (
-          user_id TEXT NOT NULL,
-          bill_id TEXT NOT NULL,
-          tracked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          PRIMARY KEY (user_id, bill_id)
-        )
-      `
-    });
-    await this.env.CIVIC_DB.executeQuery({
-      sqlQuery: `
-        CREATE TABLE IF NOT EXISTS podcasts (
-          id TEXT PRIMARY KEY,
-          user_id TEXT,
-          type TEXT NOT NULL,
-          title TEXT NOT NULL,
-          audio_url TEXT NOT NULL,
-          duration_seconds INTEGER,
-          transcript TEXT,
-          bills_covered TEXT,
-          generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-      `
-    });
-    await this.env.CIVIC_DB.executeQuery({
-      sqlQuery: `
-        CREATE TABLE IF NOT EXISTS rss_articles (
-          id TEXT PRIMARY KEY,
-          feed_id TEXT NOT NULL,
-          title TEXT NOT NULL,
-          description TEXT,
-          url TEXT UNIQUE NOT NULL,
-          author TEXT,
-          published_at TIMESTAMP NOT NULL,
-          image_url TEXT,
-          categories TEXT,
-          fetched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-      `
-    });
-    await this.env.CIVIC_DB.executeQuery({
-      sqlQuery: `
-        CREATE TABLE IF NOT EXISTS vote_records (
-          id TEXT PRIMARY KEY,
-          bill_id TEXT NOT NULL,
-          representative_bioguide_id TEXT NOT NULL,
-          vote TEXT NOT NULL,
-          vote_date TEXT NOT NULL,
-          chamber TEXT NOT NULL,
-          roll_call_number INTEGER
-        )
-      `
-    });
+    await this.env.CIVIC_DB.exec(`
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        email TEXT UNIQUE NOT NULL,
+        name TEXT,
+        zip_code TEXT,
+        state TEXT,
+        district TEXT,
+        interests TEXT,
+        email_notifications BOOLEAN DEFAULT true,
+        audio_enabled BOOLEAN DEFAULT true,
+        audio_frequencies TEXT,
+        subscription_tier TEXT DEFAULT 'free',
+        stripe_customer_id TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    await this.env.CIVIC_DB.exec("CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)");
+    await this.env.CIVIC_DB.exec("CREATE INDEX IF NOT EXISTS idx_users_zip ON users(zip_code)");
+    await this.env.CIVIC_DB.exec(`
+      CREATE TABLE IF NOT EXISTS bills (
+        id TEXT PRIMARY KEY,
+        congress INTEGER NOT NULL,
+        bill_type TEXT NOT NULL,
+        bill_number INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        summary TEXT,
+        full_text TEXT,
+        sponsor_bioguide_id TEXT,
+        sponsor_name TEXT,
+        sponsor_party TEXT,
+        sponsor_state TEXT,
+        introduced_date TEXT NOT NULL,
+        latest_action_date TEXT NOT NULL,
+        latest_action_text TEXT,
+        status TEXT NOT NULL,
+        issue_categories TEXT,
+        impact_score INTEGER DEFAULT 0,
+        cosponsor_count INTEGER DEFAULT 0,
+        cosponsors TEXT,
+        congress_url TEXT,
+        synced_to_algolia_at DATETIME,
+        synced_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(congress, bill_type, bill_number)
+      )
+    `);
+    await this.env.CIVIC_DB.exec("CREATE INDEX IF NOT EXISTS idx_bills_congress_date ON bills(congress, latest_action_date DESC)");
+    await this.env.CIVIC_DB.exec("CREATE INDEX IF NOT EXISTS idx_bills_sponsor ON bills(sponsor_bioguide_id)");
+    await this.env.CIVIC_DB.exec("CREATE INDEX IF NOT EXISTS idx_bills_status ON bills(status, congress)");
+    await this.env.CIVIC_DB.exec("CREATE INDEX IF NOT EXISTS idx_bills_impact ON bills(impact_score DESC, latest_action_date DESC)");
+    await this.env.CIVIC_DB.exec("CREATE INDEX IF NOT EXISTS idx_bills_sync ON bills(synced_to_algolia_at)");
+    await this.env.CIVIC_DB.exec(`
+      CREATE TABLE IF NOT EXISTS representatives (
+        bioguide_id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        party TEXT,
+        chamber TEXT NOT NULL,
+        state TEXT NOT NULL,
+        district TEXT,
+        image_url TEXT,
+        office_address TEXT,
+        phone TEXT,
+        website_url TEXT,
+        rss_url TEXT,
+        contact_form TEXT,
+        twitter_handle TEXT,
+        facebook_url TEXT,
+        youtube_url TEXT,
+        instagram_handle TEXT,
+        in_office BOOLEAN DEFAULT true,
+        term_start TEXT,
+        term_end TEXT,
+        committees TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    try {
+      const columnCheck = await this.env.CIVIC_DB.prepare(`PRAGMA table_info(representatives)`).all();
+      if (columnCheck.results) {
+        const hasRssUrl = columnCheck.results.some((col) => col.name === "rss_url");
+        if (!hasRssUrl) {
+          console.log("\u{1F504} Migration: Adding rss_url column to representatives table");
+          await this.env.CIVIC_DB.exec(`ALTER TABLE representatives ADD COLUMN rss_url TEXT`);
+          console.log("\u2705 Migration: rss_url column added successfully");
+        } else {
+          console.log("\u2705 rss_url column already exists, skipping migration");
+        }
+      }
+    } catch (error) {
+      console.warn("\u26A0\uFE0F  Migration warning (rss_url column):", error);
+    }
+    await this.env.CIVIC_DB.exec(`
+      CREATE TABLE IF NOT EXISTS user_bills (
+        user_id TEXT NOT NULL,
+        bill_id TEXT NOT NULL,
+        tracked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (user_id, bill_id)
+      )
+    `);
+    await this.env.CIVIC_DB.exec(`
+      CREATE TABLE IF NOT EXISTS podcasts (
+        id TEXT PRIMARY KEY,
+        user_id TEXT,
+        type TEXT NOT NULL,
+        title TEXT NOT NULL,
+        audio_url TEXT NOT NULL,
+        duration_seconds INTEGER,
+        transcript TEXT,
+        bills_covered TEXT,
+        generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    await this.env.CIVIC_DB.exec(`
+      CREATE TABLE IF NOT EXISTS rss_articles (
+        id TEXT PRIMARY KEY,
+        feed_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT,
+        url TEXT UNIQUE NOT NULL,
+        author TEXT,
+        published_at TIMESTAMP NOT NULL,
+        image_url TEXT,
+        categories TEXT,
+        fetched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    await this.env.CIVIC_DB.exec(`
+      CREATE TABLE IF NOT EXISTS vote_records (
+        id TEXT PRIMARY KEY,
+        bill_id TEXT NOT NULL,
+        representative_bioguide_id TEXT NOT NULL,
+        vote TEXT NOT NULL,
+        vote_date TEXT NOT NULL,
+        chamber TEXT NOT NULL,
+        roll_call_number INTEGER
+      )
+    `);
   }
   async fetch(request) {
     const url = new URL(request.url);
@@ -353,12 +366,8 @@ var web_default = class extends Service {
             error: "Invalid table name"
           }, corsHeaders, 400);
         }
-        const result = await this.env.CIVIC_DB.executeQuery({ sqlQuery: query });
-        if (result.results) {
-          const rows = JSON.parse(result.results);
-          return this.jsonResponse({ rows }, corsHeaders);
-        }
-        return this.jsonResponse({ rows: [] }, corsHeaders);
+        const result = await this.env.CIVIC_DB.prepare(query).all();
+        return this.jsonResponse({ rows: result.results || [] }, corsHeaders);
       }
       if (url.pathname === "/api/admin/count" && request.method === "POST") {
         const body = await request.json();
@@ -369,13 +378,9 @@ var web_default = class extends Service {
             error: "Invalid table name"
           }, corsHeaders, 400);
         }
-        const result = await this.env.CIVIC_DB.executeQuery({ sqlQuery: query });
-        if (result.results) {
-          const data = JSON.parse(result.results);
-          const count = data[0]?.count || 0;
-          return this.jsonResponse({ count }, corsHeaders);
-        }
-        return this.jsonResponse({ count: 0 }, corsHeaders);
+        const result = await this.env.CIVIC_DB.prepare(query).first();
+        const count = result?.count || 0;
+        return this.jsonResponse({ count }, corsHeaders);
       }
       return this.jsonResponse({
         error: "Not Found",
@@ -405,191 +410,176 @@ var web_default = class extends Service {
    * Database Operations - User Management
    */
   async createUser(data) {
-    await this.env.CIVIC_DB.executeQuery({
-      sqlQuery: `INSERT INTO users (
+    await this.env.CIVIC_DB.prepare(`
+      INSERT INTO users (
         id, email, name, zip_code, interests,
         email_notifications, audio_enabled, audio_frequencies
-      ) VALUES (
-        '${data.id}',
-        '${data.email}',
-        ${data.name ? `'${data.name}'` : "NULL"},
-        ${data.zipCode ? `'${data.zipCode}'` : "NULL"},
-        '${JSON.stringify(data.interests || [])}',
-        ${data.emailNotifications ?? true},
-        ${data.audioEnabled ?? true},
-        '${JSON.stringify(data.audioFrequencies || ["daily", "weekly"])}'
-      )`
-    });
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      data.id,
+      data.email,
+      data.name || null,
+      data.zipCode || null,
+      JSON.stringify(data.interests || []),
+      data.emailNotifications ?? true,
+      data.audioEnabled ?? true,
+      JSON.stringify(data.audioFrequencies || ["daily", "weekly"])
+    ).run();
   }
   async getUserByEmail(email) {
-    const result = await this.env.CIVIC_DB.executeQuery({
-      sqlQuery: `SELECT * FROM users WHERE email = '${email}' LIMIT 1`
-    });
-    if (result.results) {
-      const data = JSON.parse(result.results);
-      return data[0] || null;
-    }
-    return null;
+    const result = await this.env.CIVIC_DB.prepare(`
+      SELECT * FROM users WHERE email = ? LIMIT 1
+    `).bind(email).first();
+    return result || null;
   }
   async updateUserPreferences(userId, preferences) {
     const updates = [];
+    const values = [];
     if (preferences.interests !== void 0) {
-      updates.push(`interests = '${JSON.stringify(preferences.interests)}'`);
+      updates.push(`interests = ?`);
+      values.push(JSON.stringify(preferences.interests));
     }
     if (preferences.emailNotifications !== void 0) {
-      updates.push(`email_notifications = ${preferences.emailNotifications}`);
+      updates.push(`email_notifications = ?`);
+      values.push(preferences.emailNotifications);
     }
     if (preferences.audioEnabled !== void 0) {
-      updates.push(`audio_enabled = ${preferences.audioEnabled}`);
+      updates.push(`audio_enabled = ?`);
+      values.push(preferences.audioEnabled);
     }
     if (preferences.audioFrequencies !== void 0) {
-      updates.push(`audio_frequencies = '${JSON.stringify(preferences.audioFrequencies)}'`);
+      updates.push(`audio_frequencies = ?`);
+      values.push(JSON.stringify(preferences.audioFrequencies));
     }
     if (updates.length > 0) {
       updates.push("updated_at = CURRENT_TIMESTAMP");
-      await this.env.CIVIC_DB.executeQuery({
-        sqlQuery: `UPDATE users SET ${updates.join(", ")} WHERE id = '${userId}'`
-      });
+      values.push(userId);
+      await this.env.CIVIC_DB.prepare(`
+        UPDATE users SET ${updates.join(", ")} WHERE id = ?
+      `).bind(...values).run();
     }
   }
   /**
    * Database Operations - Bill Management
    */
   async createBill(data) {
-    const escapeSql = (str) => str.replace(/'/g, "''");
-    await this.env.CIVIC_DB.executeQuery({
-      sqlQuery: `INSERT OR REPLACE INTO bills (
+    await this.env.CIVIC_DB.prepare(`
+      INSERT OR REPLACE INTO bills (
         id, congress, bill_type, bill_number, title, summary, full_text,
         sponsor_bioguide_id, sponsor_name, introduced_date,
         latest_action_date, latest_action_text, status,
-        issue_categories, impact_score, congress_gov_url
-      ) VALUES (
-        '${data.id}',
-        ${data.congress},
-        '${data.billType}',
-        ${data.billNumber},
-        '${escapeSql(data.title)}',
-        ${data.summary ? `'${escapeSql(data.summary)}'` : "NULL"},
-        ${data.fullText ? `'${escapeSql(data.fullText)}'` : "NULL"},
-        ${data.sponsorBioguideId ? `'${data.sponsorBioguideId}'` : "NULL"},
-        ${data.sponsorName ? `'${escapeSql(data.sponsorName)}'` : "NULL"},
-        ${data.introducedDate ? `'${data.introducedDate}'` : "NULL"},
-        ${data.latestActionDate ? `'${data.latestActionDate}'` : "NULL"},
-        ${data.latestActionText ? `'${escapeSql(data.latestActionText)}'` : "NULL"},
-        '${data.status || "introduced"}',
-        '${JSON.stringify(data.issueCategories || [])}',
-        ${data.impactScore || "NULL"},
-        ${data.congressGovUrl ? `'${data.congressGovUrl}'` : "NULL"}
-      )`
-    });
+        issue_categories, impact_score, congress_url
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      data.id,
+      data.congress,
+      data.billType,
+      data.billNumber,
+      data.title,
+      data.summary || null,
+      data.fullText || null,
+      data.sponsorBioguideId || null,
+      data.sponsorName || null,
+      data.introducedDate || null,
+      data.latestActionDate || null,
+      data.latestActionText || null,
+      data.status || "introduced",
+      JSON.stringify(data.issueCategories || []),
+      data.impactScore || null,
+      data.congressGovUrl || null
+    ).run();
   }
   async getBillsByCategory(category, limit = 20) {
-    const result = await this.env.CIVIC_DB.executeQuery({
-      sqlQuery: `SELECT * FROM bills
-                 WHERE issue_categories LIKE '%"${category}"%'
-                 ORDER BY latest_action_date DESC
-                 LIMIT ${limit}`
-    });
-    if (result.results) {
-      const data = JSON.parse(result.results);
-      return data.map((row) => ({
-        ...row,
-        issueCategories: JSON.parse(row.issue_categories)
-      }));
-    }
-    return [];
+    const result = await this.env.CIVIC_DB.prepare(`
+      SELECT * FROM bills
+      WHERE issue_categories LIKE ?
+      ORDER BY latest_action_date DESC
+      LIMIT ?
+    `).bind(`%"${category}"%`, limit).all();
+    return (result.results || []).map((row) => ({
+      ...row,
+      issueCategories: JSON.parse(row.issue_categories)
+    }));
   }
   async getRecentBills(limit = 50) {
-    const result = await this.env.CIVIC_DB.executeQuery({
-      sqlQuery: `SELECT * FROM bills
-                 ORDER BY latest_action_date DESC
-                 LIMIT ${limit}`
-    });
-    if (result.results) {
-      const data = JSON.parse(result.results);
-      return data.map((row) => ({
-        ...row,
-        issueCategories: JSON.parse(row.issue_categories)
-      }));
-    }
-    return [];
+    const result = await this.env.CIVIC_DB.prepare(`
+      SELECT * FROM bills
+      ORDER BY latest_action_date DESC
+      LIMIT ?
+    `).bind(limit).all();
+    return (result.results || []).map((row) => ({
+      ...row,
+      issueCategories: JSON.parse(row.issue_categories)
+    }));
   }
   /**
    * Database Operations - Representative Management
    */
   async createRepresentative(data) {
-    const escapeSql = (str) => str.replace(/'/g, "''");
-    await this.env.CIVIC_DB.executeQuery({
-      sqlQuery: `INSERT OR REPLACE INTO representatives (
+    await this.env.CIVIC_DB.prepare(`
+      INSERT OR REPLACE INTO representatives (
         bioguide_id, name, party, chamber, state, district,
         image_url, office_address, phone, website_url, twitter_handle, committees
-      ) VALUES (
-        '${data.bioguideId}',
-        '${escapeSql(data.name)}',
-        ${data.party ? `'${data.party}'` : "NULL"},
-        '${data.chamber}',
-        '${data.state}',
-        ${data.district ? `'${data.district}'` : "NULL"},
-        ${data.imageUrl ? `'${data.imageUrl}'` : "NULL"},
-        ${data.officeAddress ? `'${escapeSql(data.officeAddress)}'` : "NULL"},
-        ${data.phone ? `'${data.phone}'` : "NULL"},
-        ${data.websiteUrl ? `'${data.websiteUrl}'` : "NULL"},
-        ${data.twitterHandle ? `'${data.twitterHandle}'` : "NULL"},
-        '${JSON.stringify(data.committees || [])}'
-      )`
-    });
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      data.bioguideId,
+      data.name,
+      data.party || null,
+      data.chamber,
+      data.state,
+      data.district || null,
+      data.imageUrl || null,
+      data.officeAddress || null,
+      data.phone || null,
+      data.websiteUrl || null,
+      data.twitterHandle || null,
+      JSON.stringify(data.committees || [])
+    ).run();
   }
   async getRepresentativesByState(state, district) {
-    let query = `SELECT * FROM representatives WHERE state = '${state}'`;
+    let query = `SELECT * FROM representatives WHERE state = ?`;
+    const params = [state];
     if (district) {
-      query += ` AND (district = '${district}' OR chamber = 'senate')`;
+      query += ` AND (district = ? OR chamber = 'senate')`;
+      params.push(district);
     }
-    const result = await this.env.CIVIC_DB.executeQuery({ sqlQuery: query });
-    if (result.results) {
-      const data = JSON.parse(result.results);
-      return data.map((row) => ({
-        ...row,
-        committees: JSON.parse(row.committees)
-      }));
-    }
-    return [];
+    const result = await this.env.CIVIC_DB.prepare(query).bind(...params).all();
+    return (result.results || []).map((row) => ({
+      ...row,
+      committees: JSON.parse(row.committees)
+    }));
   }
   /**
    * Database Operations - RSS Articles
    */
   async createRssArticle(data) {
-    const escapeSql = (str) => str.replace(/'/g, "''");
-    await this.env.CIVIC_DB.executeQuery({
-      sqlQuery: `INSERT OR IGNORE INTO rss_articles (
+    await this.env.CIVIC_DB.prepare(`
+      INSERT OR IGNORE INTO rss_articles (
         id, feed_id, title, description, url, author, published_at, image_url, categories
-      ) VALUES (
-        '${data.id}',
-        '${data.feedId}',
-        '${escapeSql(data.title)}',
-        ${data.description ? `'${escapeSql(data.description)}'` : "NULL"},
-        '${data.url}',
-        ${data.author ? `'${escapeSql(data.author)}'` : "NULL"},
-        '${data.publishedAt}',
-        ${data.imageUrl ? `'${data.imageUrl}'` : "NULL"},
-        '${JSON.stringify(data.categories || [])}'
-      )`
-    });
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      data.id,
+      data.feedId,
+      data.title,
+      data.description || null,
+      data.url,
+      data.author || null,
+      data.publishedAt,
+      data.imageUrl || null,
+      JSON.stringify(data.categories || [])
+    ).run();
   }
   async getRssArticlesByFeed(feedId, limit = 20) {
-    const result = await this.env.CIVIC_DB.executeQuery({
-      sqlQuery: `SELECT * FROM rss_articles
-                 WHERE feed_id = '${feedId}'
-                 ORDER BY published_at DESC
-                 LIMIT ${limit}`
-    });
-    if (result.results) {
-      const data = JSON.parse(result.results);
-      return data.map((row) => ({
-        ...row,
-        categories: JSON.parse(row.categories)
-      }));
-    }
-    return [];
+    const result = await this.env.CIVIC_DB.prepare(`
+      SELECT * FROM rss_articles
+      WHERE feed_id = ?
+      ORDER BY published_at DESC
+      LIMIT ?
+    `).bind(feedId, limit).all();
+    return (result.results || []).map((row) => ({
+      ...row,
+      categories: JSON.parse(row.categories)
+    }));
   }
 };
 

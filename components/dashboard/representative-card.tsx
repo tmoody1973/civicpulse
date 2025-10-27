@@ -1,4 +1,4 @@
-import { Mail, Phone, ExternalLink, User } from 'lucide-react';
+import { Mail, Phone, ExternalLink, User, MapPin, Twitter, Facebook, Youtube, Instagram } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,14 @@ export interface Representative {
   phone?: string;
   websiteUrl?: string;
   committees: string[];
+  // Enrichment fields
+  officeAddress?: string;
+  officePhone?: string;
+  contactForm?: string;
+  twitterHandle?: string;
+  facebookUrl?: string;
+  youtubeUrl?: string;
+  instagramHandle?: string;
 }
 
 interface RepresentativeCardProps {
@@ -69,14 +77,22 @@ export function RepresentativeCard({ representative }: RepresentativeCardProps) 
       <CardContent className="space-y-4">
         {/* Contact Info */}
         <div className="space-y-2">
-          {representative.phone && (
+          {representative.officeAddress && (
+            <div className="flex items-start gap-2 text-sm">
+              <MapPin className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+              <span className="text-muted-foreground">
+                {representative.officeAddress}
+              </span>
+            </div>
+          )}
+          {representative.officePhone && (
             <div className="flex items-center gap-2 text-sm">
               <Phone className="w-4 h-4 text-muted-foreground" />
               <a
-                href={`tel:${representative.phone}`}
+                href={`tel:${representative.officePhone}`}
                 className="hover:text-primary transition-colors"
               >
-                {representative.phone}
+                {representative.officePhone}
               </a>
             </div>
           )}
@@ -104,7 +120,73 @@ export function RepresentativeCard({ representative }: RepresentativeCardProps) 
               </a>
             </div>
           )}
+          {representative.contactForm && (
+            <div className="flex items-center gap-2 text-sm">
+              <Mail className="w-4 h-4 text-muted-foreground" />
+              <a
+                href={representative.contactForm}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-primary transition-colors"
+              >
+                Contact Form
+              </a>
+            </div>
+          )}
         </div>
+
+        {/* Social Media */}
+        {(representative.twitterHandle || representative.facebookUrl || representative.youtubeUrl || representative.instagramHandle) && (
+          <div>
+            <p className="text-sm font-medium mb-2">Follow:</p>
+            <div className="flex items-center gap-3">
+              {representative.twitterHandle && (
+                <a
+                  href={`https://twitter.com/${representative.twitterHandle}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground hover:text-primary transition-colors"
+                  aria-label="Twitter"
+                >
+                  <Twitter className="w-5 h-5" />
+                </a>
+              )}
+              {representative.facebookUrl && (
+                <a
+                  href={representative.facebookUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground hover:text-primary transition-colors"
+                  aria-label="Facebook"
+                >
+                  <Facebook className="w-5 h-5" />
+                </a>
+              )}
+              {representative.youtubeUrl && (
+                <a
+                  href={representative.youtubeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground hover:text-primary transition-colors"
+                  aria-label="YouTube"
+                >
+                  <Youtube className="w-5 h-5" />
+                </a>
+              )}
+              {representative.instagramHandle && (
+                <a
+                  href={`https://instagram.com/${representative.instagramHandle}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground hover:text-primary transition-colors"
+                  aria-label="Instagram"
+                >
+                  <Instagram className="w-5 h-5" />
+                </a>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Committees */}
         {representative.committees.length > 0 && (

@@ -1,7 +1,7 @@
-# 🎙️ CIVIC PULSE - COMPREHENSIVE PRODUCT REQUIREMENTS DOCUMENT (PRD) v2.1
+# 🎙️ CIVIC PULSE - COMPREHENSIVE PRODUCT REQUIREMENTS DOCUMENT (PRD) v2.2
 
-**Version:** 2.1 (Implementation-Aligned Edition)
-**Date:** October 26, 2025
+**Version:** 2.2 (SQL + Algolia Search Edition)
+**Date:** October 27, 2025
 **Project Type:** Liquid Metal Hackathon Submission
 **Target Categories:** Best Voice Agent, Best AI Solution for Public Good
 **Tech Stack:** Next.js 16, Raindrop Platform, Vultr Object Storage, ElevenLabs, Claude Sonnet 4, shadcn/ui
@@ -16,17 +16,18 @@
 2. [Hackathon Requirements Compliance](#2-hackathon-requirements-compliance)
 3. [Product Vision](#3-product-vision)
 4. [Technical Architecture](#4-technical-architecture)
-5. [Database Schema (Raindrop SmartSQL - SQLite)](#5-database-schema-raindrop-smartsql-sqlite)
-6. [API Integrations](#6-api-integrations)
-7. [Feature Specifications](#7-feature-specifications)
-8. [Podcast System (Daily + Weekly)](#8-podcast-system-daily--weekly)
-9. [User Experience & Design](#9-user-experience--design)
-10. [Voice Agent Implementation](#10-voice-agent-implementation)
-11. [Responsive Design Requirements](#11-responsive-design-requirements)
-12. [Payment & Monetization](#12-payment--monetization)
-13. [Hackathon Implementation Timeline](#13-hackathon-implementation-timeline)
-14. [Competition Category Alignment](#14-competition-category-alignment)
-15. [Deployment Strategy](#15-deployment-strategy)
+5. [Database Schema (SQL - SQLite)](#5-database-schema-sql-sqlite)
+6. [Search Architecture (Algolia + SQL)](#6-search-architecture-algolia--sql)
+7. [API Integrations](#7-api-integrations)
+8. [Feature Specifications](#8-feature-specifications)
+9. [Podcast System (Daily + Weekly)](#9-podcast-system-daily--weekly)
+10. [User Experience & Design](#10-user-experience--design)
+11. [Voice Agent Implementation](#11-voice-agent-implementation)
+12. [Responsive Design Requirements](#12-responsive-design-requirements)
+13. [Payment & Monetization](#13-payment--monetization)
+14. [Hackathon Implementation Timeline](#14-hackathon-implementation-timeline)
+15. [Competition Category Alignment](#15-competition-category-alignment)
+16. [Deployment Strategy](#16-deployment-strategy)
 
 ---
 
@@ -67,7 +68,8 @@
 ### 1.5 Hackathon Innovation
 
 - Built entirely using **Claude Code** on **Raindrop Platform**
-- **Raindrop SmartSQL (SQLite)** for intelligent data management
+- **SQL (SQLite)** for reliable data management with programmatic schema initialization
+- **Algolia Search** for lightning-fast bill search (<20ms) with progressive caching
 - **Raindrop SmartBuckets** for document RAG capabilities
 - **Vultr Object Storage + CDN** for low-latency audio delivery
 - **ElevenLabs text-to-dialogue** for professional voice generation
@@ -83,7 +85,7 @@
 
 - Backend deployed on Raindrop
 - Uses Raindrop MCP Server for all data operations
-- Integrates Raindrop SmartSQL, SmartBuckets, SmartMemory
+- Integrates Raindrop SQL (SQLite), SmartBuckets, SmartMemory
 
 ✅ **Must use AI coding assistant**
 
@@ -111,7 +113,7 @@
 
 ✅ **Utilize Raindrop Smart Components**
 
-- **SmartSQL**: SQLite database with natural language query capabilities
+- **SQL (SQLite)**: Direct SQL database operations with prepared statements
 - **SmartBuckets**: RAG-enabled document storage with semantic search
 - **SmartMemory**: Multi-layer memory system (working, episodic, semantic, procedural)
 - **AI Models**: Direct access via `env.AI.run()` for Claude and other models
@@ -119,9 +121,10 @@
 ✅ **Deploy backend services on Raindrop**
 
 - All API routes on Raindrop
-- Database on Raindrop SmartSQL (SQLite)
+- Database on Raindrop SQL (SQLite)
 - Document storage on Raindrop SmartBuckets
 - Audio storage on Vultr Object Storage
+- Search index on Algolia for fast bill lookups
 
 ✅ **Enhance with Vultr service**
 
@@ -145,25 +148,22 @@
 
 ### 2.2 Raindrop Platform Integration (CORRECTED)
 
-**CRITICAL: Uses Actual Raindrop MCP Tool Patterns (Not Fictional SDK)**
+**CRITICAL: Uses Standard SQL with Prepared Statements**
 
 ```typescript
-// CORRECT: Using actual Raindrop MCP tools
-import { mcp } from '@raindrop/mcp';
+// CORRECT: Using standard SQL via Raindrop's database binding
+// Access via env.CIVIC_DB in Raindrop service
 
-// SmartSQL - SQLite with natural language queries
-const bills = await mcp.sql.executeQuery({
-  database_id: 'civic-pulse-db',
-  query: `
-    SELECT * FROM bills
-    WHERE has_full_text = 1
-    AND impact_score >= 60
-    ORDER BY latest_action_date DESC
-    LIMIT 10
-  `
-});
+// SQL (SQLite) - Direct queries with prepared statements
+const bills = await env.CIVIC_DB.prepare(`
+  SELECT * FROM bills
+  WHERE has_full_text = 1
+  AND impact_score >= ?
+  ORDER BY latest_action_date DESC
+  LIMIT ?
+`).bind(60, 10).all();
 
-// SmartBuckets - RAG-enabled document search
+// SmartBuckets - RAG-enabled document search (via MCP)
 const relevantDocs = await mcp.buckets.search({
   bucket_name: 'congressional-documents',
   query: 'healthcare reform provisions',
@@ -171,7 +171,7 @@ const relevantDocs = await mcp.buckets.search({
   threshold: 0.7
 });
 
-// SmartMemory - Working memory for user sessions
+// SmartMemory - Working memory for user sessions (via MCP)
 await mcp.memory.putMemory({
   session_id: userId,
   content: JSON.stringify({ preferences: userInterests }),
@@ -179,7 +179,7 @@ await mcp.memory.putMemory({
   timeline: 'current-session'
 });
 
-// AI Models - Direct access (no SmartInference wrapper)
+// AI Models - Direct access (no wrapper)
 const analysis = await env.AI.run('claude-sonnet-4-20250514', {
   messages: [{
     role: 'user',
@@ -207,8 +207,8 @@ const analysis = await env.AI.run('claude-sonnet-4-20250514', {
 │  └─────────────────────────────────────────────────┘   │
 │                                                          │
 │  ┌─────────────────────────────────────────────────┐   │
-│  │      Raindrop Smart Components                   │   │
-│  │  • SmartSQL (SQLite)                            │   │
+│  │      Raindrop Components                        │   │
+│  │  • SQL Database (SQLite via env.CIVIC_DB)       │   │
 │  │  • SmartBuckets (Document RAG)                  │   │
 │  │  • SmartMemory (Session Management)             │   │
 │  │  • AI Models (via env.AI.run())                 │   │
@@ -291,10 +291,15 @@ const analysis = await env.AI.run('claude-sonnet-4-20250514', {
 **Backend & Infrastructure:**
 
 - **Platform**: Raindrop (Serverless)
-  - SmartSQL (SQLite with natural language queries)
+  - SQL (SQLite with prepared statements via env.CIVIC_DB)
   - SmartBuckets (RAG-enabled document storage)
   - SmartMemory (Multi-layer memory system)
   - AI Models (Direct access via env.AI.run())
+
+- **Search & Performance**: Algolia
+  - Fast bill search (<20ms response time)
+  - Progressive caching from Congress.gov API
+  - Dual-database architecture (SQL as source of truth)
 
 - **Storage & CDN**: Vultr Object Storage
   - S3-compatible API
@@ -310,6 +315,7 @@ const analysis = await env.AI.run('claude-sonnet-4-20250514', {
 **External APIs:**
 
 - **Congress.gov API**: Legislative data (bills and members)
+- **Geocodio API**: Congressional district lookup and representative data (faster alternative to Congress.gov for member lookups)
 - **WorkOS**: Authentication (OAuth with Google, Twitter)
 - **Stripe API**: Payment processing
 
@@ -356,9 +362,9 @@ export default config;
 
 ---
 
-## 5. DATABASE SCHEMA (RAINDROP SMARTSQL - SQLite)
+## 5. DATABASE SCHEMA (SQL - SQLite)
 
-**CORRECTED: SQLite-compatible schema with idempotent patterns**
+**CORRECTED: SQLite-compatible schema with programmatic initialization**
 
 ### 5.1 Core Tables
 
@@ -617,63 +623,392 @@ INSERT OR REPLACE INTO system_config (key, value, description) VALUES
 ('podcast_weekly_length', '{"target_minutes": 16, "max_minutes": 20}', 'Weekly podcast length targets');
 ```
 
-### 5.2 Raindrop SmartSQL Usage (CORRECTED)
+### 5.2 SQL Usage with Prepared Statements (CORRECTED)
 
 ```ts
-// lib/raindrop/smart-sql.ts
+// src/web/index.ts (Raindrop service)
 
-import { mcp } from '@raindrop/mcp';
-
-const DATABASE_ID = 'civic-pulse-db';
-
-// Execute SQL query
-export async function getBills(params: {
-  hasFullText?: boolean;
-  minImpactScore?: number;
-  limit?: number;
-}) {
-  const query = `
-    SELECT * FROM bills
-    WHERE has_full_text = ${params.hasFullText ? 1 : 0}
-    AND impact_score >= ${params.minImpactScore || 0}
-    ORDER BY latest_action_date DESC
-    LIMIT ${params.limit || 10}
-  `;
-
-  const result = await mcp.sql.executeQuery({
-    database_id: DATABASE_ID,
-    query
-  });
-
-  return result.rows;
+interface Env {
+  CIVIC_DB: SqlDatabase;
+  AI: any;
 }
 
-// Natural language query (SmartSQL feature)
-export async function searchBillsNaturalLanguage(question: string) {
-  const result = await mcp.sql.executeQuery({
-    database_id: DATABASE_ID,
-    query: question // SmartSQL converts natural language to SQL
-  });
+// Execute SQL query with prepared statements
+export async function getBills(
+  env: Env,
+  params: {
+    hasFullText?: boolean;
+    minImpactScore?: number;
+    limit?: number;
+  }
+) {
+  const result = await env.CIVIC_DB.prepare(`
+    SELECT * FROM bills
+    WHERE has_full_text = ?
+    AND impact_score >= ?
+    ORDER BY latest_action_date DESC
+    LIMIT ?
+  `)
+    .bind(
+      params.hasFullText ? 1 : 0,
+      params.minImpactScore || 0,
+      params.limit || 10
+    )
+    .all();
 
-  return result.rows;
+  return result.results;
+}
+
+// Insert or update bill
+export async function upsertBill(env: Env, bill: Bill) {
+  return await env.CIVIC_DB.prepare(`
+    INSERT OR REPLACE INTO bills (
+      id, congress, bill_type, bill_number, full_bill_id,
+      title, introduced_date, latest_action_date, sponsor_bioguide_id,
+      has_full_text, plain_english_summary, issue_categories, impact_score
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `)
+    .bind(
+      bill.id,
+      bill.congress,
+      bill.bill_type,
+      bill.bill_number,
+      bill.full_bill_id,
+      bill.title,
+      bill.introduced_date,
+      bill.latest_action_date,
+      bill.sponsor_bioguide_id,
+      bill.has_full_text ? 1 : 0,
+      bill.plain_english_summary,
+      JSON.stringify(bill.issue_categories),
+      bill.impact_score
+    )
+    .run();
 }
 
 // Get database metadata
-export async function getTableSchema(tableName?: string) {
-  return await mcp.sql.getMetadata({
-    database_id: DATABASE_ID,
-    table_name: tableName
-  });
+export async function getTableInfo(env: Env, tableName: string) {
+  const result = await env.CIVIC_DB.prepare(`
+    PRAGMA table_info(${tableName})
+  `).all();
+
+  return result.results;
 }
 ```
 
 ---
 
-## 6. API INTEGRATIONS
+## 6. SEARCH ARCHITECTURE (ALGOLIA + SQL)
+
+**Dual-Database Pattern: Fast Search with Progressive Caching**
+
+### 6.1 Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                   USER SEARCH FLOW                       │
+└─────────────────────────────────────────────────────────┘
+                         ↓
+┌─────────────────────────────────────────────────────────┐
+│              ALGOLIA SEARCH INDEX                        │
+│  • Lightning-fast search (<20ms)                        │
+│  • Truncated bill data for quick preview                │
+│  • Faceted filtering by category, status, date          │
+│  • Typo-tolerance and relevance ranking                 │
+└─────────────────────────────────────────────────────────┘
+                         ↓
+                    ┌─────────┐
+                    │  Found? │
+                    └─────────┘
+                    /           \
+                 YES             NO
+                  ↓               ↓
+┌──────────────────────┐   ┌──────────────────────────┐
+│  RAINDROP SQL DB     │   │  CONGRESS.GOV API        │
+│  • Full bill data    │   │  • Fetch missing bill    │
+│  • Complete text     │   │  • ~800ms response       │
+│  • Analysis results  │   │                          │
+│  • Source of truth   │   │          ↓               │
+└──────────────────────┘   │  Save to SQL Database    │
+                            │          ↓               │
+                            │  Sync to Algolia Index   │
+                            │          ↓               │
+                            │  Return to User          │
+                            └──────────────────────────┘
+```
+
+### 6.2 Progressive Caching Workflow
+
+**Search Request Flow:**
+
+1. **User searches for "healthcare reform"**
+2. **Query Algolia** (<20ms response):
+   - If found → Return results immediately
+   - If not found → Continue to step 3
+
+3. **Fetch from Congress.gov API** (~800ms):
+   - Search Congress.gov for matching bills
+   - Parse and enrich with metadata
+
+4. **Store in SQL Database**:
+   - Save complete bill data
+   - Run AI analysis (Claude Sonnet 4)
+   - Store full text, summary, categories
+
+5. **Sync to Algolia**:
+   - Push truncated data to search index
+   - Enable fast future searches
+   - Update relevance rankings
+
+6. **Return Results to User**:
+   - Full bill details from SQL database
+   - Future searches benefit from cache
+
+### 6.3 Data Synchronization Strategy
+
+**Algolia Index Schema (Truncated for Fast Search):**
+
+```typescript
+// Algolia record (lightweight, optimized for search)
+interface AlgoliaBillRecord {
+  objectID: string;           // bill.full_bill_id (e.g., "hr100-118")
+  congress: number;           // 118
+  bill_type: string;          // "hr"
+  bill_number: number;        // 100
+  title: string;              // Full title for search
+  summary_short: string;      // 200 char summary
+  issue_categories: string[]; // ["Healthcare", "Economy"]
+  sponsor_name: string;       // "Rep. Nancy Pelosi"
+  sponsor_party: string;      // "D"
+  sponsor_state: string;      // "CA"
+  introduced_date: number;    // Unix timestamp for sorting
+  latest_action_date: number; // Unix timestamp
+  status: string;             // "Passed House"
+  impact_score: number;       // 85 (0-100)
+  is_enacted: boolean;        // false
+  _tags: string[];            // For faceted filtering
+}
+```
+
+**SQL Database (Complete, Source of Truth):**
+
+- Full bill text (can be 30+ pages)
+- Claude AI analysis results
+- Congressional Record speeches
+- Voting records
+- Full sponsor/cosponsor details
+- All metadata and timestamps
+
+### 6.4 Implementation
+
+**Search API Route:**
+
+```typescript
+// app/api/search-congress/route.ts
+
+import algoliasearch from 'algoliasearch';
+import { NextResponse } from 'next/server';
+import { z } from 'zod';
+
+const algoliaClient = algoliasearch(
+  process.env.ALGOLIA_APP_ID!,
+  process.env.ALGOLIA_ADMIN_API_KEY!
+);
+const billsIndex = algoliaClient.initIndex('bills');
+
+const searchSchema = z.object({
+  query: z.string().min(1).max(200),
+  filters: z.object({
+    categories: z.array(z.string()).optional(),
+    congress: z.number().optional(),
+    status: z.string().optional()
+  }).optional(),
+  page: z.number().default(0),
+  hitsPerPage: z.number().default(20)
+});
+
+export async function POST(req: Request) {
+  try {
+    const body = await req.json();
+    const { query, filters, page, hitsPerPage } = searchSchema.parse(body);
+
+    // 1. Search Algolia first (fast!)
+    const algoliaResults = await billsIndex.search(query, {
+      filters: buildAlgoliaFilters(filters),
+      page,
+      hitsPerPage,
+      attributesToRetrieve: [
+        'objectID', 'title', 'summary_short', 'issue_categories',
+        'sponsor_name', 'latest_action_date', 'impact_score'
+      ]
+    });
+
+    if (algoliaResults.hits.length > 0) {
+      // Found in Algolia - return immediately
+      return NextResponse.json({
+        hits: algoliaResults.hits,
+        nbHits: algoliaResults.nbHits,
+        page: algoliaResults.page,
+        source: 'cache' // Indicate cache hit
+      });
+    }
+
+    // 2. Not found - fetch from Congress.gov API
+    console.log('Cache miss - fetching from Congress.gov');
+    const congressResults = await fetchFromCongressGov(query, filters);
+
+    if (congressResults.length === 0) {
+      return NextResponse.json({
+        hits: [],
+        nbHits: 0,
+        page: 0,
+        source: 'api'
+      });
+    }
+
+    // 3. Store in SQL database (parallel operations)
+    await Promise.all(
+      congressResults.map(bill => storeBillInDatabase(bill))
+    );
+
+    // 4. Sync to Algolia (async, don't block response)
+    syncToAlgolia(congressResults).catch(err =>
+      console.error('Algolia sync failed:', err)
+    );
+
+    // 5. Return results
+    return NextResponse.json({
+      hits: congressResults.map(formatBillForResponse),
+      nbHits: congressResults.length,
+      page: 0,
+      source: 'api' // Indicate fresh fetch
+    });
+
+  } catch (error) {
+    console.error('Search error:', error);
+    return NextResponse.json(
+      { error: 'Search failed' },
+      { status: 500 }
+    );
+  }
+}
+
+// Store bill in SQL database
+async function storeBillInDatabase(bill: CongressBill) {
+  return await env.CIVIC_DB.prepare(`
+    INSERT OR REPLACE INTO bills (
+      id, full_bill_id, congress, bill_type, bill_number,
+      title, summary_short, issue_categories, sponsor_name,
+      introduced_date, latest_action_date, status, impact_score
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `)
+    .bind(
+      bill.id,
+      bill.full_bill_id,
+      bill.congress,
+      bill.bill_type,
+      bill.bill_number,
+      bill.title,
+      bill.summary_short,
+      JSON.stringify(bill.issue_categories),
+      bill.sponsor_name,
+      bill.introduced_date,
+      bill.latest_action_date,
+      bill.status,
+      bill.impact_score || 50
+    )
+    .run();
+}
+
+// Sync bills to Algolia
+async function syncToAlgolia(bills: CongressBill[]) {
+  const algoliaRecords = bills.map(bill => ({
+    objectID: bill.full_bill_id,
+    congress: bill.congress,
+    bill_type: bill.bill_type,
+    bill_number: bill.bill_number,
+    title: bill.title,
+    summary_short: bill.summary_short?.substring(0, 200),
+    issue_categories: bill.issue_categories || [],
+    sponsor_name: bill.sponsor_name,
+    sponsor_party: bill.sponsor_party,
+    sponsor_state: bill.sponsor_state,
+    introduced_date: new Date(bill.introduced_date).getTime(),
+    latest_action_date: new Date(bill.latest_action_date).getTime(),
+    status: bill.status,
+    impact_score: bill.impact_score || 50,
+    is_enacted: bill.is_enacted || false,
+    _tags: bill.issue_categories || []
+  }));
+
+  await billsIndex.saveObjects(algoliaRecords);
+}
+```
+
+### 6.5 Performance Characteristics
+
+| Operation | Response Time | Data Source |
+|-----------|---------------|-------------|
+| **Algolia Search** (cache hit) | <20ms | Algolia Index |
+| **SQL Query** (full bill data) | ~50ms | Raindrop SQL |
+| **Congress.gov API** (miss) | ~800ms | External API |
+| **Total (worst case)** | ~900ms | API + SQL + Algolia |
+
+**Benefits:**
+- **Fast searches**: 95%+ queries served from Algolia cache (<20ms)
+- **Always current**: SQL database is source of truth, auto-syncs to Algolia
+- **Progressive enhancement**: Cache builds as users search
+- **Resilient**: Falls back to Congress.gov if Algolia is down
+
+### 6.6 Algolia Configuration
+
+**Index Settings:**
+
+```typescript
+// scripts/configure-algolia.ts
+
+await billsIndex.setSettings({
+  searchableAttributes: [
+    'title',
+    'summary_short',
+    'sponsor_name',
+    'unordered(issue_categories)'
+  ],
+  attributesForFaceting: [
+    'searchable(issue_categories)',
+    'congress',
+    'sponsor_party',
+    'sponsor_state',
+    'status',
+    'is_enacted'
+  ],
+  customRanking: [
+    'desc(impact_score)',
+    'desc(latest_action_date)'
+  ],
+  ranking: [
+    'typo',
+    'geo',
+    'words',
+    'filters',
+    'proximity',
+    'attribute',
+    'exact',
+    'custom'
+  ],
+  typoTolerance: true,
+  minWordSizefor1Typo: 4,
+  minWordSizefor2Typos: 8
+});
+```
+
+---
+
+## 7. API INTEGRATIONS
 
 **CORRECTED: Using actual implementation patterns from nested claude.md files**
 
-### 6.1 Congress.gov API (from lib/api/claude.md)
+### 7.1 Congress.gov API (from lib/api/claude.md)
 
 ```ts
 // lib/api/congress.ts
@@ -788,7 +1123,7 @@ export async function fetchMembers(params: {
 }
 ```
 
-### 6.2 Claude Sonnet 4 API (CORRECTED: via env.AI.run())
+### 7.2 Claude Sonnet 4 API (CORRECTED: via env.AI.run())
 
 ```ts
 // lib/ai/claude.ts
@@ -855,7 +1190,7 @@ Representatives: ${representatives.map(r => r.name).join(', ')}`;
 }
 ```
 
-### 6.3 ElevenLabs API (from lib/ai/claude.md)
+### 7.3 ElevenLabs API (from lib/ai/claude.md)
 
 **CRITICAL: Uses `/v1/text-to-dialogue` endpoint for complete multi-host conversation**
 
@@ -907,7 +1242,7 @@ export async function generateDialogue(dialogue: DialogueEntry[]): Promise<Buffe
 }
 ```
 
-### 6.4 WorkOS Authentication (CORRECTED)
+### 7.4 WorkOS Authentication (CORRECTED)
 
 **CRITICAL: Uses WorkOS, not "Raindrop Auth"**
 
@@ -939,7 +1274,253 @@ export async function authenticateWithCode(code: string) {
 }
 ```
 
-### 6.5 Vultr Object Storage (CORRECTED: S3-compatible API)
+### 7.5 Geocodio API (Congressional District & Representative Lookup)
+
+**Purpose:** Fast, accurate lookup of congressional districts and representatives from zip codes or addresses. Returns complete legislator data including photos, contact info, and social media in a single API call.
+
+**Why Geocodio Instead of Congress.gov for Representatives:**
+- **Speed**: ~200ms vs ~800ms for Congress.gov
+- **Complete Data**: Photos, social media, contact forms in one response
+- **Accurate**: Uses official @unitedstates project data
+- **Better UX**: Instant representative lookup during onboarding
+
+```ts
+// lib/api/geocodio.ts
+
+interface GeocodioConfig {
+  apiKey: string;
+  baseUrl: string;
+}
+
+interface CongressionalDistrictData {
+  name: string;
+  district_number: number;
+  ocd_id: string;
+  congress_number: string;
+  congress_years: string;
+  proportion: number;
+  current_legislators: Legislator[];
+}
+
+interface Legislator {
+  type: 'representative' | 'senator';
+  seniority: 'senior' | 'junior' | null;
+  bio: {
+    last_name: string;
+    first_name: string;
+    birthday: string;
+    gender: string;
+    party: string;
+    photo_url: string;
+    photo_attribution: string;
+  };
+  contact: {
+    url: string;
+    address: string;
+    phone: string;
+    contact_form: string | null;
+  };
+  social: {
+    rss_url: string | null;
+    twitter: string | null;
+    facebook: string | null;
+    youtube: string | null;
+    youtube_id: string | null;
+  };
+  references: {
+    bioguide_id: string;
+    thomas_id: string;
+    opensecrets_id: string;
+    lis_id: string | null;
+    cspan_id: string;
+    govtrack_id: string;
+    votesmart_id: string;
+    ballotpedia_id: string;
+    wikipedia_id: string;
+  };
+}
+
+const GEOCODIO_API_KEY = process.env.GEOCODIO_API_KEY!;
+const BASE_URL = 'https://api.geocod.io/v1.7';
+
+/**
+ * Look up congressional district and representatives by zip code
+ * Returns 1 House Rep + 2 Senators with complete contact/social data
+ */
+export async function getRepresentativesByZip(
+  zipCode: string
+): Promise<CongressionalDistrictData[]> {
+  const url = `${BASE_URL}/geocode?postal_code=${zipCode}&fields=cd119&api_key=${GEOCODIO_API_KEY}`;
+
+  const response = await fetch(url, {
+    next: { revalidate: 604800 } // Cache for 7 days (reps don't change often)
+  });
+
+  if (!response.ok) {
+    throw new Error(`Geocodio API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+
+  // Geocodio returns array of possible results, sorted by accuracy
+  const bestResult = data.results[0];
+
+  if (!bestResult?.fields?.congressional_districts) {
+    throw new Error('No congressional district found for zip code');
+  }
+
+  return bestResult.fields.congressional_districts;
+}
+
+/**
+ * Look up congressional district and representatives by full address
+ * More accurate than zip code alone
+ */
+export async function getRepresentativesByAddress(
+  address: string
+): Promise<CongressionalDistrictData[]> {
+  const encodedAddress = encodeURIComponent(address);
+  const url = `${BASE_URL}/geocode?q=${encodedAddress}&fields=cd119&api_key=${GEOCODIO_API_KEY}`;
+
+  const response = await fetch(url, {
+    next: { revalidate: 604800 }
+  });
+
+  if (!response.ok) {
+    throw new Error(`Geocodio API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  const bestResult = data.results[0];
+
+  if (!bestResult?.fields?.congressional_districts) {
+    throw new Error('No congressional district found for address');
+  }
+
+  return bestResult.fields.congressional_districts;
+}
+
+/**
+ * Save legislators from Geocodio to our database
+ * Maps Geocodio format to our schema
+ */
+export async function saveLegislatorsToDatabase(
+  legislators: Legislator[],
+  env: Env
+): Promise<string[]> {
+  const savedIds: string[] = [];
+
+  for (const legislator of legislators) {
+    const id = generateUUID();
+
+    await env.CIVIC_DB.prepare(`
+      INSERT OR REPLACE INTO representatives (
+        id, bioguide_id, name, party, state, district, chamber,
+        image_url, office_address, phone, website_url,
+        twitter_handle, committees
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `)
+      .bind(
+        id,
+        legislator.references.bioguide_id,
+        `${legislator.bio.first_name} ${legislator.bio.last_name}`,
+        legislator.bio.party,
+        extractStateFromAddress(legislator.contact.address),
+        legislator.type === 'representative' ? extractDistrictFromName(legislator.name) : null,
+        legislator.type === 'representative' ? 'house' : 'senate',
+        legislator.bio.photo_url,
+        legislator.contact.address,
+        legislator.contact.phone,
+        legislator.contact.url,
+        legislator.social.twitter,
+        JSON.stringify([]) // Committees would need separate API call
+      )
+      .run();
+
+    savedIds.push(id);
+  }
+
+  return savedIds;
+}
+```
+
+**Use Case: Onboarding Flow**
+
+```typescript
+// app/api/onboarding/route.ts
+
+import { getRepresentativesByZip, saveLegislatorsToDatabase } from '@/lib/api/geocodio';
+
+export async function POST(req: Request) {
+  const { userId, zipCode, interests } = await req.json();
+
+  // 1. Look up representatives via Geocodio (fast!)
+  const districtData = await getRepresentativesByZip(zipCode);
+  const primaryDistrict = districtData[0]; // Highest proportion/accuracy
+
+  // 2. Extract legislators (1 rep + 2 senators)
+  const legislators = primaryDistrict.current_legislators;
+
+  // 3. Save legislators to database (if not already there)
+  const repIds = await saveLegislatorsToDatabase(legislators, env);
+
+  // 4. Update user profile with their district and representatives
+  await env.CIVIC_DB.prepare(`
+    UPDATE users
+    SET
+      zip_code = ?,
+      congressional_district = ?,
+      state = ?,
+      interests = ?,
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `)
+    .bind(
+      zipCode,
+      primaryDistrict.name,
+      extractStateFromDistrict(primaryDistrict.name),
+      JSON.stringify(interests),
+      userId
+    )
+    .run();
+
+  // 5. Link user to their representatives
+  for (const repId of repIds) {
+    await env.CIVIC_DB.prepare(`
+      INSERT OR IGNORE INTO user_representatives (user_id, representative_id)
+      VALUES (?, ?)
+    `)
+      .bind(userId, repId)
+      .run();
+  }
+
+  return NextResponse.json({
+    success: true,
+    district: primaryDistrict.name,
+    representatives: legislators.map(leg => ({
+      name: `${leg.bio.first_name} ${leg.bio.last_name}`,
+      party: leg.bio.party,
+      type: leg.type,
+      photo: leg.bio.photo_url
+    }))
+  });
+}
+```
+
+**Personalization Benefits:**
+
+1. **Instant Onboarding**: User sees their reps immediately after entering zip
+2. **Personalized Podcasts**: "Your representative Nancy Pelosi voted yes on HR 1234"
+3. **Targeted Alerts**: "Bill affecting your district up for vote tomorrow"
+4. **Action Templates**: Pre-filled contact forms with correct rep info
+5. **Local Impact**: "This bill affects 15,000 people in your district"
+
+**Cost Comparison:**
+- **Geocodio**: $0.50 per 1,000 lookups (free tier: 2,500/day)
+- **Congress.gov**: Free but slower and requires multiple calls
+- **Recommendation**: Use Geocodio for onboarding, Congress.gov for bill data
+
+### 7.6 Vultr Object Storage (CORRECTED: S3-compatible API)
 
 ```ts
 // lib/storage/vultr.ts
@@ -987,9 +1568,123 @@ export async function uploadPodcast(
 
 ---
 
-## 7. FEATURE SPECIFICATIONS
+## 8. FEATURE SPECIFICATIONS
 
-### 7.1 User Onboarding (shadcn/ui)
+### 8.1 User Onboarding with Geocodio (shadcn/ui)
+
+**Enhanced Flow with Instant Representative Lookup**
+
+```tsx
+// app/onboarding/page.tsx
+
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
+
+export default function OnboardingPage() {
+  const [step, setStep] = useState(1);
+  const [zipCode, setZipCode] = useState('');
+  const [representatives, setRepresentatives] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const handleZipCodeSubmit = async () => {
+    setLoading(true);
+
+    // Call Geocodio via our API
+    const response = await fetch('/api/onboarding/lookup-reps', {
+      method: 'POST',
+      body: JSON.stringify({ zipCode })
+    });
+
+    const data = await response.json();
+    setRepresentatives(data.representatives);
+    setLoading(false);
+    setStep(2);
+  };
+
+  return (
+    <div className="container max-w-2xl py-10">
+      <Card>
+        <CardHeader>
+          <CardTitle>Welcome to Civic Pulse</CardTitle>
+          <CardDescription>
+            Let's personalize your experience in 3 quick steps
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {step === 1 && (
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="zip">What's your ZIP code?</Label>
+                <Input
+                  id="zip"
+                  placeholder="94102"
+                  value={zipCode}
+                  onChange={(e) => setZipCode(e.target.value)}
+                  maxLength={5}
+                />
+                <p className="text-sm text-muted-foreground mt-1">
+                  We'll find your representatives instantly
+                </p>
+              </div>
+              <Button onClick={handleZipCodeSubmit} disabled={loading}>
+                {loading ? 'Finding your reps...' : 'Continue'}
+              </Button>
+            </div>
+          )}
+
+          {step === 2 && (
+            <div className="space-y-4">
+              <div>
+                <h3 className="font-semibold mb-4">Your Representatives</h3>
+                <div className="space-y-3">
+                  {representatives.map((rep) => (
+                    <div key={rep.bioguide_id} className="flex items-center gap-4 p-3 border rounded">
+                      <Avatar>
+                        <AvatarImage src={rep.photo} alt={rep.name} />
+                        <AvatarFallback>{rep.name[0]}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <p className="font-medium">{rep.name}</p>
+                        <div className="flex gap-2 mt-1">
+                          <Badge variant="secondary">{rep.party}</Badge>
+                          <Badge variant="outline">
+                            {rep.type === 'representative' ? 'House' : 'Senate'}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <Button onClick={() => setStep(3)}>
+                Next: Choose Your Interests
+              </Button>
+            </div>
+          )}
+
+          {step === 3 && (
+            <div className="space-y-4">
+              {/* Interest selection */}
+              <InterestSelector />
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+```
+
+**Key Features:**
+- User enters zip code
+- Geocodio API lookup (< 1 second)
+- Display all 3 representatives with photos
+- Save to user profile automatically
+- Use for podcast personalization immediately
 
 ```tsx
 // app/onboarding/page.tsx
@@ -1018,7 +1713,7 @@ export default function OnboardingPage() {
 }
 ```
 
-### 7.2 Dashboard (shadcn/ui)
+### 8.2 Dashboard (shadcn/ui)
 
 ```tsx
 // app/dashboard/page.tsx
@@ -1066,11 +1761,320 @@ export default function DashboardPage() {
 }
 ```
 
+### 8.3 Legislation Page with Search (shadcn/ui + Algolia)
+
+**Purpose:** Browse and search all congressional bills with fast, relevant results
+
+```tsx
+// app/legislation/page.tsx
+
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { BillSearchComponent } from "@/components/dashboard/bill-search"
+
+export default function LegislationPage() {
+  return (
+    <div className="container py-6 space-y-6">
+      {/* Page Header */}
+      <div>
+        <h1 className="text-3xl font-bold">Congressional Legislation</h1>
+        <p className="text-muted-foreground">
+          Search and explore bills from the U.S. Congress
+        </p>
+      </div>
+
+      {/* Search Bar (Algolia InstantSearch) */}
+      <Card>
+        <CardContent className="pt-6">
+          <BillSearchComponent />
+        </CardContent>
+      </Card>
+
+      {/* Filters */}
+      <div className="flex gap-4">
+        <Select>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Congress" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="118">118th Congress</SelectItem>
+            <SelectItem value="117">117th Congress</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Category" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="healthcare">Healthcare</SelectItem>
+            <SelectItem value="economy">Economy</SelectItem>
+            <SelectItem value="climate">Climate</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="introduced">Introduced</SelectItem>
+            <SelectItem value="passed-house">Passed House</SelectItem>
+            <SelectItem value="passed-senate">Passed Senate</SelectItem>
+            <SelectItem value="enacted">Enacted</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Search Results */}
+      <div className="space-y-4">
+        {/* Results grid populated by Algolia */}
+      </div>
+    </div>
+  )
+}
+```
+
+**Key Features:**
+- **Algolia-powered search**: Sub-20ms response times
+- **Faceted filtering**: By congress, category, status, party
+- **Typo-tolerance**: "helthcare" finds "healthcare"
+- **Pagination**: Load more results on demand
+- **Mobile-responsive**: Works on all devices
+
+### 8.4 Bill Detail Page (shadcn/ui)
+
+**Purpose:** Deep dive into individual bills with full text, analysis, and context
+
+```tsx
+// app/legislation/[billId]/page.tsx
+
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Separator } from "@/components/ui/separator"
+import { Progress } from "@/components/ui/progress"
+
+export default async function BillDetailPage({ params }: { params: { billId: string } }) {
+  const bill = await getBillDetails(params.billId);
+
+  return (
+    <div className="container py-6 space-y-8">
+      {/* Bill Header */}
+      <div className="space-y-4">
+        <div className="flex items-start justify-between">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Badge variant="outline">{bill.full_bill_id.toUpperCase()}</Badge>
+              <Badge>{bill.status}</Badge>
+              {bill.is_enacted && <Badge variant="success">Enacted</Badge>}
+            </div>
+            <h1 className="text-3xl font-bold">{bill.title}</h1>
+          </div>
+          <Button>Track This Bill</Button>
+        </div>
+
+        <div className="flex gap-6 text-sm text-muted-foreground">
+          <div>
+            <span className="font-medium">Sponsor:</span>{' '}
+            <a href={`/representatives/${bill.sponsor_bioguide_id}`} className="underline">
+              {bill.sponsor_name} ({bill.sponsor_party}-{bill.sponsor_state})
+            </a>
+          </div>
+          <div>
+            <span className="font-medium">Introduced:</span> {formatDate(bill.introduced_date)}
+          </div>
+          <div>
+            <span className="font-medium">Last Action:</span> {formatDate(bill.latest_action_date)}
+          </div>
+        </div>
+      </div>
+
+      {/* Progress Tracker */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Legislative Progress</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Progress value={calculateProgress(bill.status)} className="h-2" />
+          <div className="flex justify-between mt-4 text-sm">
+            <span className={bill.status >= 'introduced' ? 'font-medium' : 'text-muted-foreground'}>
+              Introduced
+            </span>
+            <span className={bill.status >= 'passed-house' ? 'font-medium' : 'text-muted-foreground'}>
+              House
+            </span>
+            <span className={bill.status >= 'passed-senate' ? 'font-medium' : 'text-muted-foreground'}>
+              Senate
+            </span>
+            <span className={bill.is_enacted ? 'font-medium' : 'text-muted-foreground'}>
+              Enacted
+            </span>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* AI Summary (Claude-generated) */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Plain English Summary</CardTitle>
+          <CardDescription>AI-generated summary by Claude Sonnet 4</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p>{bill.plain_english_summary}</p>
+        </CardContent>
+      </Card>
+
+      {/* Tabbed Content */}
+      <Tabs defaultValue="provisions">
+        <TabsList>
+          <TabsTrigger value="provisions">Key Provisions</TabsTrigger>
+          <TabsTrigger value="impact">Who's Affected</TabsTrigger>
+          <TabsTrigger value="full-text">Full Text</TabsTrigger>
+          <TabsTrigger value="votes">Votes</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="provisions" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>What This Bill Does</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-2">
+                {JSON.parse(bill.key_provisions).map((provision, idx) => (
+                  <li key={idx} className="flex gap-2">
+                    <span className="text-primary">•</span>
+                    <span>{provision}</span>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="impact" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Who's Affected</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {JSON.parse(bill.affected_groups).map((group, idx) => (
+                  <div key={idx} className="flex items-start gap-4">
+                    <Badge
+                      variant={
+                        group.impact === 'positive'
+                          ? 'success'
+                          : group.impact === 'negative'
+                          ? 'destructive'
+                          : 'secondary'
+                      }
+                    >
+                      {group.impact}
+                    </Badge>
+                    <div>
+                      <p className="font-medium">{group.group}</p>
+                      <p className="text-sm text-muted-foreground">{group.description}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="full-text">
+          <Card>
+            <CardHeader>
+              <CardTitle>Full Bill Text</CardTitle>
+              <CardDescription>
+                Official text from Congress.gov
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="prose prose-sm max-w-none">
+                {bill.full_text || (
+                  <a href={bill.full_text_url} target="_blank" className="underline">
+                    View on Congress.gov →
+                  </a>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="votes">
+          <Card>
+            <CardHeader>
+              <CardTitle>Voting Record</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {/* Vote visualizations */}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Cosponsors */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Cosponsors ({bill.cosponsor_count})</CardTitle>
+          <CardDescription>
+            {bill.is_bipartisan ? 'Bipartisan support' : 'Single-party support'}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {/* List of cosponsors */}
+        </CardContent>
+      </Card>
+
+      {/* Your Representatives' Position */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Your Representatives</CardTitle>
+          <CardDescription>How your reps voted or their stance</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {/* Representative cards with voting positions */}
+        </CardContent>
+      </Card>
+
+      {/* Action Buttons */}
+      <div className="flex gap-4">
+        <Button>Contact Your Representative</Button>
+        <Button variant="outline">Share This Bill</Button>
+        <Button variant="outline">Add to Podcast</Button>
+      </div>
+    </div>
+  )
+}
+```
+
+**Key Features:**
+- **Progressive disclosure**: Summary first, full text on demand
+- **AI-powered analysis**: Claude breaks down complex legislation
+- **Visual progress tracker**: See where the bill is in the process
+- **Impact analysis**: Understand who's affected and how
+- **Representative positions**: See how your reps voted
+- **Action-oriented**: Contact reps, share, track bills
+- **Mobile-optimized**: Responsive tabs and collapsible sections
+
+**Data Flow:**
+1. User searches or browses on `/legislation`
+2. Clicks bill → navigates to `/legislation/hr100-118`
+3. Frontend fetches full bill data from SQL database
+4. If missing, triggers Congress.gov fetch → saves to DB → syncs to Algolia
+5. Displays rich bill details with Claude analysis
+
 ---
 
-## 8. PODCAST SYSTEM (DAILY + WEEKLY)
+## 9. PODCAST SYSTEM (DAILY + WEEKLY)
 
-### 8.1 Podcast Generation Pipeline (CORRECTED)
+### 9.1 Podcast Generation Pipeline (CORRECTED)
 
 ```ts
 // lib/podcast/generator.ts
@@ -1087,12 +2091,11 @@ export async function generatePodcast(
 
   const startTime = Date.now();
 
-  // 1. Gather data from SmartSQL
-  const userResult = await mcp.sql.executeQuery({
-    database_id: 'civic-pulse-db',
-    query: `SELECT * FROM users WHERE id = '${userId}'`
-  });
-  const userData = userResult.rows[0];
+  // 1. Gather data from SQL database
+  const userResult = await env.CIVIC_DB.prepare(
+    `SELECT * FROM users WHERE id = ?`
+  ).bind(userId).first();
+  const userData = userResult;
 
   // 2. Get representatives and bills
   const representatives = await getRepresentatives(userData.zip_code);
@@ -1113,27 +2116,26 @@ export async function generatePodcast(
 
   // 6. Save episode to database
   const episodeId = generateUUID();
-  await mcp.sql.executeQuery({
-    database_id: 'civic-pulse-db',
-    query: `
-      INSERT INTO podcast_episodes (
-        id, user_id, episode_type, title, audio_url,
-        featured_bills, featured_representatives,
-        generation_status, generation_duration_seconds
-      ) VALUES (
-        '${episodeId}', '${userId}', '${type}', '${script.title}',
-        '${audioUrl}', '${JSON.stringify(bills.map(b => b.id))}',
-        '${JSON.stringify(representatives.map(r => r.id))}',
-        'completed', ${Math.floor((Date.now() - startTime) / 1000)}
-      )
-    `
-  });
+  await env.CIVIC_DB.prepare(`
+    INSERT INTO podcast_episodes (
+      id, user_id, episode_type, title, audio_url,
+      featured_bills, featured_representatives,
+      generation_status, generation_duration_seconds
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `)
+    .bind(
+      episodeId, userId, type, script.title, audioUrl,
+      JSON.stringify(bills.map(b => b.id)),
+      JSON.stringify(representatives.map(r => r.id)),
+      'completed', Math.floor((Date.now() - startTime) / 1000)
+    )
+    .run();
 
   return episodeId;
 }
 ```
 
-### 8.2 News Integration: The Hill RSS Feeds (Marketplace-Style Engagement)
+### 9.2 News Integration: The Hill RSS Feeds (Marketplace-Style Engagement)
 
 **INSPIRED BY:** NPR's Marketplace - https://www.marketplace.org/shows/marketplace
 
@@ -1220,11 +2222,10 @@ export async function generatePodcastWithNews(
   const startTime = Date.now();
 
   // 1. Get user data
-  const userResult = await mcp.sql.executeQuery({
-    database_id: 'civic-pulse-db',
-    query: `SELECT * FROM users WHERE id = '${userId}'`
-  });
-  const userData = userResult.rows[0];
+  const userResult = await env.CIVIC_DB.prepare(
+    `SELECT * FROM users WHERE id = ?`
+  ).bind(userId).first();
+  const userData = userResult;
 
   // 2. Get representatives and bills
   const representatives = await getRepresentatives(userData.zip_code);
@@ -1261,22 +2262,21 @@ export async function generatePodcastWithNews(
 
   // 8. Save episode to database (with news references)
   const episodeId = generateUUID();
-  await mcp.sql.executeQuery({
-    database_id: 'civic-pulse-db',
-    query: `
-      INSERT INTO podcast_episodes (
-        id, user_id, episode_type, title, audio_url,
-        featured_bills, featured_representatives,
-        script_json, generation_status, generation_duration_seconds
-      ) VALUES (
-        '${episodeId}', '${userId}', '${type}', '${script.title}',
-        '${audioUrl}', '${JSON.stringify(bills.map(b => b.id))}',
-        '${JSON.stringify(representatives.map(r => r.id))}',
-        '${JSON.stringify({ news: newsWithBills, script })}',
-        'completed', ${Math.floor((Date.now() - startTime) / 1000)}
-      )
-    `
-  });
+  await env.CIVIC_DB.prepare(`
+    INSERT INTO podcast_episodes (
+      id, user_id, episode_type, title, audio_url,
+      featured_bills, featured_representatives,
+      script_json, generation_status, generation_duration_seconds
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `)
+    .bind(
+      episodeId, userId, type, script.title, audioUrl,
+      JSON.stringify(bills.map(b => b.id)),
+      JSON.stringify(representatives.map(r => r.id)),
+      JSON.stringify({ news: newsWithBills, script }),
+      'completed', Math.floor((Date.now() - startTime) / 1000)
+    )
+    .run();
 
   return episodeId;
 }
@@ -1460,13 +2460,13 @@ export function matchNewsToBills(
 
 ---
 
-## 9. USER EXPERIENCE & DESIGN
+## 10. USER EXPERIENCE & DESIGN
 
 Uses shadcn/ui components throughout for consistent, accessible design. All components are built with Radix UI primitives and styled with Tailwind CSS.
 
 ---
 
-## 10. VOICE AGENT IMPLEMENTATION
+## 11. VOICE AGENT IMPLEMENTATION
 
 **ElevenLabs text-to-dialogue endpoint** generates complete multi-host conversations in a single API call. This provides:
 - Natural conversational flow
@@ -1476,7 +2476,7 @@ Uses shadcn/ui components throughout for consistent, accessible design. All comp
 
 ---
 
-## 11. RESPONSIVE DESIGN REQUIREMENTS
+## 12. RESPONSIVE DESIGN REQUIREMENTS
 
 - **Mobile-first**: Touch targets min 44x44px
 - **Test breakpoints**: iPhone SE (375px), iPad (768px), Desktop (1920px)
@@ -1484,7 +2484,7 @@ Uses shadcn/ui components throughout for consistent, accessible design. All comp
 
 ---
 
-## 12. PAYMENT & MONETIZATION
+## 13. PAYMENT & MONETIZATION
 
 **Freemium Model:**
 
@@ -1495,11 +2495,11 @@ Uses shadcn/ui components throughout for consistent, accessible design. All comp
 
 ---
 
-## 13. HACKATHON IMPLEMENTATION TIMELINE
+## 14. HACKATHON IMPLEMENTATION TIMELINE
 
 ### Critical Path (24 Hours)
 1. ✅ Setup (3hrs): Raindrop + Vultr + API keys
-2. ✅ Database & APIs (4hrs): SmartSQL schema + Congress.gov client
+2. ✅ Database & APIs (4hrs): SQL schema + Congress.gov client + Algolia integration
 3. ✅ Authentication (4hrs): WorkOS integration
 4. ✅ Podcast Generation (5hrs): Claude + ElevenLabs + Vultr upload
 5. ✅ Dashboard UI (4hrs): shadcn/ui components
@@ -1508,15 +2508,15 @@ Uses shadcn/ui components throughout for consistent, accessible design. All comp
 
 ---
 
-## 14. COMPETITION CATEGORY ALIGNMENT
+## 15. COMPETITION CATEGORY ALIGNMENT
 
-### 14.1 Best Voice Agent
+### 15.1 Best Voice Agent
 - Sophisticated dual-voice system (Sarah + James)
 - ElevenLabs text-to-dialogue integration
 - Dual format (daily 5-7min + weekly 15-18min)
 - NPR-quality production
 
-### 14.2 Best AI Solution for Public Good
+### 15.2 Best AI Solution for Public Good
 - Addresses civic disengagement crisis
 - Claude Sonnet 4 for bill analysis
 - Scalable to all 435 districts
@@ -1524,9 +2524,9 @@ Uses shadcn/ui components throughout for consistent, accessible design. All comp
 
 ---
 
-## 15. DEPLOYMENT STRATEGY
+## 16. DEPLOYMENT STRATEGY
 
-### 15.1 Deployment Steps
+### 16.1 Deployment Steps
 
 1. **Deploy to Raindrop Platform** (serverless)
 2. **Configure Vultr Object Storage** (S3-compatible)
@@ -1534,7 +2534,7 @@ Uses shadcn/ui components throughout for consistent, accessible design. All comp
 4. **Configure Stripe webhooks**
 5. **Test end-to-end flow**
 
-### 15.2 Environment Variables
+### 16.2 Environment Variables
 
 ```shell
 # App Config
@@ -1574,10 +2574,10 @@ STRIPE_PREMIUM_PRICE_ID=...
 
 ---
 
-## END OF PRD v2.1
+## END OF PRD v2.2
 
-**Document Version:** 2.1 (Implementation-Aligned Edition)
-**Last Updated:** October 26, 2025
+**Document Version:** 2.2 (SQL + Algolia Search Edition)
+**Last Updated:** October 27, 2025
 **Platform:** Raindrop Platform + Vultr Object Storage + Next.js 16
 **Competition:** Liquid Metal Hackathon
 **Categories:** Best Voice Agent, Best AI Solution for Public Good
@@ -1587,13 +2587,16 @@ STRIPE_PREMIUM_PRICE_ID=...
 **✅ FOLLOWS CLAUDE.MD RULES**
 
 **Key Corrections Applied:**
-- ✅ SQLite schema (not PostgreSQL)
+- ✅ SQLite schema with programmatic initialization (not PostgreSQL)
+- ✅ Standard SQL with prepared statements (not SmartSQL)
+- ✅ Algolia search with progressive caching from Congress.gov
 - ✅ WorkOS authentication (not "Raindrop Auth")
-- ✅ Actual MCP tool patterns (not fictional SDK)
-- ✅ Direct env.AI.run() (no SmartInference wrapper)
+- ✅ Actual Raindrop patterns (env.CIVIC_DB.prepare().bind())
+- ✅ Direct env.AI.run() (no wrapper)
 - ✅ ElevenLabs text-to-dialogue (from lib/ai/claude.md)
 - ✅ Congress.gov implementation (from lib/api/claude.md)
 - ✅ Vultr Object Storage only (not Bare Metal)
 - ✅ Fixed TTLs (24hr bills, 7 days members)
+- ✅ Legislation page with search and bill detail pages
 
 **Let's build this correctly! 🚀🎙️**

@@ -1,4 +1,4 @@
-import { FileText, TrendingUp, Clock } from 'lucide-react';
+import { FileText, TrendingUp, Clock, Check, Plus } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,10 @@ export interface Bill {
 
 interface BillCardProps {
   bill: Bill;
+  compact?: boolean;
+  tracked?: boolean;
+  onTrack?: (billId: string) => void;
+  onUntrack?: (billId: string) => void;
 }
 
 const STATUS_LABELS: Record<Bill['status'], string> = {
@@ -40,8 +44,40 @@ function formatDate(dateString: string): string {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-export function BillCard({ bill }: BillCardProps) {
+export function BillCard({ bill, compact = false }: BillCardProps) {
   const impactColor = bill.impactScore > 70 ? 'text-red-600' : bill.impactScore > 40 ? 'text-orange-600' : 'text-blue-600';
+
+  if (compact) {
+    return (
+      <div className="border-b pb-3 last:border-0 hover:bg-muted/50 -mx-2 px-2 py-2 rounded transition-colors">
+        <div className="flex items-start gap-3 mb-2">
+          <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center flex-shrink-0">
+            <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between gap-2 mb-1">
+              <p className="text-xs font-medium text-muted-foreground">{bill.number}</p>
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <TrendingUp className={`w-3 h-3 ${impactColor}`} />
+                <span className={`text-xs font-semibold ${impactColor}`}>{bill.impactScore}</span>
+              </div>
+            </div>
+            <h3 className="font-semibold text-sm mb-2 leading-tight">{bill.title}</h3>
+            <div className="flex flex-wrap gap-1 mb-2">
+              <Badge variant={STATUS_VARIANTS[bill.status]} className="text-xs">
+                {STATUS_LABELS[bill.status]}
+              </Badge>
+              {bill.issueCategories.slice(0, 2).map(category => (
+                <Badge key={category} variant="outline" className="font-normal text-xs">
+                  {category}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Card className="hover:shadow-md transition-shadow">

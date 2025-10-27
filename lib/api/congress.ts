@@ -6,6 +6,11 @@
  * Documentation: https://api.congress.gov/
  */
 
+// Load environment variables (for scripts running outside Next.js)
+if (typeof window === 'undefined' && !process.env.CONGRESS_API_KEY) {
+  require('dotenv').config({ path: require('path').resolve(process.cwd(), '.env.local') });
+}
+
 const API_BASE = 'https://api.congress.gov/v3';
 const API_KEY = process.env.CONGRESS_API_KEY;
 
@@ -24,6 +29,8 @@ export interface Bill {
   latestActionText: string;
   sponsorBioguideId: string;
   sponsorName: string;
+  sponsorParty?: 'D' | 'R' | 'I' | 'Unknown';
+  sponsorState?: string;
   url: string;
 }
 
@@ -204,6 +211,16 @@ export interface Representative {
   imageUrl?: string;
   officialUrl?: string;
   terms?: any[];
+  // Enrichment fields from GitHub legislators data
+  officeAddress?: string;
+  officePhone?: string;
+  contactForm?: string;
+  websiteUrl?: string;
+  rssUrl?: string;
+  twitterHandle?: string;
+  facebookUrl?: string;
+  youtubeUrl?: string;
+  instagramHandle?: string;
 }
 
 export interface FetchMembersOptions {

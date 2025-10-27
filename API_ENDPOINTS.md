@@ -1,15 +1,22 @@
 # Civic Pulse API Endpoints
 
 ## Base URL
-**Deployed Service**: `http://svc-web.01k8gmweyac8jht3xd4xv4t8ps.lmapp.run`
-**Version**: 01k8gmweyac8jht3xd4xv4t8ps
+**Deployed Service**: `https://svc-01k8kf2fkj3423r7zpm53cfkgz.01k66gywmx8x4r0w31fdjjfekf.lmapp.run`
+**Version**: 01k8kf2b3gre3k5my2x4mnrn58 (Sandbox)
 **Service Name**: civic-pulse
 
-**Status**: 🚨 Platform routing issue - Raindrop not forwarding HTTP requests to service worker
+**Status**: ✅ Running with Regular SQL database (migrated from SmartSQL)
 
-**Code Status**: ✅ Service code is correct (fixed database initialization issue)
-**Platform Status**: ❌ Requests timing out - no logs generated (fetch() never called)
-**Action Required**: Contact Raindrop support for platform routing investigation
+**Database**: `civic-db` (Regular SQL - SQLite)
+**Last Updated**: 2025-10-27T18:43:17.551Z
+**Modules Converged**: 3/3 ✅
+  - ✅ web (01k8kf2qmefsa0fcr1zhnx6z68) - Converged at 2025-10-27T18:43:22.267Z
+  - ✅ civic-db (01k8kf2fkj3423r7zpm53cfkh8) - Converged at 2025-10-27T18:43:17.551Z
+  - ✅ podcast-audio (01k8kf2fkj3423r7zpm53cfkh7) - Converged at 2025-10-27T18:43:17.551Z
+
+**Service URL Discovery**: Use `raindrop build find` to get service URLs
+
+**Geocodio Integration**: ✅ Active - Representatives populated from Geocodio API
 
 ---
 

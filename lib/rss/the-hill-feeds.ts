@@ -1,5 +1,6 @@
 // The Hill RSS Feed Configuration
 // Maps our issue categories to The Hill's RSS feeds
+// Note: Use WordPress feed URLs (/homenews/ and /policy/) not /rss/feed/ (blocked by bot protection)
 
 export interface RSSFeed {
   id: string;
@@ -8,31 +9,31 @@ export interface RSSFeed {
   category: 'news' | 'policy';
 }
 
-// The Hill RSS Feeds
+// The Hill RSS Feeds (WordPress format - NOT blocked)
 export const THE_HILL_FEEDS: RSSFeed[] = [
   // NEWS Feeds (General Congressional Activity)
   {
     id: 'senate',
     name: 'Senate',
-    url: 'https://thehill.com/rss/feed/senate',
+    url: 'https://thehill.com/homenews/senate/feed/',
     category: 'news',
   },
   {
     id: 'house',
     name: 'House',
-    url: 'https://thehill.com/rss/feed/house-of-representatives',
+    url: 'https://thehill.com/homenews/house/feed/',
     category: 'news',
   },
   {
     id: 'administration',
     name: 'Administration',
-    url: 'https://thehill.com/rss/feed/administration',
+    url: 'https://thehill.com/homenews/administration/feed/',
     category: 'news',
   },
   {
     id: 'campaign',
     name: 'Campaign',
-    url: 'https://thehill.com/rss/feed/campaign',
+    url: 'https://thehill.com/homenews/campaign/feed/',
     category: 'news',
   },
 
@@ -40,43 +41,43 @@ export const THE_HILL_FEEDS: RSSFeed[] = [
   {
     id: 'healthcare',
     name: 'Healthcare',
-    url: 'https://thehill.com/rss/feed/healthcare',
+    url: 'https://thehill.com/policy/healthcare/feed/',
     category: 'policy',
   },
   {
     id: 'defense',
     name: 'Defense',
-    url: 'https://thehill.com/rss/feed/defense',
+    url: 'https://thehill.com/policy/defense/feed/',
     category: 'policy',
   },
   {
     id: 'energy-environment',
     name: 'Energy & Environment',
-    url: 'https://thehill.com/rss/feed/energy-environment',
+    url: 'https://thehill.com/policy/energy-environment/feed/',
     category: 'policy',
   },
   {
     id: 'finance',
     name: 'Finance',
-    url:'https://thehill.com/rss/feed/finance',
+    url: 'https://thehill.com/policy/finance/feed/',
     category: 'policy',
   },
   {
     id: 'technology',
     name: 'Technology',
-    url: 'https://thehill.com/rss/feed/technology',
+    url: 'https://thehill.com/policy/technology/feed/',
     category: 'policy',
   },
   {
     id: 'transportation',
     name: 'Transportation',
-    url: 'https://thehill.com/rss/feed/transportation',
+    url: 'https://thehill.com/policy/transportation/feed/',
     category: 'policy',
   },
   {
     id: 'international',
     name: 'International',
-    url: 'https://thehill.com/rss/feed/international',
+    url: 'https://thehill.com/policy/international/feed/',
     category: 'policy',
   },
 ];

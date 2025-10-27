@@ -8,7 +8,13 @@
     "start": "next start",
     "lint": "next lint",
     "type-check": "tsc --noEmit",
-    "test": "echo \"Tests coming soon\" && exit 0"
+    "test": "echo \"Tests coming soon\" && exit 0",
+    "test:smartsql": "npx tsx scripts/test-smartsql.ts",
+    "test:search": "npx tsx scripts/test-search.ts",
+    "create-migration": "npx ts-node ./scripts/create_migration.mts",
+    "clean-seed": "find ./db -name '*seed*' -type f -delete",
+    "seed:createSql": "npx ts-node ./scripts/seed-sql.mts",
+    "render-db": "pnpm run clean-seed && pnpm run create-migration && pnpm run seed:createSql"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.67.0",
@@ -22,24 +28,38 @@
     "@radix-ui/react-slot": "^1.2.3",
     "@radix-ui/react-switch": "^1.2.6",
     "@radix-ui/react-tabs": "^1.1.13",
+    "algoliasearch": "^5.41.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "instantsearch.css": "^8.6.0",
     "lucide-react": "^0.548.0",
     "next": "^16.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "tailwind-merge": "^3.3.1"
+    "react-h5-audio-player": "^3.10.1",
+    "react-instantsearch": "^7.17.0",
+    "rss-parser": "^3.13.0",
+    "tailwind-merge": "^3.3.1",
+    "kysely": "^0.27.2",
+    "kysely-d1": "^0.3.0"
   },
   "devDependencies": {
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "autoprefixer": "^10.4.20",
+    "dotenv": "^17.2.3",
     "eslint": "^9",
     "eslint-config-next": "^16.0.0",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
     "tailwindcss-animate": "^1.0.7",
-    "typescript": "^5"
+    "typescript": "^5",
+    "@liquidmetal-ai/in-memory-d1": "^1.0.7",
+    "@types/better-sqlite3": "^7.6.13",
+    "better-sqlite3": "^11.9.1",
+    "prisma": "^6.5.0",
+    "prisma-kysely": "^1.8.0",
+    "zx": "^8.5.2"
   }
 }
