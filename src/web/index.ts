@@ -489,14 +489,15 @@ export default class extends Service<Env> {
     issueCategories?: string[];
     impactScore?: number;
     congressGovUrl?: string;
+    searchableText?: string;
   }): Promise<void> {
     await this.env.CIVIC_DB.prepare(`
       INSERT OR REPLACE INTO bills (
         id, congress, bill_type, bill_number, title, summary, full_text,
         sponsor_bioguide_id, sponsor_name, introduced_date,
         latest_action_date, latest_action_text, status,
-        issue_categories, impact_score, congress_url
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        issue_categories, impact_score, congress_url, searchable_text
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       data.id,
       data.congress,
@@ -513,7 +514,8 @@ export default class extends Service<Env> {
       data.status || 'introduced',
       JSON.stringify(data.issueCategories || []),
       data.impactScore || null,
-      data.congressGovUrl || null
+      data.congressGovUrl || null,
+      data.searchableText || null
     ).run();
   }
 

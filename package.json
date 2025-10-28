@@ -11,6 +11,7 @@
     "test": "echo \"Tests coming soon\" && exit 0",
     "test:smartsql": "npx tsx scripts/test-smartsql.ts",
     "test:search": "npx tsx scripts/test-search.ts",
+    "fetch:bills": "npx tsx scripts/fetch-bills.ts",
     "create-migration": "npx ts-node ./scripts/create_migration.mts",
     "clean-seed": "find ./db -name '*seed*' -type f -delete",
     "seed:createSql": "npx ts-node ./scripts/seed-sql.mts",
