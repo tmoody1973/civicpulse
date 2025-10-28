@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { FileText, Users, Lightbulb, Headphones } from 'lucide-react';
 
@@ -8,6 +9,18 @@ export function HeroSection() {
       <div className="container mx-auto px-4">
         {/* Hero Content */}
         <div className="max-w-4xl mx-auto text-center mb-16">
+          {/* Large Logo */}
+          <div className="flex justify-center mb-8">
+            <Image
+              src="/logo.svg"
+              alt="Civic Pulse - Making Congress Accessible"
+              width={400}
+              height={120}
+              priority
+              className="w-[250px] md:w-[350px] lg:w-[400px] h-auto dark:brightness-90"
+            />
+          </div>
+
           <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-6">
             Know What Congress Is Doing
           </h1>
