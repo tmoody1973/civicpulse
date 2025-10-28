@@ -70,6 +70,53 @@ netlify env:set ALGOLIA_ADMIN_API_KEY "your-admin-api-key-here"
 netlify env:set NEXT_PUBLIC_ALGOLIA_SEARCH_KEY "your-search-only-key-here"
 ```
 
+## Step 3.5: Install Algolia CLI (Optional but Recommended)
+
+The Algolia CLI is helpful for development, testing, and debugging.
+
+**macOS:**
+```bash
+brew install algolia-cli
+```
+
+**Linux/Windows:**
+```bash
+npm install -g @algolia/cli
+```
+
+**Authenticate:**
+```bash
+algolia auth
+```
+
+This will prompt you for:
+- Application ID
+- Admin API Key
+
+**Useful CLI commands:**
+```bash
+# List indices
+algolia indices list
+
+# View index settings
+algolia indices settings bills
+
+# Search from command line (for testing)
+algolia indices search bills --query "healthcare"
+
+# Export index configuration
+algolia indices config bills > bills-config.json
+
+# Import data from JSON file
+algolia indices import bills data.json
+```
+
+**When to use CLI vs Script:**
+- **CLI**: Quick testing, manual data uploads, debugging
+- **Script** (`configure-algolia.ts`): Automated configuration, CI/CD, version control
+
+Both approaches work fine! The CLI is great for rapid iteration during development.
+
 ## Step 4: Configure Algolia Index
 
 Once you've added the environment variables, run the configuration script:
@@ -108,10 +155,12 @@ You can verify the index is configured correctly in the Algolia dashboard:
 - Double-check that you copied the correct API keys
 - Make sure there are no extra spaces in the environment variables
 - Verify you're using the Admin API Key (not the Search-Only key) for the configuration script
+- **CLI test**: Run `algolia indices list` to verify credentials work
 
 ### Error: "Index not found"
 - Make sure you created an index named exactly "bills" (lowercase)
 - The index name is case-sensitive
+- **CLI test**: Run `algolia indices list` to see all your indices
 
 ### Error: "Cannot find module 'algoliasearch'"
 - Run `npm install` to ensure all dependencies are installed
@@ -121,6 +170,7 @@ You can verify the index is configured correctly in the Algolia dashboard:
 - Make sure you've set the environment variables in `.env.local`
 - Restart your terminal to pick up new environment variables
 - Try running: `ALGOLIA_APP_ID=xxx ALGOLIA_ADMIN_API_KEY=yyy npx tsx scripts/configure-algolia.ts`
+- **CLI alternative**: Use `algolia indices settings bills` to manually configure settings
 
 ## Next Steps
 
