@@ -556,3 +556,154 @@ export async function fetchMemberDetails(bioguideId: string): Promise<Representa
     throw error;
   }
 }
+
+/**
+ * Fetch cosponsors for a bill
+ */
+export async function fetchBillCosponsors(
+  congress: number,
+  billType: string,
+  billNumber: number
+): Promise<Array<{
+  bioguideId: string;
+  name: string;
+  party: string;
+  state: string;
+  sponsorshipDate: string;
+}> | null> {
+  const url = new URL(`${API_BASE}/bill/${congress}/${billType}/${billNumber}/cosponsors`);
+  url.searchParams.set('format', 'json');
+  url.searchParams.set('api_key', API_KEY!);
+
+  try {
+    const response = await fetch(url.toString(), {
+      headers: {
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) return null;
+      throw new Error(`Congress API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (!data.cosponsors || data.cosponsors.length === 0) {
+      return [];
+    }
+
+    return data.cosponsors.map((cosponsor: any) => ({
+      bioguideId: cosponsor.bioguideId,
+      name: cosponsor.fullName || `${cosponsor.firstName} ${cosponsor.lastName}`,
+      party: cosponsor.party || 'Unknown',
+      state: cosponsor.state,
+      sponsorshipDate: cosponsor.sponsorshipDate
+    }));
+  } catch (error) {
+    console.warn(`Could not fetch cosponsors for ${billType}${billNumber}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Fetch actions (legislative history) for a bill
+ */
+export async function fetchBillActions(
+  congress: number,
+  billType: string,
+  billNumber: number
+): Promise<Array<{
+  actionDate: string;
+  text: string;
+  type: string;
+  actionCode?: string;
+  sourceSystem?: string;
+}> | null> {
+  const url = new URL(`${API_BASE}/bill/${congress}/${billType}/${billNumber}/actions`);
+  url.searchParams.set('format', 'json');
+  url.searchParams.set('api_key', API_KEY!);
+
+  try {
+    const response = await fetch(url.toString(), {
+      headers: {
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) return null;
+      throw new Error(`Congress API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (!data.actions || data.actions.length === 0) {
+      return [];
+    }
+
+    return data.actions.map((action: any) => ({
+      actionDate: action.actionDate,
+      text: action.text,
+      type: action.type || 'Unknown',
+      actionCode: action.actionCode,
+      sourceSystem: action.sourceSystem?.name
+    }));
+  } catch (error) {
+    console.warn(`Could not fetch actions for ${billType}${billNumber}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Fetch amendments to a bill
+ */
+export async function fetchBillAmendments(
+  congress: number,
+  billType: string,
+  billNumber: number
+): Promise<Array<{
+  number: string;
+  type: string;
+  purpose: string;
+  description: string;
+  congress: number;
+  latestActionDate: string;
+  latestActionText: string;
+}> | null> {
+  const url = new URL(`${API_BASE}/bill/${congress}/${billType}/${billNumber}/amendments`);
+  url.searchParams.set('format', 'json');
+  url.searchParams.set('api_key', API_KEY!);
+
+  try {
+    const response = await fetch(url.toString(), {
+      headers: {
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) return null;
+      throw new Error(`Congress API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (!data.amendments || data.amendments.length === 0) {
+      return [];
+    }
+
+    return data.amendments.map((amendment: any) => ({
+      number: amendment.number,
+      type: amendment.type,
+      purpose: amendment.purpose || '',
+      description: amendment.description || '',
+      congress: amendment.congress,
+      latestActionDate: amendment.latestAction?.actionDate || '',
+      latestActionText: amendment.latestAction?.text || ''
+    }));
+  } catch (error) {
+    console.warn(`Could not fetch amendments for ${billType}${billNumber}:`, error);
+    return null;
+  }
+}
