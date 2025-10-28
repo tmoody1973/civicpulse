@@ -10,6 +10,7 @@ import { ProgressIndicator } from '@/components/shared/progress-indicator';
 import { CheckCircle2 } from 'lucide-react';
 
 interface LookupResult {
+  name?: string;
   zipCode: string;
   city: string;
   state: string;
@@ -18,6 +19,7 @@ interface LookupResult {
 }
 
 interface OnboardingData {
+  name?: string;
   zipCode: string;
   city?: string;
   state?: string;
@@ -46,6 +48,7 @@ export default function OnboardingPage() {
   const handleLookupSuccess = (result: LookupResult) => {
     setData({
       ...data,
+      name: result.name,
       zipCode: result.zipCode,
       city: result.city,
       state: result.state,
@@ -80,7 +83,7 @@ export default function OnboardingPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          email: 'user@example.com', // TODO: Get from auth
+          name: data.name,
           zipCode: data.zipCode,
           state: data.state,
           district: data.district,

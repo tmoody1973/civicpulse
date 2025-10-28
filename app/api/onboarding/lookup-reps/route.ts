@@ -81,11 +81,12 @@ export async function POST(req: Request) {
           district: leg.type === 'representative' ? district : null, // Only House members have districts
           photo: leg.bio.photo_url,
           phone: leg.contact.phone,
-          website: leg.contact.url,
+          contact_url: leg.contact.url, // Contact form URL
+          website: null, // Can be populated later if needed
           address: leg.contact.address,
-          twitter: leg.social.twitter,
-          facebook: leg.social.facebook,
-          youtube: leg.social.youtube,
+          twitter: leg.social?.twitter || null, // Twitter handle only
+          facebook: leg.social?.facebook || null,
+          youtube: leg.social?.youtube || null,
           seniority: leg.seniority
         };
       })

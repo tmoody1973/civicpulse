@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery, upsert } from '@/lib/db/client';
+import { getSession } from '@/lib/auth/session';
 
 // Force Node.js runtime to allow HTTPS agent for SSL bypass
 export const runtime = 'nodejs';
@@ -7,26 +8,27 @@ export const runtime = 'nodejs';
 /**
  * POST /api/onboarding
  * Saves user onboarding data (zip code, interests, preferences)
+ * Requires authentication - gets user ID and email from session
  */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    // Get authenticated user from session
+    const user = await getSession();
 
-    // Validate required fields
-    if (!body.email) {
+    if (!user) {
       return NextResponse.json(
-        { error: 'Email is required' },
-        { status: 400 }
+        { error: 'Unauthorized - please sign in' },
+        { status: 401 }
       );
     }
 
-    // Generate user ID (in production, this would come from auth provider)
-    const userId = `user_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    const body = await request.json();
 
-    // Save user to Raindrop SQL database using centralized client
+    // Save user onboarding data to Raindrop SQL database
     await upsert('users', {
-      id: userId,
-      email: body.email,
+      id: user.id,
+      email: user.email,
+      name: body.name || null,
       zip_code: body.zipCode || null,
       state: body.state || null,
       district: body.district || null,
@@ -37,7 +39,7 @@ export async function POST(request: NextRequest) {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     });
-    console.log(`✅ Saved user ${userId} to database`);
+    console.log(`✅ Saved onboarding data for user ${user.email} (${user.id})`);
 
     // Save representatives to database
     if (body.representatives && Array.isArray(body.representatives)) {
@@ -52,6 +54,7 @@ export async function POST(request: NextRequest) {
           image_url: rep.photo || null,
           phone: rep.phone || null,
           website_url: rep.website || null,
+          contact_url: rep.contact_url || null,
           twitter_handle: rep.twitter || null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -62,7 +65,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      userId,
+      userId: user.id,
       message: 'Onboarding completed successfully',
     });
 

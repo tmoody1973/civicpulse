@@ -68,6 +68,7 @@ CREATE TABLE IF NOT EXISTS representatives (
   office_address TEXT,
   phone TEXT,
   website_url TEXT,
+  contact_url TEXT,
   twitter_handle TEXT,
   committees TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
