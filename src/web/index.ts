@@ -365,6 +365,109 @@ export default class extends Service<Env> {
         return this.jsonResponse({ count }, corsHeaders);
       }
 
+      // SmartBucket sync endpoint
+      if (url.pathname === '/api/smartbucket/sync' && request.method === 'POST') {
+        const { limit = 10 } = await request.json().catch(() => ({}));
+
+        // Get bills with full_text that haven't been synced yet
+        const bills = await this.env.CIVIC_DB.prepare(`
+          SELECT id, congress, bill_type, bill_number, title, summary, full_text
+          FROM bills
+          WHERE full_text IS NOT NULL
+            AND smartbucket_key IS NULL
+          LIMIT ?
+        `).bind(limit).all<{
+          id: string;
+          congress: number;
+          bill_type: string;
+          bill_number: number;
+          title: string;
+          summary: string | null;
+          full_text: string;
+        }>();
+
+        const synced: string[] = [];
+        const failed: { id: string; error: string }[] = [];
+
+        for (const bill of bills.results || []) {
+          try {
+            // Create plain text document for SmartBucket indexing
+            // SmartBuckets index text content, not JSON
+            const textContent = `
+Bill ID: ${bill.id}
+Congress: ${bill.congress}
+Bill Type: ${bill.bill_type}
+Bill Number: ${bill.bill_number}
+
+Title: ${bill.title}
+
+${bill.summary ? `Summary:\n${bill.summary}\n\n` : ''}Full Text:
+${bill.full_text}
+`.trim();
+
+            const documentKey = `bills/${bill.congress}/${bill.bill_type}${bill.bill_number}.txt`;
+
+            // Upload as plain text so SmartBucket can index it
+            await this.env.BILLS_SMARTBUCKET.put(
+              documentKey,
+              textContent,
+              {
+                httpMetadata: {
+                  contentType: 'text/plain',
+                },
+              }
+            );
+
+            // Update database with sync info
+            await this.env.CIVIC_DB.prepare(`
+              UPDATE bills
+              SET smartbucket_key = ?,
+                  synced_to_smartbucket_at = CURRENT_TIMESTAMP
+              WHERE id = ?
+            `).bind(documentKey, bill.id).run();
+
+            synced.push(bill.id);
+          } catch (error) {
+            failed.push({
+              id: bill.id,
+              error: error instanceof Error ? error.message : 'Unknown error',
+            });
+          }
+        }
+
+        return this.jsonResponse({
+          success: true,
+          synced: synced.length,
+          failed: failed.length,
+          bills: synced,
+          errors: failed,
+        }, corsHeaders);
+      }
+
+      // SmartBucket search endpoint
+      if (url.pathname === '/api/smartbucket/search' && request.method === 'POST') {
+        const { query, limit = 10 } = await request.json();
+
+        if (!query) {
+          return this.jsonResponse({
+            error: 'Query parameter required',
+          }, corsHeaders, 400);
+        }
+
+        // Search SmartBucket with semantic search
+        const searchResults = await this.env.BILLS_SMARTBUCKET.search({
+          input: query,
+          requestId: `search-${Date.now()}`,
+        });
+
+        return this.jsonResponse({
+          success: true,
+          query,
+          results: searchResults.results.slice(0, limit),
+          pagination: searchResults.pagination,
+        }, corsHeaders);
+      }
+
       // Default 404
       return this.jsonResponse({
         error: 'Not Found',

@@ -1,4 +1,4 @@
-globalThis.__RAINDROP_GIT_COMMIT_SHA = "e3c35bd9d8b63f416e3117e1ae0eacd35910c3b0"; 
+globalThis.__RAINDROP_GIT_COMMIT_SHA = "0d7653191c437de1ddcbdc365e3450e3f992fa15"; 
 
 // node_modules/@liquidmetal-ai/raindrop-framework/dist/core/cors.js
 var matchOrigin = (request, env, config) => {
@@ -382,6 +382,83 @@ var web_default = class extends Service {
         const count = result?.count || 0;
         return this.jsonResponse({ count }, corsHeaders);
       }
+      if (url.pathname === "/api/smartbucket/sync" && request.method === "POST") {
+        const { limit = 10 } = await request.json().catch(() => ({}));
+        const bills = await this.env.CIVIC_DB.prepare(`
+          SELECT id, congress, bill_type, bill_number, title, summary, full_text
+          FROM bills
+          WHERE full_text IS NOT NULL
+            AND smartbucket_key IS NULL
+          LIMIT ?
+        `).bind(limit).all();
+        const synced = [];
+        const failed = [];
+        for (const bill of bills.results || []) {
+          try {
+            const textContent = `
+Bill ID: ${bill.id}
+Congress: ${bill.congress}
+Bill Type: ${bill.bill_type}
+Bill Number: ${bill.bill_number}
+
+Title: ${bill.title}
+
+${bill.summary ? `Summary:
+${bill.summary}
+
+` : ""}Full Text:
+${bill.full_text}
+`.trim();
+            const documentKey = `bills/${bill.congress}/${bill.bill_type}${bill.bill_number}.txt`;
+            await this.env.BILLS_SMARTBUCKET.put(
+              documentKey,
+              textContent,
+              {
+                httpMetadata: {
+                  contentType: "text/plain"
+                }
+              }
+            );
+            await this.env.CIVIC_DB.prepare(`
+              UPDATE bills
+              SET smartbucket_key = ?,
+                  synced_to_smartbucket_at = CURRENT_TIMESTAMP
+              WHERE id = ?
+            `).bind(documentKey, bill.id).run();
+            synced.push(bill.id);
+          } catch (error) {
+            failed.push({
+              id: bill.id,
+              error: error instanceof Error ? error.message : "Unknown error"
+            });
+          }
+        }
+        return this.jsonResponse({
+          success: true,
+          synced: synced.length,
+          failed: failed.length,
+          bills: synced,
+          errors: failed
+        }, corsHeaders);
+      }
+      if (url.pathname === "/api/smartbucket/search" && request.method === "POST") {
+        const { query, limit = 10 } = await request.json();
+        if (!query) {
+          return this.jsonResponse({
+            error: "Query parameter required"
+          }, corsHeaders, 400);
+        }
+        const searchResults = await this.env.BILLS_SMARTBUCKET.search({
+          input: query,
+          requestId: `search-${Date.now()}`
+        });
+        return this.jsonResponse({
+          success: true,
+          query,
+          results: searchResults.results.slice(0, limit),
+          pagination: searchResults.pagination
+        }, corsHeaders);
+      }
       return this.jsonResponse({
         error: "Not Found",
         path: url.pathname,
@@ -468,8 +545,8 @@ var web_default = class extends Service {
         id, congress, bill_type, bill_number, title, summary, full_text,
         sponsor_bioguide_id, sponsor_name, introduced_date,
         latest_action_date, latest_action_text, status,
-        issue_categories, impact_score, congress_url
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        issue_categories, impact_score, congress_url, searchable_text
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       data.id,
       data.congress,
@@ -486,7 +563,8 @@ var web_default = class extends Service {
       data.status || "introduced",
       JSON.stringify(data.issueCategories || []),
       data.impactScore || null,
-      data.congressGovUrl || null
+      data.congressGovUrl || null,
+      data.searchableText || null
     ).run();
   }
   async getBillsByCategory(category, limit = 20) {
