@@ -100,7 +100,7 @@ export default function DashboardPage() {
           const mappedReps: Representative[] = repsData.data.all.map((rep: any) => ({
             id: rep.bioguideId,
             name: rep.name,
-            party: rep.party === 'Democratic' ? 'Democrat' as const : rep.party === 'Republican' ? 'Republican' as const : 'Independent' as const,
+            party: (rep.party === 'Democrat' || rep.party === 'Democratic') ? 'Democrat' as const : rep.party === 'Republican' ? 'Republican' as const : 'Independent' as const,
             chamber: rep.chamber as 'Senate' | 'House',
             state: rep.state,
             district: rep.district?.toString(),
