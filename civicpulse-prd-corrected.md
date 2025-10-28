@@ -698,309 +698,414 @@ export async function getTableInfo(env: Env, tableName: string) {
 
 ---
 
-## 6. SEARCH ARCHITECTURE (ALGOLIA + SQL)
+## 6. SEARCH ARCHITECTURE (ALGOLIA + RAINDROP + SQL)
 
-**Dual-Database Pattern: Fast Search with Progressive Caching**
+**Three-Layer Search Strategy: Fast, Flexible, and Semantic**
 
-### 6.1 Architecture Overview
+**Complete reference:** See `/docs/SEARCH.md` for full implementation details
+
+### 6.1 Search Vision
+
+Users should be able to find bills **as easily as Googling**—whether they know the bill number or just have a vague idea. From search results, tracking a bill should be **one tap away**.
+
+### 6.2 Three Search Paths (Based on User Intent)
+
+Based on user research, we support three distinct search patterns:
+
+1. **Directed Search (20%)**: "Find H.R. 1234" → Instant bill lookup
+2. **Exploratory Search (60%)**: "Show me healthcare bills" → Faceted filtering
+3. **Discovery Search (20%)**: "How does this affect me?" → AI-powered semantic search
+
+### 6.3 Architecture Overview
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                   USER SEARCH FLOW                       │
-└─────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────┐
+│                 USER SEARCH QUERY                     │
+└──────────────────────────────────────────────────────┘
                          ↓
-┌─────────────────────────────────────────────────────────┐
-│              ALGOLIA SEARCH INDEX                        │
-│  • Lightning-fast search (<20ms)                        │
-│  • Truncated bill data for quick preview                │
-│  • Faceted filtering by category, status, date          │
-│  • Typo-tolerance and relevance ranking                 │
-└─────────────────────────────────────────────────────────┘
+          ┌──────────────┴──────────────┐
+          │  Query Type Detection        │
+          │  (Bill # | Keyword | NL)     │
+          └──────────────┬──────────────┘
                          ↓
-                    ┌─────────┐
-                    │  Found? │
-                    └─────────┘
-                    /           \
-                 YES             NO
-                  ↓               ↓
-┌──────────────────────┐   ┌──────────────────────────┐
-│  RAINDROP SQL DB     │   │  CONGRESS.GOV API        │
-│  • Full bill data    │   │  • Fetch missing bill    │
-│  • Complete text     │   │  • ~800ms response       │
-│  • Analysis results  │   │                          │
-│  • Source of truth   │   │          ↓               │
-└──────────────────────┘   │  Save to SQL Database    │
-                            │          ↓               │
-                            │  Sync to Algolia Index   │
-                            │          ↓               │
-                            │  Return to User          │
-                            └──────────────────────────┘
+         ┌───────────────┼───────────────┐
+         ↓               ↓               ↓
+┌──────────────┐ ┌─────────────┐ ┌──────────────┐
+│  DIRECTED    │ │ EXPLORATORY │ │  DISCOVERY   │
+│ Bill Number  │ │  Faceted    │ │  Semantic    │
+└──────┬───────┘ └──────┬──────┘ └──────┬───────┘
+       ↓                ↓                ↓
+┌──────────────┐ ┌─────────────┐ ┌──────────────┐
+│ Raindrop SQL │ │   Algolia   │ │ SmartBuckets │
+│   <10ms      │ │    <50ms    │ │    <200ms    │
+└──────┬───────┘ └──────┬──────┘ └──────┬───────┘
+       │                │                │
+       └────────────────┼────────────────┘
+                        ↓
+                 ┌──────────────┐
+                 │ KV Cache     │
+                 │ (1hr TTL)    │
+                 └──────┬───────┘
+                        ↓
+                 ┌──────────────┐
+                 │ Personalized │
+                 │   Ranking    │
+                 └──────┬───────┘
+                        ↓
+                 ┌──────────────┐
+                 │ Ranked Results│
+                 └───────────────┘
 ```
 
-### 6.2 Progressive Caching Workflow
+### 6.4 Layer 1: Directed Search (Bill Number Lookup)
 
-**Search Request Flow:**
+**User Intent:** "I know the bill number, just show me the bill."
 
-1. **User searches for "healthcare reform"**
-2. **Query Algolia** (<20ms response):
-   - If found → Return results immediately
-   - If not found → Continue to step 3
+**Examples:** "H.R. 1234", "S. 567", "HR1234"
 
-3. **Fetch from Congress.gov API** (~800ms):
-   - Search Congress.gov for matching bills
-   - Parse and enrich with metadata
-
-4. **Store in SQL Database**:
-   - Save complete bill data
-   - Run AI analysis (Claude Sonnet 4)
-   - Store full text, summary, categories
-
-5. **Sync to Algolia**:
-   - Push truncated data to search index
-   - Enable fast future searches
-   - Update relevance rankings
-
-6. **Return Results to User**:
-   - Full bill details from SQL database
-   - Future searches benefit from cache
-
-### 6.3 Data Synchronization Strategy
-
-**Algolia Index Schema (Truncated for Fast Search):**
-
+**Implementation:**
 ```typescript
-// Algolia record (lightweight, optimized for search)
+// lib/search/directed-search.ts
+export async function directBillLookup(
+  query: string,
+  env: Env
+): Promise<Bill | null> {
+  // Parse bill number (H.R. 1234, S. 567, etc.)
+  const billPattern = /^(H\.?R\.?|S\.?)\s*(\d+)$/i;
+  const match = query.trim().match(billPattern);
+
+  if (!match) return null;
+
+  const chamber = match[1].toLowerCase().includes('s') ? 'Senate' : 'House';
+  const number = parseInt(match[2]);
+
+  // Direct SQL lookup (fastest path)
+  const result = await executeQuery(
+    `SELECT * FROM bills
+     WHERE chamber = ? AND bill_number = ?
+     ORDER BY congress DESC
+     LIMIT 1`,
+    'bills',
+    [chamber, number]
+  );
+
+  return result.rows[0] || null;
+}
+```
+
+**Performance:** <10ms (direct SQL query)
+
+### 6.5 Layer 2: Exploratory Search (Faceted Filtering)
+
+**User Intent:** "I want to browse bills by topic/status/party."
+
+**Examples:** "healthcare bills", "bills passed by the House", "education bills sponsored by Republicans"
+
+**Implementation:**
+- **Algolia** for lightning-fast full-text search
+- Real-time facet updates (no page reload)
+- Personalization based on user location, interests, tracked bills
+
+**Algolia Index Schema:**
+```typescript
 interface AlgoliaBillRecord {
-  objectID: string;           // bill.full_bill_id (e.g., "hr100-118")
+  objectID: string;           // bill.id
+  billNumber: string;         // "H.R. 1234"
   congress: number;           // 118
-  bill_type: string;          // "hr"
-  bill_number: number;        // 100
   title: string;              // Full title for search
-  summary_short: string;      // 200 char summary
-  issue_categories: string[]; // ["Healthcare", "Economy"]
-  sponsor_name: string;       // "Rep. Nancy Pelosi"
-  sponsor_party: string;      // "D"
-  sponsor_state: string;      // "CA"
-  introduced_date: number;    // Unix timestamp for sorting
-  latest_action_date: number; // Unix timestamp
-  status: string;             // "Passed House"
-  impact_score: number;       // 85 (0-100)
-  is_enacted: boolean;        // false
-  _tags: string[];            // For faceted filtering
+  plainEnglishSummary: string;// AI-generated summary
+  summary: string;            // Official summary
+  sponsorName: string;        // "Rep. Nancy Pelosi"
+  sponsorParty: string;       // "D"
+  sponsorState: string;       // "CA"
+  issueCategories: string[];  // ["Healthcare", "Economy"]
+  statesAffected: string[];   // ["WI", "MN", "MI"]
+  billStatus: string;         // "Passed House"
+  trackingCount: number;      // 1234 (popularity)
+  progressScore: number;      // 0-1 scale
+  bipartisanScore: number;    // 0-1 scale
+  introducedTimestamp: number;// Unix timestamp
 }
 ```
 
-**SQL Database (Complete, Source of Truth):**
-
-- Full bill text (can be 30+ pages)
-- Claude AI analysis results
-- Congressional Record speeches
-- Voting records
-- Full sponsor/cosponsor details
-- All metadata and timestamps
-
-### 6.4 Implementation
-
-**Search API Route:**
-
+**Algolia Configuration:**
 ```typescript
-// app/api/search-congress/route.ts
-
-import algoliasearch from 'algoliasearch';
-import { NextResponse } from 'next/server';
-import { z } from 'zod';
-
-const algoliaClient = algoliasearch(
-  process.env.ALGOLIA_APP_ID!,
-  process.env.ALGOLIA_ADMIN_API_KEY!
-);
-const billsIndex = algoliaClient.initIndex('bills');
-
-const searchSchema = z.object({
-  query: z.string().min(1).max(200),
-  filters: z.object({
-    categories: z.array(z.string()).optional(),
-    congress: z.number().optional(),
-    status: z.string().optional()
-  }).optional(),
-  page: z.number().default(0),
-  hitsPerPage: z.number().default(20)
-});
-
-export async function POST(req: Request) {
-  try {
-    const body = await req.json();
-    const { query, filters, page, hitsPerPage } = searchSchema.parse(body);
-
-    // 1. Search Algolia first (fast!)
-    const algoliaResults = await billsIndex.search(query, {
-      filters: buildAlgoliaFilters(filters),
-      page,
-      hitsPerPage,
-      attributesToRetrieve: [
-        'objectID', 'title', 'summary_short', 'issue_categories',
-        'sponsor_name', 'latest_action_date', 'impact_score'
-      ]
-    });
-
-    if (algoliaResults.hits.length > 0) {
-      // Found in Algolia - return immediately
-      return NextResponse.json({
-        hits: algoliaResults.hits,
-        nbHits: algoliaResults.nbHits,
-        page: algoliaResults.page,
-        source: 'cache' // Indicate cache hit
-      });
-    }
-
-    // 2. Not found - fetch from Congress.gov API
-    console.log('Cache miss - fetching from Congress.gov');
-    const congressResults = await fetchFromCongressGov(query, filters);
-
-    if (congressResults.length === 0) {
-      return NextResponse.json({
-        hits: [],
-        nbHits: 0,
-        page: 0,
-        source: 'api'
-      });
-    }
-
-    // 3. Store in SQL database (parallel operations)
-    await Promise.all(
-      congressResults.map(bill => storeBillInDatabase(bill))
-    );
-
-    // 4. Sync to Algolia (async, don't block response)
-    syncToAlgolia(congressResults).catch(err =>
-      console.error('Algolia sync failed:', err)
-    );
-
-    // 5. Return results
-    return NextResponse.json({
-      hits: congressResults.map(formatBillForResponse),
-      nbHits: congressResults.length,
-      page: 0,
-      source: 'api' // Indicate fresh fetch
-    });
-
-  } catch (error) {
-    console.error('Search error:', error);
-    return NextResponse.json(
-      { error: 'Search failed' },
-      { status: 500 }
-    );
-  }
-}
-
-// Store bill in SQL database
-async function storeBillInDatabase(bill: CongressBill) {
-  return await env.CIVIC_DB.prepare(`
-    INSERT OR REPLACE INTO bills (
-      id, full_bill_id, congress, bill_type, bill_number,
-      title, summary_short, issue_categories, sponsor_name,
-      introduced_date, latest_action_date, status, impact_score
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `)
-    .bind(
-      bill.id,
-      bill.full_bill_id,
-      bill.congress,
-      bill.bill_type,
-      bill.bill_number,
-      bill.title,
-      bill.summary_short,
-      JSON.stringify(bill.issue_categories),
-      bill.sponsor_name,
-      bill.introduced_date,
-      bill.latest_action_date,
-      bill.status,
-      bill.impact_score || 50
-    )
-    .run();
-}
-
-// Sync bills to Algolia
-async function syncToAlgolia(bills: CongressBill[]) {
-  const algoliaRecords = bills.map(bill => ({
-    objectID: bill.full_bill_id,
-    congress: bill.congress,
-    bill_type: bill.bill_type,
-    bill_number: bill.bill_number,
-    title: bill.title,
-    summary_short: bill.summary_short?.substring(0, 200),
-    issue_categories: bill.issue_categories || [],
-    sponsor_name: bill.sponsor_name,
-    sponsor_party: bill.sponsor_party,
-    sponsor_state: bill.sponsor_state,
-    introduced_date: new Date(bill.introduced_date).getTime(),
-    latest_action_date: new Date(bill.latest_action_date).getTime(),
-    status: bill.status,
-    impact_score: bill.impact_score || 50,
-    is_enacted: bill.is_enacted || false,
-    _tags: bill.issue_categories || []
-  }));
-
-  await billsIndex.saveObjects(algoliaRecords);
-}
-```
-
-### 6.5 Performance Characteristics
-
-| Operation | Response Time | Data Source |
-|-----------|---------------|-------------|
-| **Algolia Search** (cache hit) | <20ms | Algolia Index |
-| **SQL Query** (full bill data) | ~50ms | Raindrop SQL |
-| **Congress.gov API** (miss) | ~800ms | External API |
-| **Total (worst case)** | ~900ms | API + SQL + Algolia |
-
-**Benefits:**
-- **Fast searches**: 95%+ queries served from Algolia cache (<20ms)
-- **Always current**: SQL database is source of truth, auto-syncs to Algolia
-- **Progressive enhancement**: Cache builds as users search
-- **Resilient**: Falls back to Congress.gov if Algolia is down
-
-### 6.6 Algolia Configuration
-
-**Index Settings:**
-
-```typescript
-// scripts/configure-algolia.ts
-
 await billsIndex.setSettings({
   searchableAttributes: [
+    'billNumber',        // Highest priority
     'title',
-    'summary_short',
-    'sponsor_name',
-    'unordered(issue_categories)'
+    'shortTitle',
+    'plainEnglishSummary',
+    'summary',
+    'sponsorName',
+    'cosponsorNames',
+    'topics'
   ],
   attributesForFaceting: [
-    'searchable(issue_categories)',
+    'searchable(issueCategories)',
     'congress',
-    'sponsor_party',
-    'sponsor_state',
-    'status',
-    'is_enacted'
+    'sponsorParty',
+    'sponsorState',
+    'billStatus',
+    'statesAffected',
+    'bipartisanScore'
   ],
   customRanking: [
-    'desc(impact_score)',
-    'desc(latest_action_date)'
-  ],
-  ranking: [
-    'typo',
-    'geo',
-    'words',
-    'filters',
-    'proximity',
-    'attribute',
-    'exact',
-    'custom'
+    'desc(trackingCount)',    // Popular bills first
+    'desc(progressScore)',    // Active bills first
+    'desc(bipartisanScore)',  // Bipartisan bills boosted
+    'desc(introducedTimestamp)' // Recent bills preferred
   ],
   typoTolerance: true,
   minWordSizefor1Typo: 4,
   minWordSizefor2Typos: 8
 });
 ```
+
+**Performance:** <50ms (Algolia query)
+
+### 6.6 Layer 3: Discovery Search (Semantic Matching)
+
+**User Intent:** "I don't know what I'm looking for, help me find it."
+
+**Examples:** "bills that help college students with debt", "how will this affect small businesses in Wisconsin", "what are they doing about climate change"
+
+**Implementation:**
+- **Raindrop SmartBuckets** for semantic search on bill summaries
+- **AI-generated explanations** of why bills match the query
+- **Hybrid scoring:** 50% semantic + 20% location + 20% interests + 10% popularity
+
+```typescript
+// lib/search/discovery-search.ts
+export async function discoverySearch(
+  naturalLanguageQuery: string,
+  userId: string,
+  env: Env
+): Promise<DiscoveryResults> {
+  // Step 1: SmartBuckets semantic search
+  const semanticResults = await env.BILL_SUMMARIES.chunkSearch({
+    input: naturalLanguageQuery,
+    requestId: `discovery-${userId}-${Date.now()}`
+  });
+
+  // Step 2: Extract bill IDs from semantic matches
+  const billIds = semanticResults.results
+    .filter(result => result.score && result.score > 0.7)
+    .map(result => extractBillId(result.source))
+    .slice(0, 20);
+
+  // Step 3: Fetch full bill data from SQL
+  const bills = await executeQuery(
+    `SELECT * FROM bills WHERE id IN (${billIds.map(() => '?').join(',')})`,
+    'bills',
+    billIds
+  );
+
+  // Step 4: Re-rank with user context
+  const userProfile = await getUserProfile(userId, env);
+  const rankedBills = rankByRelevance(bills.rows, userProfile, semanticResults.results);
+
+  // Step 5: Generate AI explanation
+  const explanation = await generateSearchExplanation(
+    naturalLanguageQuery,
+    rankedBills.slice(0, 3),
+    env
+  );
+
+  return {
+    bills: rankedBills,
+    explanation,
+    semanticScores: semanticResults.results
+  };
+}
+```
+
+**Performance:** <200ms (SmartBuckets) + <50ms (SQL) + <500ms (AI) = <800ms total
+
+### 6.7 Raindrop Platform Integration
+
+**Raindrop Components Used:**
+
+1. **Raindrop SQL** (Primary Database)
+   - Canonical source of truth for bills
+   - Full bill text, metadata, relationships
+   - User tracking preferences
+
+2. **Raindrop KV Cache** (Performance Layer)
+   - Cache popular search queries (1hr TTL)
+   - Cache Congress.gov API responses (24hr TTL)
+   - Cache Algolia results for repeated queries
+
+3. **Raindrop SmartBuckets** (Semantic Layer)
+   - Bill summaries indexed for RAG search
+   - Plain-English queries
+   - Multi-modal document processing
+
+4. **Raindrop Task** (Algolia Sync)
+   - Cron job every 6 hours
+   - Sync updated bills from SQL to Algolia
+   - Maintain search index freshness
+
+**raindrop.manifest:**
+```hcl
+application "civic-pulse" {
+  sql_database "civic-db" {}
+  kv_cache "search-cache" {}
+  smartbucket "bill-summaries" {}
+
+  task "algolia-sync" {
+    schedule = "0 */6 * * *"  # Every 6 hours
+  }
+
+  service "search-api" {
+    visibility = "public"
+  }
+}
+```
+
+### 6.8 Search UX: Simple vs Advanced Modes
+
+**Simple Mode (Default)** - For casual users:
+- Large search bar (prominent, inviting)
+- Autocomplete dropdown (instant suggestions)
+- Quick filter pills (top 3 categories only)
+- "Track this bill" button on every result
+- Switch to advanced mode (bottom of page)
+
+**Advanced Mode** - For power users:
+- Full faceted filtering sidebar
+- Keyword vs semantic search toggle
+- Active filter pills (easy removal)
+- Sort options (relevance, date, popularity, bipartisan support)
+- Compact result cards (more per page)
+- Pagination controls
+
+**Mobile Search Overlay:**
+- Full-screen overlay (no distraction)
+- Slide-up filter drawer
+- Touch-optimized controls
+- Infinite scroll (vs pagination)
+- Swipe to dismiss filter drawer
+
+### 6.9 Bill Tracking from Search Results
+
+**One-Tap Tracking:**
+
+Every search result card includes a prominent "Track" button with three modes:
+
+1. **Watch** (default): Get updates on bill status changes
+2. **Support**: Publicly support the bill + notifications
+3. **Oppose**: Publicly oppose the bill + notifications
+
+```typescript
+// Tracking API endpoint
+POST /api/bills/track
+{
+  billId: string;
+  trackingType: 'watching' | 'supporting' | 'opposing';
+  notificationPreferences: {
+    statusChanges: boolean;
+    voteScheduled: boolean;
+    amendments: boolean;
+  };
+}
+```
+
+**Tracking Workflow:**
+1. User clicks "Track" button on search result
+2. API creates entry in `user_tracked_bills` table
+3. Increments `tracking_count` on bill (for popularity ranking)
+4. Bill appears in user's tracked bills dashboard
+5. User receives notifications based on preferences
+
+### 6.10 Performance Targets & Cost Optimization
+
+**Performance Targets:**
+
+| Metric | Target | Measurement |
+|--------|--------|-------------|
+| Search response time | <500ms | p95 |
+| Autocomplete latency | <100ms | p95 |
+| Cache hit rate | >60% | Daily average |
+| Algolia query time | <50ms | p95 |
+| SQL query time | <100ms | p95 |
+| SmartBuckets semantic search | <200ms | p95 |
+| Page load time | <2s | Lighthouse |
+
+**Cost Optimization:**
+
+**Algolia Pricing:**
+- Free tier: 10,000 searches/month
+- Growth: $1 per 1,000 searches
+- Estimated usage: 50,000 searches/month = $40/month
+- KV Cache saves 60% → Actual cost: $24/month
+
+**Raindrop Platform:**
+- SQL database: Included in base plan
+- KV Cache: $0.50 per million reads
+- SmartBuckets: $10/month (1GB indexed)
+- Tasks: Included in base plan
+
+**Total estimated cost:** $35-50/month
+
+### 6.11 Data Flow: Congress.gov → SQL → Algolia
+
+```
+┌──────────────────────────────────────┐
+│     Congress.gov API (Source)        │
+│  • Rate limit: 1 req/sec             │
+│  • Cache: 24hr in KV Cache           │
+└─────────────┬────────────────────────┘
+              ↓
+┌──────────────────────────────────────┐
+│      Raindrop SQL (Canonical)        │
+│  • Full bill data + analysis         │
+│  • User tracking preferences         │
+│  • Source of truth                   │
+└─────────────┬────────────────────────┘
+              ↓
+       ┌──────┴──────┐
+       ↓             ↓
+┌─────────────┐  ┌──────────────────┐
+│   Algolia   │  │  SmartBuckets    │
+│  (Indexed)  │  │  (Semantic RAG)  │
+│  <50ms      │  │  <200ms          │
+└─────────────┘  └──────────────────┘
+       ↓             ↓
+       └──────┬──────┘
+              ↓
+       ┌──────────────┐
+       │  KV Cache    │
+       │  (1hr TTL)   │
+       └──────┬───────┘
+              ↓
+       ┌──────────────┐
+       │    Results   │
+       └──────────────┘
+```
+
+**Sync Strategy:**
+- **Real-time:** Directed search (bill number) → SQL only
+- **Hourly:** Congress.gov API → SQL → SmartBuckets
+- **Every 6 hours:** SQL → Algolia (Task scheduler)
+- **On-demand:** New bill discovered → SQL → Algolia async
+
+### 6.12 Search Analytics
+
+**Tracked Metrics:**
+- Search queries per session
+- Search-to-bill-page conversion rate
+- Bill tracking rate from search results
+- Cache hit rate (KV Cache + Algolia)
+- Average search response time
+- Search abandonment rate
+- Popular search terms
+
+**Success Criteria:**
+- Search usage: >70% of active users
+- Search-to-tracking conversion: >30%
+- Cache hit rate: >60%
+- Search response time: <500ms (p95)
 
 ---
 
@@ -2135,15 +2240,50 @@ export async function generatePodcast(
 }
 ```
 
-### 9.2 News Integration: The Hill RSS Feeds (Marketplace-Style Engagement)
+### 9.2 News Integration: Comprehensive RSS Architecture (The Hill + Politico)
 
 **INSPIRED BY:** NPR's Marketplace - https://www.marketplace.org/shows/marketplace
 
-**CONCEPT:** Blend breaking news from The Hill with bill tracking to create contextual, engaging podcasts that feel like professional journalism rather than dry legislative summaries.
+**VISION:** Transform Civic Pulse from a bill tracker into a comprehensive civic news platform that blends breaking news from The Hill and Politico with bill tracking, creating contextual, engaging experiences that feel like professional journalism.
 
-#### 8.2.1 The Hill RSS Feed Architecture
+**DETAILED PLAN:** See `/docs/NEWS_RSS_IMPLEMENTATION_PLAN.md` for complete technical architecture
 
-**Available Feeds:**
+---
+
+#### 9.2.1 News Integration Overview
+
+**Key Features:**
+
+1. **Context-Aware News**
+   - Bill-specific news on bill detail pages
+   - Representative-specific news on rep profiles
+   - Semantic matching using Raindrop SmartBuckets
+
+2. **Personalized News Feeds**
+   - Relevance scoring based on tracked bills, interests, geography
+   - "Today's Must-Read" (top 3 most relevant articles)
+   - "Bill Updates" (news about tracked bills)
+   - "Your Reps in the News" (mentions of user's representatives)
+   - Topic-based organization
+
+3. **Marketplace-Style Podcasts**
+   - Breaking news intros from The Hill/Politico
+   - Seamless transitions to related bills
+   - News context explains WHY bills matter NOW
+
+**Raindrop Platform Architecture:**
+
+```
+RSS Sources → KV Cache (1hr TTL) → Task (Cron) → Queue → Observer → SQL + SmartBuckets
+                                                                      ↓
+                                    Service API ← Personalized Feed Logic
+```
+
+---
+
+#### 9.2.2 RSS Feed Sources
+
+**The Hill RSS Feeds:**
 
 **News Feeds** (Everyone Gets These):
 - **Senate**: https://thehill.com/rss/feed/senate
@@ -2160,303 +2300,708 @@ export async function generatePodcast(
 - **Transportation**: https://thehill.com/rss/feed/transportation
 - **International**: https://thehill.com/rss/feed/international
 
-#### 8.2.2 Interest-to-Feed Mapping
+**Politico RSS Feeds:**
 
-```typescript
-// lib/rss/the-hill-feeds.ts
+**News Feeds**:
+- **Congress**: https://www.politico.com/rss/congress.xml
+- **Politics**: https://www.politico.com/rss/politics.xml
 
-export const INTEREST_TO_FEED_MAP: Record<string, string[]> = {
-  'healthcare': ['healthcare'],
-  'defense': ['defense'],
-  'climate': ['energy-environment'],
-  'economy': ['finance'],
-  'technology': ['technology'],
-  'housing': ['finance'],
-  'education': ['finance'],
-  'immigration': ['administration'],
-  'justice': ['administration'],
-  'agriculture': ['energy-environment'],
-  'veterans': ['defense'],
-  'trade': ['international'],
-  'transportation': ['transportation'],
-  'infrastructure': ['finance', 'transportation'],
-  'civil-rights': ['administration']
-};
+**Policy Feeds**:
+- **Healthcare**: https://www.politico.com/rss/healthcare.xml
+- **Defense**: https://www.politico.com/rss/defense.xml
+- **Energy**: https://www.politico.com/rss/energy.xml
+- **Technology**: https://www.politico.com/rss/technology.xml
+- **Finance**: https://www.politico.com/rss/economy.xml
 
-export function getFeedsForInterests(interests: string[]): RSSFeed[] {
-  const feedIds = new Set<string>();
+---
 
-  // Always include general feeds
-  feedIds.add('senate');
-  feedIds.add('house');
+#### 9.2.3 Raindrop Platform Architecture
 
-  // Add policy feeds based on interests
-  interests.forEach(interest => {
-    const mappedFeeds = INTEREST_TO_FEED_MAP[interest] || [];
-    mappedFeeds.forEach(feedId => feedIds.add(feedId));
-  });
+**Component Breakdown:**
 
-  return THE_HILL_FEEDS.filter(feed => feedIds.has(feed.id));
+**A. KV Cache** (`news-feed-cache`)
+- Purpose: Cache parsed RSS feeds (1 hour TTL)
+- Key format: `rss:{source}:{category}:{timestamp}`
+- Prevents redundant fetching
+
+**B. Task** (`rss-poller`)
+- Schedule: Every hour (`0 * * * *`)
+- Function: Fetch all RSS feeds and cache them
+- Sends new articles to processing queue
+
+**C. Queue** (`news-processing-queue`)
+- Purpose: Async article processing pipeline
+- Payload: Article metadata + raw content
+- Batching: 10 articles per batch
+
+**D. Observer** (`news-processor`)
+- Listens to: `news-processing-queue`
+- Actions:
+  1. Extract metadata (title, description, date, source)
+  2. Categorize with AI (Claude/Llama)
+  3. Store in SQL database
+  4. Upload full text to SmartBucket
+  5. Generate semantic matches to bills
+
+**E. SQL Database** (`civic-db`)
+- Tables: `news_articles`, `news_to_bills`
+- Indexes: published_at, category, bill_id
+- Stores structured metadata
+
+**F. SmartBuckets** (`news-articles`)
+- Purpose: RAG-powered semantic search
+- Stores: Full article text
+- Enables: Natural language queries, bill matching
+
+**raindrop.manifest Configuration:**
+
+```hcl
+application "civic-pulse" {
+  # Existing resources
+  sql_database "civic-db" {}
+
+  # NEW: News/RSS resources
+  kv_cache "news-feed-cache" {}
+
+  smartbucket "news-articles" {}
+
+  queue "news-processing-queue" {}
+
+  task "rss-poller" {
+    schedule = "0 * * * *"  # Every hour
+  }
+
+  observer "news-processor" {
+    source {
+      queue = "news-processing-queue"
+    }
+  }
+
+  service "news-api" {
+    visibility = "public"
+  }
 }
 ```
 
-#### 8.2.3 Enhanced Podcast Generation with News Context
+---
 
-**Updated Pipeline:**
+#### 9.2.4 Database Schema (News Articles)
+
+```sql
+-- News articles table
+CREATE TABLE IF NOT EXISTS news_articles (
+  id TEXT PRIMARY KEY,
+  source TEXT NOT NULL CHECK(source IN ('thehill', 'politico')),
+  title TEXT NOT NULL,
+  description TEXT,
+  url TEXT UNIQUE NOT NULL,
+  published_at TIMESTAMP NOT NULL,
+  category TEXT, -- 'senate', 'house', 'healthcare', etc.
+  ai_topic_tags TEXT, -- JSON array of AI-generated tags
+  smartbucket_id TEXT, -- Reference to SmartBucket document
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- News-to-bills relationship table
+CREATE TABLE IF NOT EXISTS news_to_bills (
+  id TEXT PRIMARY KEY,
+  news_article_id TEXT NOT NULL,
+  bill_id TEXT NOT NULL,
+  relevance_score REAL NOT NULL CHECK(relevance_score >= 0 AND relevance_score <= 1),
+  matched_keywords TEXT, -- JSON array
+  semantic_score REAL, -- From SmartBuckets search
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (news_article_id) REFERENCES news_articles(id),
+  FOREIGN KEY (bill_id) REFERENCES bills(id)
+);
+
+-- Indexes for performance
+CREATE INDEX idx_news_published ON news_articles(published_at DESC);
+CREATE INDEX idx_news_category ON news_articles(category);
+CREATE INDEX idx_news_source ON news_articles(source);
+CREATE INDEX idx_news_to_bills_bill ON news_to_bills(bill_id, relevance_score DESC);
+CREATE INDEX idx_news_to_bills_news ON news_to_bills(news_article_id);
+```
+
+---
+
+#### 9.2.5 News-to-Bill Matching Algorithm
+
+**Hybrid Approach**: Semantic (SmartBuckets) + Keyword matching
 
 ```typescript
-// lib/podcast/generator-with-news.ts
+// lib/news/bill-matcher.ts
+import { Env } from '@/raindrop.gen';
 
-import { parseRSSFeed } from '@/lib/rss/parser';
-import { getFeedsForInterests } from '@/lib/rss/the-hill-feeds';
-import { generateDialogueScript } from '@/lib/ai/claude';
-import { generateDialogue } from '@/lib/ai/elevenlabs';
-import { uploadPodcast } from '@/lib/storage/vultr';
-import { mcp } from '@raindrop/mcp';
+interface BillMatch {
+  billId: string;
+  relevanceScore: number; // 0.0 to 1.0
+  matchedKeywords: string[];
+  semanticScore: number;
+}
+
+export async function matchNewsToBills(
+  articleText: string,
+  articleMetadata: {
+    title: string;
+    description: string;
+    category: string;
+  },
+  env: Env
+): Promise<BillMatch[]> {
+  // Step 1: Get candidate bills by category
+  const candidateBills = await env.CIVIC_DB.prepare(`
+    SELECT id, title, summary, issue_categories
+    FROM bills
+    WHERE issue_categories LIKE ?
+    LIMIT 50
+  `).bind(`%${articleMetadata.category}%`).all();
+
+  // Step 2: Semantic search using SmartBuckets
+  const semanticMatches = await env.NEWS_ARTICLES.chunkSearch({
+    input: articleText,
+    requestId: `news-match-${Date.now()}`
+  });
+
+  // Step 3: Keyword extraction from article using AI
+  const articleKeywords = await env.AI.run('@cf/meta/llama-3-8b-instruct', {
+    messages: [{
+      role: 'user',
+      content: `Extract 5-10 key policy-related keywords from this article:
+Title: ${articleMetadata.title}
+Description: ${articleMetadata.description}
+Text: ${articleText.substring(0, 1000)}
+
+Return only keywords as JSON array.`
+    }]
+  });
+
+  // Step 4: Score each bill
+  const matches: BillMatch[] = [];
+  for (const bill of candidateBills.results) {
+    const keywordOverlap = calculateKeywordOverlap(
+      JSON.parse(articleKeywords.result),
+      bill.issue_categories
+    );
+    const semanticScore = getSemanticScore(bill.id, semanticMatches.results);
+
+    // Weighted scoring: 40% keyword, 60% semantic
+    const relevanceScore = (keywordOverlap * 0.4) + (semanticScore * 0.6);
+
+    if (relevanceScore > 0.3) { // Threshold
+      matches.push({
+        billId: bill.id,
+        relevanceScore,
+        matchedKeywords: keywordOverlap.keywords,
+        semanticScore
+      });
+    }
+  }
+
+  // Step 5: Return top 5 matches
+  return matches
+    .sort((a, b) => b.relevanceScore - a.relevanceScore)
+    .slice(0, 5);
+}
+```
+
+---
+
+#### 9.2.6 Personalized News Feed Scoring
+
+**Relevance Factors:**
+1. **Tracked Bills** (40%): News about bills user is tracking
+2. **User Interests** (30%): News matching selected issue categories
+3. **Geography** (20%): News about user's representatives
+4. **Recency** (10%): Newer articles score higher
+
+```typescript
+// lib/news/personalized-feed.ts
+export async function getPersonalizedNewsFeed(
+  userId: string,
+  env: Env,
+  options: { limit?: number; offset?: number } = {}
+): Promise<PersonalizedNewsArticle[]> {
+  // Get user preferences
+  const user = await env.CIVIC_DB.prepare(
+    `SELECT interests, state, district FROM users WHERE id = ?`
+  ).bind(userId).first<User>();
+
+  const trackedBills = await env.CIVIC_DB.prepare(
+    `SELECT bill_id FROM tracked_bills WHERE user_id = ?`
+  ).bind(userId).all();
+
+  const userReps = await env.CIVIC_DB.prepare(
+    `SELECT bioguide_id, name FROM representatives
+     WHERE state = ? AND (district = ? OR chamber = 'senate')`
+  ).bind(user.state, user.district).all();
+
+  // Get recent news articles (last 7 days)
+  const recentNews = await env.CIVIC_DB.prepare(`
+    SELECT
+      na.*,
+      GROUP_CONCAT(ntb.bill_id) as related_bills
+    FROM news_articles na
+    LEFT JOIN news_to_bills ntb ON na.id = ntb.news_article_id
+    WHERE na.published_at > datetime('now', '-7 days')
+    GROUP BY na.id
+    ORDER BY na.published_at DESC
+    LIMIT ?
+  `).bind(options.limit || 50).all();
+
+  // Score each article
+  const scoredArticles = recentNews.results.map(article => {
+    let score = 0;
+
+    // 1. Tracked bills (40%)
+    const relatedBills = article.related_bills?.split(',') || [];
+    const trackedBillIds = trackedBills.results.map(tb => tb.bill_id);
+    const billMatches = relatedBills.filter(bid => trackedBillIds.includes(bid));
+    score += (billMatches.length > 0 ? 0.4 : 0);
+
+    // 2. User interests (30%)
+    const userInterests = user.interests || [];
+    const articleTags = JSON.parse(article.ai_topic_tags || '[]');
+    const interestMatches = articleTags.filter(tag =>
+      userInterests.some(interest =>
+        tag.toLowerCase().includes(interest.toLowerCase())
+      )
+    );
+    score += (interestMatches.length / Math.max(articleTags.length, 1)) * 0.3;
+
+    // 3. Geography - rep mentions (20%)
+    const repMentions = userReps.results.some(rep =>
+      article.title.includes(rep.name) || article.description.includes(rep.name)
+    );
+    score += (repMentions ? 0.2 : 0);
+
+    // 4. Recency (10%)
+    const hoursSincePublished =
+      (Date.now() - new Date(article.published_at).getTime()) / (1000 * 60 * 60);
+    const recencyScore = Math.max(0, 1 - (hoursSincePublished / 168)); // 1 week decay
+    score += recencyScore * 0.1;
+
+    return {
+      ...article,
+      relevanceScore: score,
+      matchReasons: {
+        trackedBills: billMatches,
+        interests: interestMatches,
+        repMentions
+      }
+    };
+  });
+
+  // Sort by score and paginate
+  return scoredArticles
+    .sort((a, b) => b.relevanceScore - a.relevanceScore)
+    .slice(options.offset || 0, (options.offset || 0) + (options.limit || 20));
+}
+```
+
+---
+
+#### 9.2.7 News Feed Organization
+
+**Dashboard Sections:**
+
+```typescript
+// lib/news/feed-sections.ts
+export interface NewsFeedSections {
+  todaysMustRead: PersonalizedNewsArticle[]; // Top 3 by relevance
+  billUpdates: PersonalizedNewsArticle[];     // News about tracked bills
+  yourRepsInNews: PersonalizedNewsArticle[];  // Rep-specific news
+  byTopic: {
+    [topic: string]: PersonalizedNewsArticle[];
+  };
+}
+
+export async function getOrganizedNewsFeed(
+  userId: string,
+  env: Env
+): Promise<NewsFeedSections> {
+  const allNews = await getPersonalizedNewsFeed(userId, env, { limit: 100 });
+
+  return {
+    // Top 3 highest scoring articles
+    todaysMustRead: allNews.slice(0, 3),
+
+    // Articles about tracked bills (sorted by relevance)
+    billUpdates: allNews
+      .filter(article => article.matchReasons.trackedBills.length > 0)
+      .slice(0, 10),
+
+    // Articles mentioning user's representatives
+    yourRepsInNews: allNews
+      .filter(article => article.matchReasons.repMentions)
+      .slice(0, 10),
+
+    // Grouped by AI-generated topics
+    byTopic: groupByTopics(allNews)
+  };
+}
+```
+
+---
+
+#### 9.2.8 Marketplace-Style Podcast Enhancement
+
+**Integration Point**: Enhanced podcast generation with news context
+
+```typescript
+// lib/podcast/generator-with-news.ts (UPDATED)
+import { Env } from '@/raindrop.gen';
+import { getPersonalizedNewsFeed } from '@/lib/news/personalized-feed';
+import { matchNewsToBills } from '@/lib/news/bill-matcher';
 
 export async function generatePodcastWithNews(
   userId: string,
-  type: 'daily' | 'weekly'
-): Promise<string> {
-
+  type: 'daily' | 'weekly',
+  env: Env
+): Promise<PodcastEpisode> {
   const startTime = Date.now();
 
-  // 1. Get user data
-  const userResult = await env.CIVIC_DB.prepare(
-    `SELECT * FROM users WHERE id = ?`
-  ).bind(userId).first();
-  const userData = userResult;
+  // 1. Get user's tracked bills
+  const trackedBills = await env.CIVIC_DB.prepare(
+    `SELECT * FROM bills WHERE id IN (
+      SELECT bill_id FROM tracked_bills WHERE user_id = ?
+    ) LIMIT ?`
+  ).bind(userId, type === 'daily' ? 2 : 3).all();
 
-  // 2. Get representatives and bills
-  const representatives = await getRepresentatives(userData.zip_code);
-  const bills = await getFeaturedBills(userData, type);
+  // 2. Get personalized news feed (top 10 articles)
+  const newsFeed = await getPersonalizedNewsFeed(userId, env, { limit: 10 });
 
-  // 3. **NEW: Fetch relevant news from The Hill**
-  const userInterests = JSON.parse(userData.interests);
-  const feeds = getFeedsForInterests(userInterests);
+  // 3. Get bill-specific news for top bills
+  const billsWithNews = await Promise.all(
+    trackedBills.results.slice(0, 3).map(async bill => {
+      const relatedNews = await env.CIVIC_DB.prepare(`
+        SELECT na.*, ntb.relevance_score
+        FROM news_articles na
+        JOIN news_to_bills ntb ON na.id = ntb.news_article_id
+        WHERE ntb.bill_id = ?
+        ORDER BY ntb.relevance_score DESC, na.published_at DESC
+        LIMIT 3
+      `).bind(bill.id).all();
 
-  const newsArticles = await Promise.all(
-    feeds.map(feed => parseRSSFeed(feed.url))
-  ).then(results => results.flat());
-
-  // 4. **NEW: Match news to bills** (same issue categories)
-  const newsWithBills = matchNewsToBills(newsArticles, bills);
-
-  // 5. Generate Marketplace-style script with Claude
-  const script = await generateDialogueScriptWithNews(
-    bills,
-    newsWithBills,
-    representatives,
-    type
+      return { bill, news: relatedNews.results };
+    })
   );
 
-  // 6. Generate complete audio with ElevenLabs (single call)
-  const audioBuffer = await generateDialogue(script);
+  // 4. Generate Marketplace-style dialogue script
+  const scriptPrompt = generateMarketplacePrompt(
+    type,
+    billsWithNews,
+    newsFeed.slice(0, 3) // Top 3 news articles
+  );
 
-  // 7. Upload to Vultr Object Storage
-  const audioUrl = await uploadPodcast(audioBuffer, userId, type, {
-    duration: calculateDuration(audioBuffer),
-    billsCovered: bills.map(b => b.id),
-    generatedAt: new Date()
-  });
-
-  // 8. Save episode to database (with news references)
-  const episodeId = generateUUID();
-  await env.CIVIC_DB.prepare(`
-    INSERT INTO podcast_episodes (
-      id, user_id, episode_type, title, audio_url,
-      featured_bills, featured_representatives,
-      script_json, generation_status, generation_duration_seconds
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `)
-    .bind(
-      episodeId, userId, type, script.title, audioUrl,
-      JSON.stringify(bills.map(b => b.id)),
-      JSON.stringify(representatives.map(r => r.id)),
-      JSON.stringify({ news: newsWithBills, script }),
-      'completed', Math.floor((Date.now() - startTime) / 1000)
-    )
-    .run();
-
-  return episodeId;
-}
-```
-
-#### 8.2.4 News-Enhanced Dialogue Script Generation
-
-**Claude Prompt (Updated for Marketplace Style):**
-
-```typescript
-// lib/ai/claude-with-news.ts
-
-export async function generateDialogueScriptWithNews(
-  bills: Bill[],
-  newsArticles: NewsArticle[],
-  representatives: Representative[],
-  type: 'daily' | 'weekly'
-) {
-  const prompt = `
-You are creating a Marketplace-style podcast (NPR format) with hosts Sarah and James.
-Blend breaking news from The Hill with congressional bill tracking for engaging, contextual discussion.
-
-**STYLE GUIDE:**
-- Start with news (what's happening NOW)
-- Transition to related bills naturally
-- Explain connections between news and legislation
-- Use conversational tone with contractions
-- Include acknowledgments ("That's right", "Exactly", "Good point")
-- Plain language - no jargon
-- Professional but accessible (like Marketplace or The Daily)
-
-**FORMAT:**
-Return JSON array:
-[
-  { "host": "sarah", "text": "..." },
-  { "host": "james", "text": "..." }
-]
-
-**STRUCTURE (${type === 'daily' ? 'Daily 5-7 min' : 'Weekly 15-18 min'}):**
-
-${type === 'daily' ? `
-1. Opening (30s)
-   Sarah: "Good morning! Here's your daily brief for [date]"
-
-2. News + Bill #1 (2 min)
-   - Start with breaking news from The Hill
-   - Transition: "This connects directly to [Bill Number]..."
-   - Explain the bill in context of the news
-
-3. News + Bill #2 (2 min)
-   - Same pattern
-
-4. Your Representatives (1 min)
-   - Quick update on what your reps are doing
-
-5. Closing (30s)
-   - "Here's what to watch for next..."
-` : `
-1. Opening (1 min)
-   Sarah: "Welcome to your weekly deep dive for [date]"
-   James: "This week in Congress..."
-
-2. Week in Review (2 min)
-   - Top 3 news stories from The Hill
-   - What's driving the conversation
-
-3. Deep Dive: News + Bills (10 min)
-   - For each major bill:
-     * Start with related news context
-     * Break down the bill provisions
-     * Explain real-world impact
-     * Your representatives' positions
-
-4. What This Means for You (3 min)
-   - Practical implications
-   - How to take action
-
-5. Looking Ahead (2 min)
-   - What's coming next week
-   - Bills to watch
-
-6. Closing (1 min)
-   - Call to action
-`}
-
-**EXAMPLE DIALOGUE OPENING:**
-
-Sarah: "Good morning! The Hill just reported that the House Ways and Means Committee advanced healthcare reform legislation yesterday. James, what's behind this move?"
-
-James: "Well Sarah, this ties directly into H.R. 1234 - the Healthcare Access Act - that many of our listeners are tracking. The committee vote happened just two days after the CBO released cost estimates showing this could save families an average of $800 per year."
-
-Sarah: "So let's break down what this bill actually does..."
-
-**NEWS ARTICLES:**
-${JSON.stringify(newsArticles, null, 2)}
-
-**BILLS:**
-${JSON.stringify(bills.map(b => ({
-  number: b.number,
-  title: b.title,
-  summary: b.plain_english_summary,
-  issueCategories: b.issue_categories
-})), null, 2)}
-
-**YOUR REPRESENTATIVES:**
-${representatives.map(r => `${r.name} (${r.party}) - ${r.chamber}`).join(', ')}
-
-Create an engaging, informative dialogue that makes legislation accessible through current events.
-`;
-
-  const result = await env.AI.run('claude-sonnet-4-20250514', {
-    messages: [{ role: 'user', content: prompt }],
+  const script = await env.AI.run('@cf/anthropic/claude-sonnet-4', {
+    messages: [{ role: 'user', content: scriptPrompt }],
     max_tokens: type === 'daily' ? 3000 : 6000
   });
 
-  return JSON.parse(result.content[0].text);
+  // 5. Generate audio with ElevenLabs text-to-dialogue
+  const dialogue = JSON.parse(script.result);
+  const audioBuffer = await generateDialogueAudio(dialogue, env);
+
+  // 6. Upload to Vultr Storage
+  const audioUrl = await uploadToVultr(audioBuffer, userId, type, env);
+
+  // 7. Save episode with news references
+  const episode = await env.CIVIC_DB.prepare(`
+    INSERT INTO podcasts (
+      user_id, type, audio_url, transcript,
+      bills_covered, news_referenced, generated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).bind(
+    userId,
+    type,
+    audioUrl,
+    JSON.stringify(dialogue),
+    JSON.stringify(billsWithNews.map(b => b.bill.id)),
+    JSON.stringify(newsFeed.slice(0, 3).map(n => n.id)),
+    new Date().toISOString()
+  ).run();
+
+  return {
+    id: episode.meta.last_row_id,
+    audioUrl,
+    duration: type === 'daily' ? 420 : 1080, // 7 min or 18 min
+    transcript: dialogue,
+    billsCovered: billsWithNews,
+    newsReferenced: newsFeed.slice(0, 3)
+  };
+}
+
+function generateMarketplacePrompt(
+  type: 'daily' | 'weekly',
+  billsWithNews: any[],
+  topNews: any[]
+): string {
+  return `You are creating a ${type} podcast episode for Civic Pulse in the style of NPR's Marketplace.
+
+HOSTS: Sarah (enthusiastic, conversational) and James (analytical, grounded)
+
+STYLE GUIDELINES:
+- Start with breaking news from The Hill or Politico
+- Connect news to legislation seamlessly
+- Use conversational language (like Marketplace host Kai Ryssdal)
+- Include real-world impact examples
+- End with actionable insights
+
+${type === 'daily' ? `
+DAILY BRIEF STRUCTURE (5-7 minutes):
+1. Opening (30 sec) - Hook with today's top news
+2. News + Bill #1 (2 min) - Breaking news context + bill explanation
+3. News + Bill #2 (2 min) - Second story with legislative connection
+4. Closing (30 sec) - What this means for you + call to action
+` : `
+WEEKLY DEEP DIVE STRUCTURE (15-18 minutes):
+1. Opening (1 min) - Week's top 3 news stories overview
+2. Deep Dive #1 (5 min) - Major bill with news context
+3. Deep Dive #2 (5 min) - Second major bill with news context
+4. Quick Hits (3 min) - 3-4 other bills worth watching
+5. Closing (1 min) - What to watch next week
+`}
+
+TOP NEWS (from The Hill & Politico):
+${JSON.stringify(topNews.slice(0, 3), null, 2)}
+
+BILLS WITH NEWS CONTEXT:
+${JSON.stringify(billsWithNews, null, 2)}
+
+Return ONLY a JSON array of dialogue objects:
+[
+  { "host": "sarah", "text": "Good morning! Breaking news from The Hill..." },
+  { "host": "james", "text": "That's right Sarah, and this connects to..." }
+]`;
 }
 ```
 
-#### 8.2.5 News-to-Bill Matching Logic
+---
+
+#### 9.2.9 API Endpoints
+
+**A. Personalized News Feed**
 
 ```typescript
-// lib/podcast/news-matcher.ts
+// app/api/news/feed/route.ts
+import { Env } from '@/raindrop.gen';
+import { getOrganizedNewsFeed } from '@/lib/news/feed-sections';
 
-interface NewsWithBill {
-  article: NewsArticle;
-  relatedBills: Bill[];
-}
+export async function GET(request: Request, env: Env) {
+  const userId = await getUserIdFromSession(request);
 
-export function matchNewsToBills(
-  newsArticles: NewsArticle[],
-  bills: Bill[]
-): NewsWithBill[] {
-  return newsArticles.map(article => {
-    // Match based on keywords in title/description
-    const articleText = `${article.title} ${article.description}`.toLowerCase();
+  const sections = await getOrganizedNewsFeed(userId, env);
 
-    const relatedBills = bills.filter(bill => {
-      const billCategories = JSON.parse(bill.issue_categories || '[]');
-
-      // Check if any bill category appears in article text
-      return billCategories.some(category =>
-        articleText.includes(category.toLowerCase())
-      );
-    });
-
-    return {
-      article,
-      relatedBills: relatedBills.slice(0, 2) // Max 2 related bills per article
-    };
-  }).filter(news => news.relatedBills.length > 0); // Only include news with matching bills
+  return Response.json(sections);
 }
 ```
 
-#### 8.2.6 User Benefits
+**B. Bill-Specific News**
 
-**Why This Approach:**
+```typescript
+// app/api/news/for-bill/[billId]/route.ts
+export async function GET(
+  request: Request,
+  { params }: { params: { billId: string } },
+  env: Env
+) {
+  const newsArticles = await env.CIVIC_DB.prepare(`
+    SELECT
+      na.*,
+      ntb.relevance_score,
+      ntb.matched_keywords
+    FROM news_articles na
+    JOIN news_to_bills ntb ON na.id = ntb.news_article_id
+    WHERE ntb.bill_id = ?
+    ORDER BY ntb.relevance_score DESC, na.published_at DESC
+    LIMIT 10
+  `).bind(params.billId).all();
 
-1. **Context**: News explains WHY a bill matters right now
-2. **Engagement**: Feels like listening to NPR, not reading legislative text
-3. **Relevance**: Connects legislation to breaking events users already hear about
-4. **Natural Flow**: Hosts have something to react to and discuss
-5. **Marketplace Model**: Professional journalism format with accessible language
+  return Response.json(newsArticles.results);
+}
+```
 
-**Example Daily Brief Flow (6 minutes):**
+**C. Representative-Specific News**
 
-- **0:00-0:30** - Opening: "Here's what's happening today"
-- **0:30-2:30** - The Hill news story #1 + related bill H.R. 1234
-- **2:30-4:30** - The Hill news story #2 + related bill S. 567
-- **4:30-5:30** - Your representatives: What they're doing this week
-- **5:30-6:00** - Closing: "Here's what to watch for tomorrow"
+```typescript
+// app/api/news/for-rep/[bioguideId]/route.ts
+export async function GET(
+  request: Request,
+  { params }: { params: { bioguideId: string } },
+  env: Env
+) {
+  const rep = await env.CIVIC_DB.prepare(
+    `SELECT name FROM representatives WHERE bioguide_id = ?`
+  ).bind(params.bioguideId).first<{ name: string }>();
 
-**Example Weekly Deep Dive (16 minutes):**
+  // Semantic search for rep name in news articles
+  const results = await env.NEWS_ARTICLES.search({
+    input: rep.name,
+    requestId: `rep-${params.bioguideId}-news`
+  });
 
-- **0:00-1:00** - Opening: "Welcome to your weekly deep dive"
-- **1:00-3:00** - Week in review: Top 3 stories from The Hill
-- **3:00-10:00** - Deep dive on 2-3 major bills with news context
-- **10:00-13:00** - "What this means for you" - practical impacts
-- **13:00-15:00** - Looking ahead: Bills to watch, upcoming votes
-- **15:00-16:00** - Closing: Call to action
+  return Response.json(results.results);
+}
+```
+
+---
+
+#### 9.2.10 UI Components
+
+**Dashboard News Feed:**
+
+```typescript
+// components/dashboard/news-feed.tsx
+export function DashboardNewsFeed({ sections }: { sections: NewsFeedSections }) {
+  return (
+    <div className="space-y-8">
+      {/* Today's Must-Read */}
+      <section>
+        <h2 className="text-2xl font-bold mb-4">📰 Today's Must-Read</h2>
+        <div className="grid gap-4">
+          {sections.todaysMustRead.map(article => (
+            <NewsCard
+              key={article.id}
+              article={article}
+              showRelevance
+              size="large"
+            />
+          ))}
+        </div>
+      </section>
+
+      {/* Bill Updates */}
+      {sections.billUpdates.length > 0 && (
+        <section>
+          <h2 className="text-2xl font-bold mb-4">📋 Your Bill Updates</h2>
+          <div className="grid gap-3">
+            {sections.billUpdates.map(article => (
+              <NewsCard
+                key={article.id}
+                article={article}
+                showBillTags
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Your Reps in the News */}
+      {sections.yourRepsInNews.length > 0 && (
+        <section>
+          <h2 className="text-2xl font-bold mb-4">👥 Your Reps in the News</h2>
+          <div className="grid gap-3">
+            {sections.yourRepsInNews.map(article => (
+              <NewsCard
+                key={article.id}
+                article={article}
+                showRepTags
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* By Topic */}
+      {Object.entries(sections.byTopic).map(([topic, articles]) => (
+        <section key={topic}>
+          <h2 className="text-xl font-semibold mb-3 capitalize">{topic}</h2>
+          <div className="grid gap-2">
+            {articles.slice(0, 5).map(article => (
+              <NewsCard
+                key={article.id}
+                article={article}
+                size="compact"
+              />
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+}
+```
+
+**Bill Page Related News:**
+
+```typescript
+// components/bills/related-news.tsx
+export function BillRelatedNews({ billId }: { billId: string }) {
+  const { data: news } = useSWR(`/api/news/for-bill/${billId}`);
+
+  if (!news?.length) return null;
+
+  return (
+    <section className="mt-8">
+      <h3 className="text-lg font-semibold mb-4">📰 Related News</h3>
+      <div className="space-y-3">
+        {news.map((article: any) => (
+          <div key={article.id} className="border-l-4 border-blue-500 pl-4">
+            <a
+              href={article.url}
+              target="_blank"
+              className="font-medium hover:underline"
+            >
+              {article.title}
+            </a>
+            <p className="text-sm text-muted-foreground mt-1">
+              {article.source} • {formatDate(article.published_at)}
+              {article.relevance_score && (
+                <span className="ml-2 text-xs bg-blue-100 px-2 py-0.5 rounded">
+                  {Math.round(article.relevance_score * 100)}% relevant
+                </span>
+              )}
+            </p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+```
+
+---
+
+#### 9.2.11 Implementation Summary
+
+**What This Adds to Civic Pulse:**
+
+1. **Transform from Bill Tracker → Civic News Platform**
+   - Complete news integration (The Hill + Politico)
+   - Context-aware, personalized news feeds
+   - Professional journalism experience
+
+2. **Raindrop Platform Leverage**
+   - KV Cache: RSS feed caching (1 hour TTL)
+   - Task: Hourly RSS polling
+   - Queue: Async article processing
+   - Observer: Automated news indexing
+   - SmartBuckets: RAG-powered semantic search
+   - SQL: Structured news metadata
+
+3. **User Experience Enhancements**
+   - "Today's Must-Read" personalized section
+   - Bill-specific news on bill pages
+   - Rep-specific news on profile pages
+   - Marketplace-style podcasts with news context
+
+4. **Technical Achievements**
+   - Hybrid news-to-bill matching (semantic + keyword)
+   - Multi-factor relevance scoring (bills + interests + geography + recency)
+   - Scalable background processing pipeline
+   - Production-ready caching & performance
+
+**Next Steps:**
+1. Implement database migrations (news tables)
+2. Set up Raindrop resources (KV Cache, SmartBuckets, Queue, Task, Observer)
+3. Build RSS parser and processor
+4. Create news API endpoints
+5. Develop UI components
+6. Test podcast generation with news integration
+
+**See `/docs/NEWS_RSS_IMPLEMENTATION_PLAN.md` for complete technical details.**
 
 ---
 
