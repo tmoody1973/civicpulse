@@ -1,20 +1,22 @@
 /**
  * Unified Search API
  *
- * Three-layer hybrid search for legislation:
- * 1. Directed search (bill numbers) - <10ms SQL exact match
- * 2. Text search (keywords) - ~50ms SQL LIKE on searchable_text
- * 3. Filtered search - Algolia with facets
- * 4. Semantic search - SmartBuckets AI understanding (TODO)
+ * AI-powered search for legislation:
+ * 1. Bill numbers (HR 1234) → SQL exact match (instant)
+ * 2. Everything else → SmartBuckets AI semantic search (~5s)
+ *
+ * SmartBuckets provides:
+ * - Concept understanding ("climate change" finds related bills)
+ * - Comprehensive results (finds all relevant legislation)
+ * - AI-powered relevance ranking
  *
  * Usage:
  * - GET /api/search?q=<query>
- * - GET /api/search?q=<query>&party=Democrat&status=active
- * - GET /api/search?q=<query>&category=healthcare
+ * - GET /api/search?q=<query>&layer=semantic (force semantic)
+ * - GET /api/search?q=<query>&billType=hr (with filters)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { algoliasearch } from 'algoliasearch';
 
 const RAINDROP_SERVICE_URL = process.env.RAINDROP_SERVICE_URL;
 
@@ -68,83 +70,77 @@ async function directedSearch(congress: number, billType: string, billNumber: nu
   }
 }
 
-/**
- * Text search: Fast SQL LIKE on searchable_text column
- * Performance: ~50ms for 10,000 bills
- */
-async function textSearch(query: string, limit: number = 20) {
-  try {
-    const searchTerm = `%${query.toLowerCase()}%`;
 
-    const response = await fetch(`${RAINDROP_SERVICE_URL}/api/admin/query`, {
+/**
+ * SmartBuckets semantic search: AI understanding
+ * Performance: ~200-500ms (includes embedding generation)
+ */
+async function semanticSearch(query: string, limit: number = 20) {
+  try {
+    const response = await fetch(`${RAINDROP_SERVICE_URL}/api/smartbucket/search`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        table: 'bills',
-        query: `
-          SELECT * FROM bills
-          WHERE LOWER(searchable_text) LIKE '${searchTerm}'
-             OR LOWER(title) LIKE '${searchTerm}'
-             OR LOWER(summary) LIKE '${searchTerm}'
-          ORDER BY tracking_count DESC, latest_action_date DESC
-          LIMIT ${limit}
-        `
-      })
-    });
-
-    const data = await response.json();
-    return data.rows || [];
-  } catch (error) {
-    console.error('Text search error:', error);
-    return [];
-  }
-}
-
-/**
- * Algolia search: Filtered search with facets
- * Performance: ~45ms with instant filters
- */
-async function algoliaSearch(
-  query: string,
-  filters: {
-    party?: string;
-    status?: string;
-    category?: string;
-    state?: string;
-  },
-  limit: number = 20
-) {
-  try {
-    const client = algoliasearch(
-      process.env.ALGOLIA_APP_ID!,
-      process.env.ALGOLIA_ADMIN_API_KEY!
-    );
-
-    // Build Algolia filter string
-    const filterParts: string[] = [];
-    if (filters.party) filterParts.push(`sponsor_party:"${filters.party}"`);
-    if (filters.status) filterParts.push(`status:"${filters.status}"`);
-    if (filters.category) filterParts.push(`issue_categories:"${filters.category}"`);
-    if (filters.state) filterParts.push(`sponsor_state:"${filters.state}"`);
-
-    const filterString = filterParts.join(' AND ');
-
-    // Algolia v5 API
-    const { results } = await client.search({
-      requests: [{
-        indexName: 'bills',
         query,
-        filters: filterString || undefined,
-        hitsPerPage: limit,
-      }]
+        limit,
+      }),
     });
 
-    // Type assertion for search results
-    const searchResult = results[0] as { hits?: any[] };
-    return searchResult?.hits || [];
+    if (!response.ok) {
+      throw new Error(`SmartBuckets search failed: ${response.statusText}`);
+    }
+
+    const data: any = await response.json();
+    const rawResults: any[] = data.results || [];
+
+    // Normalize SmartBuckets results to match SQL format
+    // SmartBuckets returns chunk data like: { source: 'bills/119/hr5371.txt', text: '...' }
+    const normalizedResults = rawResults.map((chunk: any) => {
+      // Parse source like "bills/119/hr5371.txt"
+      const sourceMatch = chunk.source?.match(/bills\/(\d+)\/([a-z]+)(\d+)\.txt$/i);
+
+      if (!sourceMatch) {
+        console.warn('Could not parse SmartBucket source:', chunk.source);
+        return null;
+      }
+
+      const congress = parseInt(sourceMatch[1], 10);
+      const bill_type = sourceMatch[2].toLowerCase();
+      const bill_number = parseInt(sourceMatch[3], 10);
+
+      // Extract title from text (usually starts with "Title: ")
+      const titleMatch = chunk.text?.match(/Title:\s*(.+?)(?:\n|$)/);
+      const title = titleMatch ? titleMatch[1] : chunk.text?.substring(0, 100) || 'No title';
+
+      // Generate a unique ID
+      const id = `${congress}-${bill_type}-${bill_number}`;
+
+      return {
+        id,
+        bill_number,
+        bill_type,
+        congress,
+        title,
+        summary: chunk.text?.substring(0, 500) || null, // First 500 chars as summary
+        status: 'introduced', // Default status
+        issue_categories: null,
+        impact_score: Math.round((1 - chunk.score) * 100) || 50, // Convert score to impact score
+        latest_action_date: null,
+        latest_action_text: null,
+        sponsor_name: null,
+        sponsor_party: null,
+        sponsor_state: null,
+        relevance_score: chunk.score,
+      };
+    }).filter((result: any) => result !== null); // Remove nulls from failed parses
+
+    return {
+      results: normalizedResults,
+      total: data.pagination?.total || normalizedResults.length,
+    };
   } catch (error) {
-    console.error('Algolia search error:', error);
-    return [];
+    console.error('Semantic search error:', error);
+    return { results: [], total: 0 };
   }
 }
 
@@ -155,12 +151,16 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const query = searchParams.get('q');
     const limitParam = searchParams.get('limit');
+    const layerParam = searchParams.get('layer'); // explicit layer selection
 
     // Get filter parameters
     const party = searchParams.get('party');
     const status = searchParams.get('status');
     const category = searchParams.get('category');
     const state = searchParams.get('state');
+    const billType = searchParams.get('billType');
+    const congress = searchParams.get('congress');
+    const hasFullText = searchParams.get('hasFullText');
 
     if (!query || query.trim().length === 0) {
       return NextResponse.json(
@@ -170,15 +170,39 @@ export async function GET(req: NextRequest) {
     }
 
     const limit = limitParam ? parseInt(limitParam, 10) : 20;
-    const hasFilters = !!(party || status || category || state);
+    const hasFilters = !!(party || status || category || state || billType || congress || hasFullText);
 
-    console.log(`🔍 Search query: "${query}" ${hasFilters ? '(with filters)' : ''}`);
+    console.log(`🔍 Search query: "${query}" ${hasFilters ? '(with filters)' : ''} ${layerParam ? `[layer: ${layerParam}]` : '[auto]'}`);
 
-    // Step 1: Check if this is a bill number (directed search)
+    // Explicit layer selection
+    if (layerParam === 'semantic') {
+      console.log(`🤖 Semantic search (explicit): "${query}"`);
+      const { results, total } = await semanticSearch(query, limit);
+
+      const duration = Date.now() - start;
+      console.log(`✅ Semantic search completed in ${duration}ms, found ${results.length} result(s)`);
+
+      return NextResponse.json({
+        success: true,
+        searchType: 'semantic',
+        layer: 'smartbuckets',
+        query,
+        results,
+        meta: {
+          duration,
+          count: results.length,
+          total,
+          limit,
+          strategy: 'SmartBuckets AI semantic search',
+        }
+      });
+    }
+
+    // Step 1: Check if this is a bill number (exact match - instant)
     const billNumberMatch = isBillNumber(query);
 
-    if (billNumberMatch) {
-      console.log(`📋 Directed search: ${billNumberMatch.billType.toUpperCase()} ${billNumberMatch.billNumber}`);
+    if (billNumberMatch && !hasFilters && !layerParam) {
+      console.log(`📋 SQL exact search: ${billNumberMatch.billType.toUpperCase()} ${billNumberMatch.billNumber}`);
       const results = await directedSearch(
         billNumberMatch.congress,
         billNumberMatch.billType,
@@ -186,11 +210,12 @@ export async function GET(req: NextRequest) {
       );
 
       const duration = Date.now() - start;
-      console.log(`✅ Directed search completed in ${duration}ms, found ${results.length} result(s)`);
+      console.log(`✅ SQL search completed in ${duration}ms, found ${results.length} result(s)`);
 
       return NextResponse.json({
         success: true,
-        searchType: 'directed',
+        searchType: 'sql',
+        layer: 'sql',
         query,
         results,
         meta: {
@@ -198,53 +223,31 @@ export async function GET(req: NextRequest) {
           count: results.length,
           congress: billNumberMatch.congress,
           billType: billNumberMatch.billType,
-          billNumber: billNumberMatch.billNumber
+          billNumber: billNumberMatch.billNumber,
+          strategy: 'SQL exact match',
         }
       });
     }
 
-    // Step 2: Use Algolia if filters are provided
-    if (hasFilters) {
-      console.log(`🔎 Algolia search with filters: party=${party}, status=${status}, category=${category}, state=${state}`);
-      const results = await algoliaSearch(
-        query,
-        { party: party || undefined, status: status || undefined, category: category || undefined, state: state || undefined },
-        limit
-      );
-
-      const duration = Date.now() - start;
-      console.log(`✅ Algolia search completed in ${duration}ms, found ${results.length} result(s)`);
-
-      return NextResponse.json({
-        success: true,
-        searchType: 'algolia',
-        query,
-        results,
-        meta: {
-          duration,
-          count: results.length,
-          limit,
-          filters: { party, status, category, state }
-        }
-      });
-    }
-
-    // Step 3: Text search on searchable_text
-    console.log(`📝 Text search: "${query}"`);
-    const results = await textSearch(query, limit);
+    // Step 2: Everything else uses AI semantic search (default)
+    console.log(`🤖 AI semantic search: "${query}" ${hasFilters ? '(with filters - note: filters not supported in semantic search yet)' : ''}`);
+    const { results, total } = await semanticSearch(query, limit);
 
     const duration = Date.now() - start;
-    console.log(`✅ Text search completed in ${duration}ms, found ${results.length} result(s)`);
+    console.log(`✅ Semantic search completed in ${duration}ms, found ${results.length} result(s)`);
 
     return NextResponse.json({
       success: true,
-      searchType: 'text',
+      searchType: 'semantic',
+      layer: 'smartbuckets',
       query,
       results,
       meta: {
         duration,
         count: results.length,
-        limit
+        total,
+        limit,
+        strategy: 'SmartBuckets AI semantic search (default)',
       }
     });
 

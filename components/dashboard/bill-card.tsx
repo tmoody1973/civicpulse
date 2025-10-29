@@ -1,7 +1,8 @@
-import { FileText, TrendingUp, Clock, Check, Plus } from 'lucide-react';
+import { FileText, TrendingUp, Clock, Check, Plus, Sparkles, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useState } from 'react';
 
 export interface Bill {
   id: string;
@@ -13,12 +14,14 @@ export interface Bill {
   impactScore: number;
   lastAction: string;
   lastActionDate: string;
+  aiSummary?: string;
 }
 
 interface BillCardProps {
   bill: Bill;
   compact?: boolean;
   tracked?: boolean;
+  loading?: boolean;
   onTrack?: (billId: string) => void;
   onUntrack?: (billId: string) => void;
 }
@@ -44,8 +47,72 @@ function formatDate(dateString: string): string {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-export function BillCard({ bill, compact = false }: BillCardProps) {
+export function BillCard({
+  bill,
+  compact = false,
+  tracked = false,
+  loading = false,
+  onTrack,
+  onUntrack
+}: BillCardProps) {
   const impactColor = bill.impactScore > 70 ? 'text-red-600' : bill.impactScore > 40 ? 'text-orange-600' : 'text-blue-600';
+
+  // AI Summary state
+  const [aiSummary, setAiSummary] = useState<string | null>(bill.aiSummary || null);
+  const [generatingSummary, setGeneratingSummary] = useState(false);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
+
+  const handleGenerateSummary = async () => {
+    setGeneratingSummary(true);
+    setSummaryError(null);
+
+    console.log('🔍 [BillCard] Generating AI summary for bill:', {
+      billId: bill.id,
+      billNumber: bill.number,
+      title: bill.title,
+    });
+
+    try {
+      const response = await fetch('/api/bills/summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          billId: bill.id,
+          billNumber: bill.number,
+          title: bill.title,
+          // Don't pass fullText - let API fetch from Congress.gov automatically
+        }),
+      });
+
+      const data = await response.json();
+
+      console.log('📡 [BillCard] API response:', {
+        success: data.success,
+        cached: data.cached,
+        error: data.error,
+        message: data.message,
+      });
+
+      if (data.success) {
+        setAiSummary(data.summary);
+      } else {
+        throw new Error(data.error || 'Failed to generate summary');
+      }
+    } catch (error: any) {
+      console.error('❌ [BillCard] Generate summary error:', {
+        billId: bill.id,
+        error: error.message,
+        stack: error.stack,
+      });
+      setSummaryError(error.message || 'Failed to generate summary');
+    } finally {
+      setGeneratingSummary(false);
+    }
+  };
+
+  // Determine if we should show the AI summary button
+  const shouldShowAIButton = !aiSummary && (!bill.summary || bill.summary.length < 100);
+  const displaySummary = aiSummary || bill.summary;
 
   if (compact) {
     return (
@@ -111,9 +178,47 @@ export function BillCard({ bill, compact = false }: BillCardProps) {
       </CardHeader>
 
       <CardContent className="space-y-3">
-        <p className="text-sm text-muted-foreground line-clamp-2">
-          {bill.summary}
-        </p>
+        {/* Summary Section */}
+        <div className="space-y-2">
+          {aiSummary && (
+            <div className="flex items-center gap-1 mb-1">
+              <Sparkles className="w-3 h-3 text-purple-600" />
+              <span className="text-xs font-medium text-purple-600">AI Summary</span>
+            </div>
+          )}
+
+          <p className={`text-sm ${aiSummary ? 'text-foreground' : 'text-muted-foreground'} line-clamp-3`}>
+            {displaySummary || 'No summary available'}
+          </p>
+
+          {/* Generate AI Summary Button */}
+          {shouldShowAIButton && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full"
+              onClick={handleGenerateSummary}
+              disabled={generatingSummary}
+            >
+              {generatingSummary ? (
+                <>
+                  <Loader2 className="w-3 h-3 mr-2 animate-spin" />
+                  Generating AI Summary...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-3 h-3 mr-2" />
+                  Generate AI Summary
+                </>
+              )}
+            </Button>
+          )}
+
+          {/* Error Message */}
+          {summaryError && (
+            <p className="text-xs text-red-600">{summaryError}</p>
+          )}
+        </div>
 
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Clock className="w-3 h-3" />
@@ -124,9 +229,28 @@ export function BillCard({ bill, compact = false }: BillCardProps) {
           <Button size="sm" variant="outline" className="flex-1">
             View Details
           </Button>
-          <Button size="sm" className="flex-1">
-            Track Bill
-          </Button>
+          {tracked ? (
+            <Button
+              size="sm"
+              variant="secondary"
+              className="flex-1"
+              onClick={() => onUntrack?.(bill.id)}
+              disabled={loading}
+            >
+              <Check className="w-4 h-4 mr-2" />
+              {loading ? 'Removing...' : 'Tracked'}
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              className="flex-1"
+              onClick={() => onTrack?.(bill.id)}
+              disabled={loading}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              {loading ? 'Adding...' : 'Track Bill'}
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>
