@@ -585,22 +585,29 @@ ${bill.full_text}
     fullText?: string;
     sponsorBioguideId?: string;
     sponsorName?: string;
+    sponsorParty?: string;
+    sponsorState?: string;
+    sponsorDistrict?: string;
     introducedDate?: string;
     latestActionDate?: string;
     latestActionText?: string;
     status?: string;
+    policyArea?: string;
     issueCategories?: string[];
     impactScore?: number;
+    cosponsorCount?: number;
+    committees?: string[];
     congressGovUrl?: string;
     searchableText?: string;
   }): Promise<void> {
     await this.env.CIVIC_DB.prepare(`
       INSERT OR REPLACE INTO bills (
         id, congress, bill_type, bill_number, title, summary, full_text,
-        sponsor_bioguide_id, sponsor_name, introduced_date,
-        latest_action_date, latest_action_text, status,
-        issue_categories, impact_score, congress_url, searchable_text
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        sponsor_bioguide_id, sponsor_name, sponsor_party, sponsor_state, sponsor_district,
+        introduced_date, latest_action_date, latest_action_text, status,
+        policy_area, issue_categories, impact_score, cosponsor_count, committees,
+        congress_url, searchable_text
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       data.id,
       data.congress,
@@ -611,12 +618,18 @@ ${bill.full_text}
       data.fullText || null,
       data.sponsorBioguideId || null,
       data.sponsorName || null,
+      data.sponsorParty || null,
+      data.sponsorState || null,
+      data.sponsorDistrict || null,
       data.introducedDate || null,
       data.latestActionDate || null,
       data.latestActionText || null,
       data.status || 'introduced',
+      data.policyArea || null,
       JSON.stringify(data.issueCategories || []),
       data.impactScore || null,
+      data.cosponsorCount || null,
+      JSON.stringify(data.committees || []),
       data.congressGovUrl || null,
       data.searchableText || null
     ).run();
@@ -675,8 +688,9 @@ ${bill.full_text}
     await this.env.CIVIC_DB.prepare(`
       INSERT OR REPLACE INTO representatives (
         bioguide_id, name, party, chamber, state, district,
-        image_url, office_address, phone, website_url, twitter_handle, committees
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        image_url, office_address, phone, website_url, twitter_handle, committees,
+        rss_url, contact_url, facebook_url, youtube_url, instagram_handle
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       data.bioguideId,
       data.name,
@@ -689,7 +703,12 @@ ${bill.full_text}
       data.phone || null,
       data.websiteUrl || null,
       data.twitterHandle || null,
-      JSON.stringify(data.committees || [])
+      JSON.stringify(data.committees || []),
+      data.rssUrl || null,
+      data.contactForm || null,
+      data.facebookUrl || null,
+      data.youtubeUrl || null,
+      data.instagramHandle || null
     ).run();
   }
 

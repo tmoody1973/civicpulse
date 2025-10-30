@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Search, SlidersHorizontal, Sparkles, Database, Zap, X } from 'lucide-react';
+import { Search, SlidersHorizontal, Sparkles, Database, Zap, X, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -41,7 +41,13 @@ interface SearchResult {
   sponsor_name: string | null;
   sponsor_party: string | null;
   sponsor_state: string | null;
-  relevance_score?: number; // For semantic search
+  sponsor_district: string | null;
+  introduced_date: string | null;
+  cosponsor_count: number;
+  committees: string[] | null;
+  policy_area: string | null;
+  relevance_score?: number; // For semantic search (0-1, lower is better)
+  _explanation?: string; // Why this result matches
 }
 
 interface SearchResponse {
@@ -67,14 +73,52 @@ const LAYER_INFO = {
     bgColor: 'bg-blue-100',
     description: 'Instant bill number lookup',
   },
+  algolia: {
+    icon: Zap,
+    label: 'Fast Search',
+    color: 'text-blue-600',
+    bgColor: 'bg-blue-100',
+    description: 'Lightning-fast keyword search',
+  },
   smartbuckets: {
     icon: Sparkles,
     label: 'AI Search',
     color: 'text-green-600',
     bgColor: 'bg-green-100',
-    description: 'AI-powered semantic search (default)',
+    description: 'AI-powered semantic search',
+  },
+  hybrid: {
+    icon: Zap,
+    label: 'Hybrid Search',
+    color: 'text-purple-600',
+    bgColor: 'bg-purple-100',
+    description: 'Fast + AI combined',
   },
 };
+
+/**
+ * Detect if a query will be fast (Algolia) or slow (SmartBuckets)
+ * Matches the backend determineSearchStrategy logic
+ */
+function predictSearchSpeed(query: string, hasFilters: boolean): 'fast' | 'slow' {
+  // Bill numbers are instant
+  if (/^(hr?|s|h\.?j\.?res|s\.?j\.?res)\.?\s*\d+$/i.test(query.trim())) {
+    return 'fast';
+  }
+
+  // Filters use Algolia (fast)
+  if (hasFilters) return 'fast';
+
+  // Short queries (1-2 words) use Algolia
+  const words = query.trim().split(/\s+/);
+  if (words.length <= 2) return 'fast';
+
+  // Complex queries use AI (slow)
+  if (query.includes('?') || words.length >= 5) return 'slow';
+
+  // Medium complexity (hybrid) starts fast
+  return 'fast';
+}
 
 export default function SearchPage() {
   const router = useRouter();
@@ -86,6 +130,14 @@ export default function SearchPage() {
   const [loading, setLoading] = useState(false);
   const [searchResponse, setSearchResponse] = useState<SearchResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(20);
+  const [totalResults, setTotalResults] = useState(0);
+
+  // Sorting
+  const [sortBy, setSortBy] = useState<'relevance' | 'date' | 'cosponsors'>('relevance');
 
   // Tracking state
   const [trackedBills, setTrackedBills] = useState<Set<string>>(new Set());
@@ -100,6 +152,7 @@ export default function SearchPage() {
     status: [] as string[],
     party: [] as string[],
     hasFullText: false,
+    lawsOnly: false,
   });
 
   // Load tracked bills on mount
@@ -124,6 +177,11 @@ export default function SearchPage() {
     }
   }, [initialQuery]);
 
+  // Scroll to top when page changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [page]);
+
   const performSearch = async (searchQuery: string) => {
     if (!searchQuery.trim()) return;
 
@@ -133,6 +191,7 @@ export default function SearchPage() {
     try {
       const params = new URLSearchParams({
         q: searchQuery,
+        limit: '200', // Fetch up to 200 results for client-side pagination
       });
 
       // Add filters
@@ -157,7 +216,21 @@ export default function SearchPage() {
       }
 
       setSearchResponse(data);
-      setResults(data.results);
+      setTotalResults(data.meta.total || data.results.length);
+
+      // Apply client-side sorting
+      let sortedResults = [...data.results];
+      if (sortBy === 'date' && data.results[0]?.latest_action_date) {
+        sortedResults.sort((a, b) =>
+          new Date(b.latest_action_date || 0).getTime() - new Date(a.latest_action_date || 0).getTime()
+        );
+      } else if (sortBy === 'cosponsors') {
+        sortedResults.sort((a, b) => (b.cosponsor_count || 0) - (a.cosponsor_count || 0));
+      }
+      // relevance is default from API
+
+      setResults(sortedResults);
+      setPage(1); // Reset to first page on new search
 
       // Update URL
       router.push(`/search?q=${encodeURIComponent(searchQuery)}`);
@@ -182,6 +255,7 @@ export default function SearchPage() {
       status: [],
       party: [],
       hasFullText: false,
+      lawsOnly: false,
     });
   };
 
@@ -245,9 +319,10 @@ export default function SearchPage() {
     }
   };
 
-  const hasActiveFilters = filters.billType.length > 0 || filters.status.length > 0 || filters.party.length > 0 || filters.hasFullText;
+  const hasActiveFilters = filters.billType.length > 0 || filters.status.length > 0 || filters.party.length > 0 || filters.hasFullText || filters.lawsOnly;
 
-  const layerInfo = searchResponse ? LAYER_INFO[searchResponse.layer as keyof typeof LAYER_INFO] : null;
+  // Use searchType for display (algolia, semantic, hybrid)
+  const layerInfo = searchResponse ? LAYER_INFO[searchResponse.searchType as keyof typeof LAYER_INFO] : null;
   const LayerIcon = layerInfo?.icon;
 
   return (
@@ -329,22 +404,27 @@ export default function SearchPage() {
                   <div>
                     <Label className="text-base font-semibold mb-3 block">Status</Label>
                     <div className="space-y-2">
-                      {['introduced', 'passed', 'enacted'].map(status => (
-                        <div key={status} className="flex items-center space-x-2">
+                      {[
+                        { value: 'introduced', label: 'Introduced' },
+                        { value: 'committee', label: 'In Committee' },
+                        { value: 'passed-senate', label: 'Passed Senate' },
+                        { value: 'enacted', label: 'Enacted' }
+                      ].map(({ value, label }) => (
+                        <div key={value} className="flex items-center space-x-2">
                           <Checkbox
-                            id={`status-${status}`}
-                            checked={filters.status.includes(status)}
+                            id={`status-${value}`}
+                            checked={filters.status.includes(value)}
                             onCheckedChange={(checked) => {
                               setFilters(prev => ({
                                 ...prev,
                                 status: checked
-                                  ? [...prev.status, status]
-                                  : prev.status.filter(s => s !== status),
+                                  ? [...prev.status, value]
+                                  : prev.status.filter(s => s !== value),
                               }));
                             }}
                           />
-                          <Label htmlFor={`status-${status}`} className="font-normal capitalize">
-                            {status}
+                          <Label htmlFor={`status-${value}`} className="font-normal">
+                            {label}
                           </Label>
                         </div>
                       ))}
@@ -389,6 +469,26 @@ export default function SearchPage() {
                     </Label>
                   </div>
 
+                  {/* Laws Only */}
+                  <div className="flex items-center space-x-2 pt-2 border-t">
+                    <Checkbox
+                      id="lawsOnly"
+                      checked={filters.lawsOnly}
+                      onCheckedChange={(checked) => {
+                        setFilters(prev => ({
+                          ...prev,
+                          lawsOnly: !!checked,
+                          // When Laws Only is checked, automatically set status to enacted
+                          status: checked ? ['enacted'] : prev.status.filter(s => s !== 'enacted'),
+                        }));
+                      }}
+                    />
+                    <Label htmlFor="lawsOnly" className="font-normal">
+                      <span className="font-semibold">Laws Only</span>
+                      <span className="text-muted-foreground text-sm ml-1">(Enacted Legislation)</span>
+                    </Label>
+                  </div>
+
                   {/* Clear Filters */}
                   {hasActiveFilters && (
                     <Button variant="outline" className="w-full" onClick={clearFilters}>
@@ -430,6 +530,28 @@ export default function SearchPage() {
           </Card>
         )}
 
+        {/* Sorting Controls */}
+        {!loading && results.length > 0 && (
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Label className="text-sm font-medium">Sort by:</Label>
+              <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="relevance">Relevance</SelectItem>
+                  <SelectItem value="date">Latest Action</SelectItem>
+                  <SelectItem value="cosponsors">Most Cosponsors</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Showing {Math.min((page - 1) * pageSize + 1, totalResults)}-{Math.min(page * pageSize, totalResults)} of {totalResults}
+            </p>
+          </div>
+        )}
+
         {/* Error State */}
         {error && (
           <Card className="border-red-200 bg-red-50">
@@ -457,27 +579,51 @@ export default function SearchPage() {
 
         {/* Results Grid */}
         {!loading && results.length > 0 && (
-          <div className="space-y-4">
-            {results.map((bill) => {
+          <>
+            <div className="space-y-4">
+              {results
+                .slice((page - 1) * pageSize, page * pageSize)
+                .map((bill) => {
               // Skip bills with missing required fields
               if (!bill.bill_type || !bill.bill_number || !bill.title) {
                 console.warn('Skipping bill with missing data:', bill);
                 return null;
               }
 
-              const issueCategories = bill.issue_categories
+              // issue_categories can be either an array (from Algolia) or a JSON string (from database)
+              const issueCategories = Array.isArray(bill.issue_categories)
+                ? bill.issue_categories
+                : bill.issue_categories
                 ? JSON.parse(bill.issue_categories)
                 : [];
 
               const isTracked = trackedBills.has(bill.id);
               const isLoading = trackingLoading.has(bill.id);
+              const isSemanticSearch = searchResponse?.meta.strategy === 'smartbuckets';
+              const hasRelevanceScore = typeof bill.relevance_score === 'number';
 
               return (
-                <BillCard
-                  key={bill.id}
-                  bill={{
+                <div key={bill.id} className="space-y-2">
+                  {/* Relevance Indicator for Semantic Search */}
+                  {isSemanticSearch && hasRelevanceScore && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Badge variant="secondary" className="gap-1">
+                        <Sparkles className="h-3 w-3" />
+                        {Math.round((1 - (bill.relevance_score || 0)) * 100)}% Match
+                      </Badge>
+                      {bill._explanation && (
+                        <span className="text-muted-foreground">
+                          {bill._explanation}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  <BillCard
+                    bill={{
                     id: bill.id,
                     number: `${bill.bill_type.toUpperCase()} ${bill.bill_number}`,
+                    congress: bill.congress,
                     title: bill.title,
                     summary: bill.summary || 'No summary available',
                     status: bill.status as any,
@@ -485,57 +631,147 @@ export default function SearchPage() {
                     impactScore: bill.impact_score,
                     lastActionDate: bill.latest_action_date || new Date().toISOString(),
                     lastAction: bill.latest_action_text || 'No recent action',
+                    sponsorName: bill.sponsor_name || undefined,
+                    sponsorParty: bill.sponsor_party || undefined,
+                    sponsorState: bill.sponsor_state || undefined,
+                    sponsorDistrict: bill.sponsor_district || undefined,
+                    introducedDate: bill.introduced_date || undefined,
+                    cosponsorCount: bill.cosponsor_count || 0,
+                    committees: bill.committees || undefined,
+                    policyArea: bill.policy_area || undefined,
                   }}
                   tracked={isTracked}
                   loading={isLoading}
                   onTrack={() => handleTrack(bill.id)}
                   onUntrack={() => handleUntrack(bill.id)}
+                  searchQuery={query}
                 />
+                </div>
               );
-            })}
-          </div>
+              })}
+            </div>
+
+            {/* Pagination Controls */}
+            {totalResults > pageSize && (
+              <div className="flex items-center justify-center gap-2 mt-8">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                >
+                  Previous
+                </Button>
+
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(5, Math.ceil(totalResults / pageSize)) }, (_, i) => {
+                    const totalPages = Math.ceil(totalResults / pageSize);
+                    let pageNum: number;
+
+                    // Show first page, last page, current page, and pages around current
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (page <= 3) {
+                      pageNum = i + 1;
+                    } else if (page >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = page - 2 + i;
+                    }
+
+                    return (
+                      <Button
+                        key={i}
+                        variant={page === pageNum ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setPage(pageNum)}
+                        className="w-10"
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(p => Math.min(Math.ceil(totalResults / pageSize), p + 1))}
+                  disabled={page >= Math.ceil(totalResults / pageSize)}
+                >
+                  Next
+                </Button>
+              </div>
+            )}
+          </>
         )}
 
-        {/* Loading State - AI Search */}
-        {loading && (
-          <div className="space-y-6">
-            {/* AI Loading Message */}
-            <Card className="border-green-200 bg-green-50/50 dark:bg-green-900/10">
-              <CardContent className="pt-6 text-center">
-                <div className="flex flex-col items-center gap-4">
-                  <div className="relative">
-                    <Sparkles className="w-12 h-12 text-green-600 animate-pulse" />
-                    <div className="absolute inset-0 animate-ping opacity-20">
-                      <Sparkles className="w-12 h-12 text-green-600" />
+        {/* Loading State - Smart UI based on predicted speed */}
+        {loading && (() => {
+          const predictedSpeed = predictSearchSpeed(query, hasActiveFilters);
+          const isFast = predictedSpeed === 'fast';
+
+          return (
+            <div className="space-y-6">
+              {/* Loading Message */}
+              <Card className={isFast ? "border-blue-200 bg-blue-50/50 dark:bg-blue-900/10" : "border-green-200 bg-green-50/50 dark:bg-green-900/10"}>
+                <CardContent className="pt-6 text-center">
+                  <div className="flex flex-col items-center gap-4">
+                    <div className="relative">
+                      {isFast ? (
+                        <>
+                          <Loader2 className="w-12 h-12 text-blue-600 animate-spin" />
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-12 h-12 text-green-600 animate-pulse" />
+                          <div className="absolute inset-0 animate-ping opacity-20">
+                            <Sparkles className="w-12 h-12 text-green-600" />
+                          </div>
+                        </>
+                      )}
+                    </div>
+                    <div>
+                      {isFast ? (
+                        <>
+                          <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-2">
+                            Searching...
+                          </h3>
+                          <p className="text-sm text-blue-800 dark:text-blue-200">
+                            Finding bills with fast keyword matching
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <h3 className="text-lg font-semibold text-green-900 dark:text-green-100 mb-2">
+                            AI is analyzing legislation...
+                          </h3>
+                          <p className="text-sm text-green-800 dark:text-green-200 mb-1">
+                            Using AI to find all relevant bills by concept
+                          </p>
+                          <p className="text-xs text-green-700 dark:text-green-300">
+                            This may take 10-20 seconds for comprehensive results
+                          </p>
+                        </>
+                      )}
                     </div>
                   </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-green-900 dark:text-green-100 mb-2">
-                      AI is searching legislation...
-                    </h3>
-                    <p className="text-sm text-green-800 dark:text-green-200 mb-1">
-                      Analyzing thousands of bills to find all relevant results
-                    </p>
-                    <p className="text-xs text-green-700 dark:text-green-300">
-                      This usually takes 3-5 seconds
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Skeleton Cards */}
-            {[1, 2, 3].map(i => (
-              <Card key={i} className="animate-pulse">
-                <CardContent className="pt-6">
-                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-3"></div>
-                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mb-3"></div>
-                  <div className="h-20 bg-gray-200 dark:bg-gray-700 rounded"></div>
                 </CardContent>
               </Card>
-            ))}
-          </div>
-        )}
+
+              {/* Skeleton Cards */}
+              {[1, 2, 3].map(i => (
+                <Card key={i} className="animate-pulse">
+                  <CardContent className="pt-6">
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-3"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mb-3"></div>
+                    <div className="h-20 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          );
+        })()}
       </div>
     </div>
   );

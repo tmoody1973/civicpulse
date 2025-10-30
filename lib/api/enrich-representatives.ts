@@ -108,10 +108,14 @@ export async function enrichRepresentative(rep: Representative): Promise<Represe
       contactForm: currentTerm?.contact_form,
       websiteUrl: currentTerm?.url,
       rssUrl: currentTerm?.rss_url,
-      // Social media from legislators-social-media.json
+      // Social media from legislators-social-media.json (convert handles to full URLs where appropriate)
       twitterHandle: socialMedia?.social?.twitter,
-      facebookUrl: socialMedia?.social?.facebook,
-      youtubeUrl: socialMedia?.social?.youtube,
+      facebookUrl: socialMedia?.social?.facebook
+        ? `https://www.facebook.com/${socialMedia.social.facebook}`
+        : undefined,
+      youtubeUrl: socialMedia?.social?.youtube
+        ? `https://www.youtube.com/${socialMedia.social.youtube}`
+        : undefined,
       instagramHandle: socialMedia?.social?.instagram,
     };
 
@@ -159,10 +163,14 @@ export async function enrichRepresentatives(reps: Representative[]): Promise<Rep
         contactForm: currentTerm?.contact_form,
         websiteUrl: currentTerm?.url,
         rssUrl: currentTerm?.rss_url,
-        // Social media
+        // Social media (convert handles to full URLs where appropriate)
         twitterHandle: socialMedia?.social?.twitter,
-        facebookUrl: socialMedia?.social?.facebook,
-        youtubeUrl: socialMedia?.social?.youtube,
+        facebookUrl: socialMedia?.social?.facebook
+          ? `https://www.facebook.com/${socialMedia.social.facebook}`
+          : undefined,
+        youtubeUrl: socialMedia?.social?.youtube
+          ? `https://www.youtube.com/${socialMedia.social.youtube}`
+          : undefined,
         instagramHandle: socialMedia?.social?.instagram,
       };
     });
