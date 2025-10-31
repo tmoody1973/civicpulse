@@ -18,6 +18,7 @@ export interface Bill {
   lastActionDate: string;
   // Sponsor info
   sponsorName?: string;
+  sponsorBioguideId?: string; // For linking to representative detail page
   sponsorParty?: string;
   sponsorState?: string;
   sponsorDistrict?: string;
@@ -253,9 +254,16 @@ export function BillCard({
         {bill.sponsorName && (
           <div className="text-sm text-muted-foreground">
             <span className="font-medium">Sponsor: </span>
-            <a href="#" className="text-blue-600 hover:underline">
-              {bill.sponsorName}
-            </a>
+            {bill.sponsorBioguideId ? (
+              <a
+                href={`/representatives/${bill.sponsorBioguideId}`}
+                className="text-blue-600 hover:underline"
+              >
+                {bill.sponsorName}
+              </a>
+            ) : (
+              <span className="text-blue-600">{bill.sponsorName}</span>
+            )}
             {formatSponsor(bill) && (
               <span className="ml-1">{formatSponsor(bill)}</span>
             )}

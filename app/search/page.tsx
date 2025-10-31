@@ -39,6 +39,7 @@ interface SearchResult {
   latest_action_date: string | null;
   latest_action_text: string | null;
   sponsor_name: string | null;
+  sponsor_bioguide_id: string | null;
   sponsor_party: string | null;
   sponsor_state: string | null;
   sponsor_district: string | null;
@@ -632,6 +633,7 @@ export default function SearchPage() {
                     lastActionDate: bill.latest_action_date || new Date().toISOString(),
                     lastAction: bill.latest_action_text || 'No recent action',
                     sponsorName: bill.sponsor_name || undefined,
+                    sponsorBioguideId: bill.sponsor_bioguide_id || undefined,
                     sponsorParty: bill.sponsor_party || undefined,
                     sponsorState: bill.sponsor_state || undefined,
                     sponsorDistrict: bill.sponsor_district || undefined,

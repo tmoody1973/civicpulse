@@ -120,6 +120,7 @@ export default function DashboardPage() {
           const mappedBills: Bill[] = billsData.data.map((bill: any) => ({
             id: `${bill.congress}-${bill.billType}-${bill.billNumber}`,
             number: `${bill.billType.toUpperCase()}. ${bill.billNumber}`,
+            congress: bill.congress,
             title: bill.title,
             summary: bill.summary || 'No summary available',
             status: 'introduced' as const, // Default status, could be enhanced later
@@ -127,6 +128,12 @@ export default function DashboardPage() {
             impactScore: 0, // Would come from AI analysis
             lastAction: bill.latestActionText || 'No recent action',
             lastActionDate: bill.latestActionDate || '',
+            // Sponsor information for linking to representative pages
+            sponsorName: bill.sponsorName,
+            sponsorBioguideId: bill.sponsorBioguideId,
+            sponsorParty: bill.sponsorParty,
+            sponsorState: bill.sponsorState,
+            introducedDate: bill.introducedDate,
           }));
           setBills(mappedBills);
         }
