@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Radio, Loader2, ExternalLink } from 'lucide-react';
+import { Radio, Loader2, Phone, MapPin, Twitter, Facebook, Youtube, Instagram } from 'lucide-react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -96,7 +97,7 @@ export default function DashboardPage() {
         const repsData = await repsResponse.json();
 
         if (repsData.success && repsData.data.all) {
-          // Map Congress.gov API data to Representative interface
+          // Map database data to Representative interface with full contact info
           const mappedReps: Representative[] = repsData.data.all.map((rep: any) => ({
             id: rep.bioguideId,
             name: rep.name,
@@ -105,8 +106,14 @@ export default function DashboardPage() {
             state: rep.state,
             district: rep.district?.toString(),
             photoUrl: rep.imageUrl,
-            websiteUrl: rep.officialUrl,
-            committees: [], // Congress.gov API doesn't provide committee info in member list
+            websiteUrl: rep.websiteUrl || rep.officialUrl,
+            officePhone: rep.phone,
+            officeAddress: rep.officeAddress,
+            twitterHandle: rep.twitterHandle,
+            facebookUrl: rep.facebookUrl,
+            youtubeUrl: rep.youtubeUrl,
+            instagramHandle: rep.instagramHandle,
+            committees: [], // Would need separate API call for committee membership
           }));
           setRepresentatives(mappedReps);
         }
@@ -237,68 +244,184 @@ export default function DashboardPage() {
           ) : representatives.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {senators.map((senator) => (
-                <Card key={senator.id} className="hover:shadow-md transition-shadow">
-                  <CardContent className="p-4">
-                    <div className="flex items-start gap-3">
-                      <img
-                        src={senator.photoUrl || `https://www.congress.gov/img/member/noimage.jpg`}
-                        alt={senator.name}
-                        className="w-16 h-16 rounded-full object-cover flex-shrink-0"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2 mb-1">
-                          <h3 className="font-semibold text-sm truncate">{senator.name}</h3>
-                          <Badge variant={senator.party === 'Democrat' ? 'default' : senator.party === 'Republican' ? 'destructive' : 'secondary'} className="flex-shrink-0 text-xs">
-                            {senator.party.charAt(0)}
-                          </Badge>
+                <Link key={senator.id} href={`/representatives/${senator.id}`}>
+                  <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-3 mb-3">
+                        <img
+                          src={senator.photoUrl || `https://www.congress.gov/img/member/noimage.jpg`}
+                          alt={senator.name}
+                          className="w-16 h-16 rounded-full object-cover flex-shrink-0"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2 mb-1">
+                            <h3 className="font-semibold text-sm truncate">{senator.name}</h3>
+                            <Badge variant={senator.party === 'Democrat' ? 'default' : senator.party === 'Republican' ? 'destructive' : 'secondary'} className="flex-shrink-0 text-xs">
+                              {senator.party.charAt(0)}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground">U.S. Senator</p>
                         </div>
-                        <p className="text-xs text-muted-foreground mb-2">U.S. Senator</p>
-                        {senator.websiteUrl && (
-                          <a
-                            href={senator.websiteUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs text-primary hover:underline flex items-center gap-1"
-                          >
-                            Contact <ExternalLink className="w-3 h-3" />
-                          </a>
+                      </div>
+
+                      {/* Contact Info */}
+                      <div className="space-y-1.5 mb-3">
+                        {senator.officePhone && (
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Phone className="w-3 h-3 flex-shrink-0" />
+                            <span className="truncate">{senator.officePhone}</span>
+                          </div>
+                        )}
+                        {senator.officeAddress && (
+                          <div className="flex items-start gap-2 text-xs text-muted-foreground">
+                            <MapPin className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                            <span className="line-clamp-2">{senator.officeAddress}</span>
+                          </div>
                         )}
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
+
+                      {/* Social Media */}
+                      {(senator.twitterHandle || senator.facebookUrl || senator.youtubeUrl || senator.instagramHandle) && (
+                        <div className="flex items-center gap-2 pt-2 border-t">
+                          {senator.twitterHandle && (
+                            <a
+                              href={`https://twitter.com/${senator.twitterHandle}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-muted-foreground hover:text-primary transition-colors"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Twitter className="w-4 h-4" />
+                            </a>
+                          )}
+                          {senator.facebookUrl && (
+                            <a
+                              href={senator.facebookUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-muted-foreground hover:text-primary transition-colors"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Facebook className="w-4 h-4" />
+                            </a>
+                          )}
+                          {senator.youtubeUrl && (
+                            <a
+                              href={senator.youtubeUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-muted-foreground hover:text-primary transition-colors"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Youtube className="w-4 h-4" />
+                            </a>
+                          )}
+                          {senator.instagramHandle && (
+                            <a
+                              href={`https://instagram.com/${senator.instagramHandle}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-muted-foreground hover:text-primary transition-colors"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Instagram className="w-4 h-4" />
+                            </a>
+                          )}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </Link>
               ))}
               {houseRep && (
-                <Card className="hover:shadow-md transition-shadow">
-                  <CardContent className="p-4">
-                    <div className="flex items-start gap-3">
-                      <img
-                        src={houseRep.photoUrl || `https://www.congress.gov/img/member/noimage.jpg`}
-                        alt={houseRep.name}
-                        className="w-16 h-16 rounded-full object-cover flex-shrink-0"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2 mb-1">
-                          <h3 className="font-semibold text-sm truncate">{houseRep.name}</h3>
-                          <Badge variant={houseRep.party === 'Democrat' ? 'default' : houseRep.party === 'Republican' ? 'destructive' : 'secondary'} className="flex-shrink-0 text-xs">
-                            {houseRep.party.charAt(0)}
-                          </Badge>
+                <Link href={`/representatives/${houseRep.id}`}>
+                  <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-3 mb-3">
+                        <img
+                          src={houseRep.photoUrl || `https://www.congress.gov/img/member/noimage.jpg`}
+                          alt={houseRep.name}
+                          className="w-16 h-16 rounded-full object-cover flex-shrink-0"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2 mb-1">
+                            <h3 className="font-semibold text-sm truncate">{houseRep.name}</h3>
+                            <Badge variant={houseRep.party === 'Democrat' ? 'default' : houseRep.party === 'Republican' ? 'destructive' : 'secondary'} className="flex-shrink-0 text-xs">
+                              {houseRep.party.charAt(0)}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground">U.S. Representative • District {houseRep.district}</p>
                         </div>
-                        <p className="text-xs text-muted-foreground mb-2">U.S. Representative • District {houseRep.district}</p>
-                        {houseRep.websiteUrl && (
-                          <a
-                            href={houseRep.websiteUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs text-primary hover:underline flex items-center gap-1"
-                          >
-                            Contact <ExternalLink className="w-3 h-3" />
-                          </a>
+                      </div>
+
+                      {/* Contact Info */}
+                      <div className="space-y-1.5 mb-3">
+                        {houseRep.officePhone && (
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Phone className="w-3 h-3 flex-shrink-0" />
+                            <span className="truncate">{houseRep.officePhone}</span>
+                          </div>
+                        )}
+                        {houseRep.officeAddress && (
+                          <div className="flex items-start gap-2 text-xs text-muted-foreground">
+                            <MapPin className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                            <span className="line-clamp-2">{houseRep.officeAddress}</span>
+                          </div>
                         )}
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
+
+                      {/* Social Media */}
+                      {(houseRep.twitterHandle || houseRep.facebookUrl || houseRep.youtubeUrl || houseRep.instagramHandle) && (
+                        <div className="flex items-center gap-2 pt-2 border-t">
+                          {houseRep.twitterHandle && (
+                            <a
+                              href={`https://twitter.com/${houseRep.twitterHandle}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-muted-foreground hover:text-primary transition-colors"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Twitter className="w-4 h-4" />
+                            </a>
+                          )}
+                          {houseRep.facebookUrl && (
+                            <a
+                              href={houseRep.facebookUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-muted-foreground hover:text-primary transition-colors"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Facebook className="w-4 h-4" />
+                            </a>
+                          )}
+                          {houseRep.youtubeUrl && (
+                            <a
+                              href={houseRep.youtubeUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-muted-foreground hover:text-primary transition-colors"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Youtube className="w-4 h-4" />
+                            </a>
+                          )}
+                          {houseRep.instagramHandle && (
+                            <a
+                              href={`https://instagram.com/${houseRep.instagramHandle}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-muted-foreground hover:text-primary transition-colors"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Instagram className="w-4 h-4" />
+                            </a>
+                          )}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </Link>
               )}
             </div>
           ) : (
