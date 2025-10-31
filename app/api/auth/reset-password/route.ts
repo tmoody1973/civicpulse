@@ -38,25 +38,44 @@ export async function POST(request: NextRequest) {
       message: 'Password has been reset successfully. You can now sign in with your new password.',
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Password reset error:', error);
 
     // Handle specific WorkOS errors
-    if (error instanceof Error) {
-      if (error.message.includes('invalid') || error.message.includes('expired')) {
-        return NextResponse.json(
-          { error: 'Invalid or expired reset token. Please request a new password reset link.' },
-          { status: 400 }
-        );
-      }
-
-      if (error.message.includes('weak password')) {
-        return NextResponse.json(
-          { error: 'Password is too weak. Please choose a stronger password.' },
-          { status: 400 }
-        );
-      }
+    if (error?.code === 'password_strength_error') {
+      return NextResponse.json(
+        {
+          error: 'Password does not meet strength requirements. Password must be at least 8 characters and include uppercase, lowercase, number, and special character.'
+        },
+        { status: 400 }
+      );
     }
+
+    if (error?.code === 'password_reset_error') {
+      return NextResponse.json(
+        {
+          error: 'Invalid or expired reset link. Please request a new password reset email.'
+        },
+        { status: 400 }
+      );
+    }
+
+    if (error?.message?.includes('invalid') || error?.message?.includes('expired')) {
+      return NextResponse.json(
+        { error: 'Invalid or expired reset token. Please request a new password reset link.' },
+        { status: 400 }
+      );
+    }
+
+    if (error?.message?.includes('not found')) {
+      return NextResponse.json(
+        { error: 'User not found. Please sign up for an account first.' },
+        { status: 404 }
+      );
+    }
+
+    // Log full error for debugging
+    console.error('Full error details:', JSON.stringify(error, null, 2));
 
     return NextResponse.json(
       { error: 'Failed to reset password. Please try again or request a new reset link.' },

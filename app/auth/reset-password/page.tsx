@@ -121,7 +121,7 @@ function ResetPasswordForm() {
                   <Input
                     id="password"
                     type="password"
-                    placeholder="Enter new password (min. 8 characters)"
+                    placeholder="Enter new password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     disabled={loading}
@@ -130,7 +130,7 @@ function ResetPasswordForm() {
                     autoFocus
                   />
                   <p className="text-xs text-muted-foreground">
-                    Must be at least 8 characters long
+                    Must include: 8+ characters, uppercase, lowercase, number, and special character
                   </p>
                 </div>
 
