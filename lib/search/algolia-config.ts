@@ -39,14 +39,16 @@ export const indexSettings = {
   searchableAttributes: [
     'title',                    // Bill title (most important)
     'billNumber',               // HR 1234, S 567, etc.
+    'policyArea',               // Congress.gov policy area (Health, Armed Forces, etc.)
     'summary',                  // Bill summary
     'sponsor.name',             // Sponsor name
     'cosponsor.names',          // Cosponsors
-    'issueCategories'           // Healthcare, Climate, etc.
+    'issueCategories'           // Healthcare, Climate, Veterans, etc.
   ],
 
   // Attributes for faceted filtering (sidebar filters)
   attributesForFaceting: [
+    'searchable(policyArea)',         // Policy area (Health, Armed Forces, etc.)
     'searchable(issueCategories)',    // Issue categories (with search)
     'billType',                       // HR, S, HJ, etc.
     'status',                         // introduced, committee, passed-house, etc.
@@ -118,12 +120,14 @@ export const indexSettings = {
     'congress',
     'title',
     'summary',
-    'sponsor',
-    'cosponsors',
+    'sponsorName',
+    'sponsorParty',
+    'sponsorState',
+    'policyArea',
     'issueCategories',
     'status',
     'introducedDate',
-    'latestAction',
+    'latestActionText',
     'latestActionDate',
     'impactScore',
     'url'
@@ -150,6 +154,7 @@ export interface AlgoliaBill {
     democratCount: number;
     republicanCount: number;
   };
+  policyArea?: string;        // Congress.gov policy area ("Health", "Armed Forces", etc.)
   issueCategories: string[];  // ["Healthcare", "Economy"]
   status: 'introduced' | 'committee' | 'passed-house' | 'passed-senate' | 'enacted';
   introducedDate: number;     // Unix timestamp (for sorting)

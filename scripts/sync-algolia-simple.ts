@@ -27,15 +27,20 @@ interface AlgoliaRecord {
   sponsorName: string | null;
   sponsorParty: string | null;
   sponsorState: string | null;
+  sponsorDistrict: string | null;
   introducedDate: string | null;
+  cosponsorCount: number;
+  committees: string[];
   latestActionDate: string | null;
   latestActionText: string | null;
   status: string;
+  policyArea: string | null;
   issueCategories: string[];
   impactScore: number;
   hasFullText: boolean;
   url: string;
   _timestamp: number;
+  [key: string]: unknown;  // Index signature for Algolia compatibility
 }
 
 async function fetchBillsFromDatabase(): Promise<any[]> {
@@ -59,6 +64,9 @@ async function fetchBillsFromDatabase(): Promise<any[]> {
 }
 
 function transformToAlgoliaRecord(bill: any): AlgoliaRecord {
+  // Use official policy_area if available, otherwise fallback to AI-inferred
+  const policyArea = bill.policy_area || bill.ai_policy_area || null;
+
   return {
     objectID: bill.id,
     billNumber: `${bill.bill_type.toUpperCase()} ${bill.bill_number}`,
@@ -69,15 +77,19 @@ function transformToAlgoliaRecord(bill: any): AlgoliaRecord {
     sponsorName: bill.sponsor_name,
     sponsorParty: bill.sponsor_party,
     sponsorState: bill.sponsor_state,
+    sponsorDistrict: bill.sponsor_district || null,
     introducedDate: bill.introduced_date,
     latestActionDate: bill.latest_action_date,
     latestActionText: bill.latest_action_text,
     status: bill.status || 'introduced',
+    policyArea: policyArea,  // Official or AI-inferred policy area
     issueCategories: bill.issue_categories ? JSON.parse(bill.issue_categories) : [],
     impactScore: bill.impact_score || 0,
+    cosponsorCount: bill.cosponsor_count || 0,
+    committees: bill.committees ? JSON.parse(bill.committees) : [],
     hasFullText: !!bill.full_text,
     url: `/bills/${bill.id}`,
-    _timestamp: bill.latest_action_date 
+    _timestamp: bill.latest_action_date
       ? new Date(bill.latest_action_date).getTime()
       : Date.now()
   };
@@ -109,6 +121,7 @@ async function main() {
       searchableAttributes: [
         'billNumber',
         'title',
+        'policyArea',
         'summary',
         'sponsorName',
         'issueCategories'
@@ -116,6 +129,7 @@ async function main() {
       attributesForFaceting: [
         'searchable(billType)',
         'searchable(status)',
+        'searchable(policyArea)',
         'searchable(sponsorParty)',
         'searchable(sponsorState)',
         'searchable(issueCategories)',
@@ -128,6 +142,28 @@ async function main() {
       ],
       attributesToHighlight: ['title', 'summary'],
       attributesToSnippet: ['summary:50'],
+      attributesToRetrieve: [
+        'objectID',
+        'billNumber',
+        'billType',
+        'congress',
+        'title',
+        'summary',
+        'sponsorName',
+        'sponsorParty',
+        'sponsorState',
+        'sponsorDistrict',
+        'introducedDate',
+        'cosponsorCount',
+        'committees',
+        'policyArea',
+        'issueCategories',
+        'status',
+        'latestActionText',
+        'latestActionDate',
+        'impactScore',
+        'url'
+      ],
       hitsPerPage: 20
     }
   });
@@ -141,6 +177,13 @@ async function main() {
   console.log('🔄 Transforming records...');
   const records = bills.map(transformToAlgoliaRecord);
   console.log(`✅ Transformed ${records.length} records\n`);
+
+  // Debug: Check if policy_area is being included
+  const withPolicy = records.filter(r => r.policyArea).length;
+  console.log(`📊 Records with policy areas: ${withPolicy}/${records.length}`);
+  if (withPolicy > 0) {
+    console.log('Example:', records.find(r => r.policyArea)?.policyArea);
+  }
   
   // Upload to Algolia
   console.log('📤 Uploading to Algolia...');

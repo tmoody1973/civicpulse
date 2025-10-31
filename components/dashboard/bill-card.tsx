@@ -2,11 +2,13 @@ import { FileText, TrendingUp, Clock, Check, Plus, Sparkles, Loader2 } from 'luc
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { BillProgressTracker } from './bill-progress-tracker';
 import { useState } from 'react';
 
 export interface Bill {
   id: string;
   number: string;
+  congress?: number;
   title: string;
   summary: string;
   status: 'introduced' | 'committee' | 'passed-house' | 'passed-senate' | 'enacted';
@@ -14,6 +16,16 @@ export interface Bill {
   impactScore: number;
   lastAction: string;
   lastActionDate: string;
+  // Sponsor info
+  sponsorName?: string;
+  sponsorParty?: string;
+  sponsorState?: string;
+  sponsorDistrict?: string;
+  introducedDate?: string;
+  // Additional info
+  cosponsorCount?: number;
+  committees?: string[];
+  policyArea?: string;
   aiSummary?: string;
 }
 
@@ -24,6 +36,7 @@ interface BillCardProps {
   loading?: boolean;
   onTrack?: (billId: string) => void;
   onUntrack?: (billId: string) => void;
+  searchQuery?: string; // For highlighting search terms
 }
 
 const STATUS_LABELS: Record<Bill['status'], string> = {
@@ -47,13 +60,76 @@ function formatDate(dateString: string): string {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+function getCongressYears(congress: number): string {
+  const startYear = 1789 + ((congress - 1) * 2);
+  const endYear = startYear + 2;
+  return `${startYear}-${endYear}`;
+}
+
+function formatSponsor(bill: Bill): string {
+  if (!bill.sponsorName || !bill.sponsorParty || !bill.sponsorState) return '';
+
+  const isHouse = bill.number.toUpperCase().startsWith('HR') || bill.number.toUpperCase().startsWith('H');
+  const chamber = isHouse ? 'Rep.' : 'Sen.';
+  const party = bill.sponsorParty;
+  const state = bill.sponsorState;
+  const district = bill.sponsorDistrict && isHouse ? `-${bill.sponsorDistrict}` : '';
+
+  return `[${chamber}-${party}-${state}${district}]`;
+}
+
+function formatIntroducedDate(date: string): string {
+  return new Date(date).toLocaleDateString('en-US', {
+    month: '2-digit',
+    day: '2-digit',
+    year: 'numeric'
+  });
+}
+
+/**
+ * Highlight search terms in text with case-insensitive matching
+ */
+function highlightText(text: string, query?: string): React.ReactNode {
+  if (!query || query.trim() === '') {
+    return text;
+  }
+
+  // Split query into individual terms (handle multi-word searches)
+  const terms = query.trim().toLowerCase().split(/\s+/);
+
+  // Create a regex that matches any of the terms (case-insensitive)
+  const pattern = terms.map(term => term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+  const regex = new RegExp(`(${pattern})`, 'gi');
+
+  // Split text by matches
+  const parts = text.split(regex);
+
+  return (
+    <>
+      {parts.map((part, index) => {
+        // Check if this part matches any search term
+        const isMatch = terms.some(term => part.toLowerCase() === term);
+
+        return isMatch ? (
+          <mark key={index} className="bg-yellow-200 dark:bg-yellow-800 font-medium">
+            {part}
+          </mark>
+        ) : (
+          <span key={index}>{part}</span>
+        );
+      })}
+    </>
+  );
+}
+
 export function BillCard({
   bill,
   compact = false,
   tracked = false,
   loading = false,
   onTrack,
-  onUntrack
+  onUntrack,
+  searchQuery
 }: BillCardProps) {
   const impactColor = bill.impactScore > 70 ? 'text-red-600' : bill.impactScore > 40 ? 'text-orange-600' : 'text-blue-600';
 
@@ -129,7 +205,7 @@ export function BillCard({
                 <span className={`text-xs font-semibold ${impactColor}`}>{bill.impactScore}</span>
               </div>
             </div>
-            <h3 className="font-semibold text-sm mb-2 leading-tight">{bill.title}</h3>
+            <h3 className="font-semibold text-sm mb-2 leading-tight">{highlightText(bill.title, searchQuery)}</h3>
             <div className="flex flex-wrap gap-1 mb-2">
               <Badge variant={STATUS_VARIANTS[bill.status]} className="text-xs">
                 {STATUS_LABELS[bill.status]}
@@ -148,27 +224,89 @@ export function BillCard({
 
   return (
     <Card className="hover:shadow-md transition-shadow">
-      <CardHeader>
-        <div className="flex items-start justify-between gap-4 mb-2">
-          <div className="flex items-start gap-3 flex-1">
-            <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center flex-shrink-0">
-              <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-muted-foreground mb-1">{bill.number}</p>
-              <CardTitle className="text-base leading-tight">{bill.title}</CardTitle>
-            </div>
-          </div>
-          <div className="flex items-center gap-1 flex-shrink-0">
+      <CardHeader className="space-y-3">
+        {/* Bill Number + Congress */}
+        <div className="flex items-baseline gap-2 flex-wrap">
+          <a
+            href={`/bills/${bill.id}`}
+            className="text-blue-600 hover:underline font-medium text-base"
+          >
+            {bill.number}
+          </a>
+          {bill.congress && (
+            <span className="text-sm text-muted-foreground">
+              — {bill.congress}th Congress ({getCongressYears(bill.congress)})
+            </span>
+          )}
+          <div className="ml-auto flex items-center gap-1 flex-shrink-0">
             <TrendingUp className={`w-4 h-4 ${impactColor}`} />
             <span className={`text-sm font-semibold ${impactColor}`}>{bill.impactScore}</span>
           </div>
         </div>
 
+        {/* Title */}
+        <CardTitle className="text-base leading-tight">
+          {highlightText(bill.title, searchQuery)}
+        </CardTitle>
+
+        {/* Sponsor Info */}
+        {bill.sponsorName && (
+          <div className="text-sm text-muted-foreground">
+            <span className="font-medium">Sponsor: </span>
+            <a href="#" className="text-blue-600 hover:underline">
+              {bill.sponsorName}
+            </a>
+            {formatSponsor(bill) && (
+              <span className="ml-1">{formatSponsor(bill)}</span>
+            )}
+            {bill.introducedDate && (
+              <span> (Introduced {formatIntroducedDate(bill.introducedDate)})</span>
+            )}
+            {bill.cosponsorCount && bill.cosponsorCount > 0 && (
+              <>
+                <span className="font-medium ml-2">Cosponsors: </span>
+                <a href="#" className="text-blue-600 hover:underline">
+                  ({bill.cosponsorCount})
+                </a>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Committees */}
+        {bill.committees && bill.committees.length > 0 && (
+          <div className="text-sm text-muted-foreground">
+            <span className="font-medium">Committees: </span>
+            {bill.committees.join(', ')}
+          </div>
+        )}
+
+        {/* Latest Action */}
+        <div className="text-sm text-muted-foreground">
+          <span className="font-medium">Latest Action: </span>
+          {bill.lastAction}
+          {' '}
+          <a href="#" className="text-blue-600 hover:underline">
+            (All Actions)
+          </a>
+        </div>
+
+        {/* Progress Tracker */}
+        <div>
+          <div className="text-xs font-medium text-muted-foreground mb-2">Tracker:</div>
+          <BillProgressTracker billStatus={bill.status} />
+        </div>
+
+        {/* Status + Categories Badges */}
         <div className="flex flex-wrap gap-2">
           <Badge variant={STATUS_VARIANTS[bill.status]}>
             {STATUS_LABELS[bill.status]}
           </Badge>
+          {bill.policyArea && (
+            <Badge variant="secondary" className="font-normal">
+              {bill.policyArea}
+            </Badge>
+          )}
           {bill.issueCategories.map(category => (
             <Badge key={category} variant="outline" className="font-normal">
               {category}
@@ -188,7 +326,7 @@ export function BillCard({
           )}
 
           <p className={`text-sm ${aiSummary ? 'text-foreground' : 'text-muted-foreground'} line-clamp-3`}>
-            {displaySummary || 'No summary available'}
+            {displaySummary ? highlightText(displaySummary, searchQuery) : 'No summary available'}
           </p>
 
           {/* Generate AI Summary Button */}

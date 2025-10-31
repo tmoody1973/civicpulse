@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Settings, Radio, Loader2, ExternalLink } from 'lucide-react';
+import { Radio, Loader2, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -197,32 +197,15 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="bg-background border-b sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <img
-                src="/logo.svg"
-                alt="Civic Pulse"
-                className="h-8 sm:h-10 w-auto"
-              />
-            </div>
-            <nav className="flex items-center gap-2 sm:gap-4">
-              <FeedSettings
-                selectedFeedIds={selectedFeedIds}
-                onSave={handleFeedSettingsSave}
-              />
-              <Button variant="ghost" size="icon">
-                <Settings className="w-5 h-5" />
-              </Button>
-            </nav>
-          </div>
-        </div>
-      </header>
-
       {/* Main content */}
       <main className="container mx-auto px-4 py-6 sm:py-8 max-w-7xl">
+        {/* Feed settings - moved to top right */}
+        <div className="flex justify-end mb-4">
+          <FeedSettings
+            selectedFeedIds={selectedFeedIds}
+            onSave={handleFeedSettingsSave}
+          />
+        </div>
         {/* Welcome Banner */}
         <div className="mb-6">
           <h1 className="text-3xl sm:text-4xl font-serif font-bold mb-2">Welcome to Civic Pulse</h1>

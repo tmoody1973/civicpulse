@@ -707,3 +707,50 @@ export async function fetchBillAmendments(
     return null;
   }
 }
+
+/**
+ * Fetch subjects (issue categories) for a bill
+ * Returns both policy area (broad) and legislative subjects (specific)
+ */
+export async function fetchBillSubjects(
+  congress: number,
+  billType: string,
+  billNumber: number
+): Promise<{
+  policyArea: string | null;
+  legislativeSubjects: string[];
+} | null> {
+  const url = new URL(`${API_BASE}/bill/${congress}/${billType}/${billNumber}/subjects`);
+  url.searchParams.set('format', 'json');
+  url.searchParams.set('api_key', API_KEY!);
+
+  try {
+    const response = await fetch(url.toString(), {
+      headers: {
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) return null;
+      throw new Error(`Congress API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (!data.subjects) {
+      return { policyArea: null, legislativeSubjects: [] };
+    }
+
+    const policyArea = data.subjects.policyArea?.name || null;
+    const legislativeSubjects = data.subjects.legislativeSubjects?.map((subject: any) => subject.name) || [];
+
+    return {
+      policyArea,
+      legislativeSubjects,
+    };
+  } catch (error) {
+    console.warn(`Could not fetch subjects for ${billType}${billNumber}:`, error);
+    return null;
+  }
+}

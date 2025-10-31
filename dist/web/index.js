@@ -1,4 +1,4 @@
-globalThis.__RAINDROP_GIT_COMMIT_SHA = "0d7653191c437de1ddcbdc365e3450e3f992fa15"; 
+globalThis.__RAINDROP_GIT_COMMIT_SHA = "f4520fae655dd4076e8f8ceb966194b4db30da5b"; 
 
 // node_modules/@liquidmetal-ai/raindrop-framework/dist/core/cors.js
 var matchOrigin = (request, env, config) => {
@@ -543,10 +543,11 @@ ${bill.full_text}
     await this.env.CIVIC_DB.prepare(`
       INSERT OR REPLACE INTO bills (
         id, congress, bill_type, bill_number, title, summary, full_text,
-        sponsor_bioguide_id, sponsor_name, introduced_date,
-        latest_action_date, latest_action_text, status,
-        issue_categories, impact_score, congress_url, searchable_text
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        sponsor_bioguide_id, sponsor_name, sponsor_party, sponsor_state, sponsor_district,
+        introduced_date, latest_action_date, latest_action_text, status,
+        policy_area, issue_categories, impact_score, cosponsor_count, committees,
+        congress_url, searchable_text
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       data.id,
       data.congress,
@@ -557,12 +558,18 @@ ${bill.full_text}
       data.fullText || null,
       data.sponsorBioguideId || null,
       data.sponsorName || null,
+      data.sponsorParty || null,
+      data.sponsorState || null,
+      data.sponsorDistrict || null,
       data.introducedDate || null,
       data.latestActionDate || null,
       data.latestActionText || null,
       data.status || "introduced",
+      data.policyArea || null,
       JSON.stringify(data.issueCategories || []),
       data.impactScore || null,
+      data.cosponsorCount || null,
+      JSON.stringify(data.committees || []),
       data.congressGovUrl || null,
       data.searchableText || null
     ).run();
@@ -597,8 +604,9 @@ ${bill.full_text}
     await this.env.CIVIC_DB.prepare(`
       INSERT OR REPLACE INTO representatives (
         bioguide_id, name, party, chamber, state, district,
-        image_url, office_address, phone, website_url, twitter_handle, committees
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        image_url, office_address, phone, website_url, twitter_handle, committees,
+        rss_url, contact_url, facebook_url, youtube_url, instagram_handle
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       data.bioguideId,
       data.name,
@@ -611,7 +619,12 @@ ${bill.full_text}
       data.phone || null,
       data.websiteUrl || null,
       data.twitterHandle || null,
-      JSON.stringify(data.committees || [])
+      JSON.stringify(data.committees || []),
+      data.rssUrl || null,
+      data.contactForm || null,
+      data.facebookUrl || null,
+      data.youtubeUrl || null,
+      data.instagramHandle || null
     ).run();
   }
   async getRepresentativesByState(state, district) {

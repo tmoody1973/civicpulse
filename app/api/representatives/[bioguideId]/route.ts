@@ -68,16 +68,46 @@ export async function GET(
 
     console.log(`✅ Found representative: ${representative.name}`);
 
-    // Fetch bills using utility function (with timeout and error handling)
-    const { sponsoredBills, cosponsoredBills } = await fetchMemberBills(bioguideId, {
-      limit: 50, // Reduced from 250 for faster loads
-      timeout: 30000 // 30 second timeout
-    });
+    // Check if we have pre-computed stats in the database
+    const hasPrecomputedStats = representative.stats_updated_at !== null;
 
-    // Calculate statistics using utility function
-    const stats = calculateBillStats(sponsoredBills, cosponsoredBills);
+    let stats;
+    let sponsoredBills = [];
+    let cosponsoredBills = [];
 
-    console.log('📊 Statistics:', stats);
+    if (hasPrecomputedStats) {
+      // Use pre-computed stats from database (Phase 2 optimization)
+      stats = {
+        totalSponsored: representative.bills_sponsored_total || 0,
+        totalCosponsored: representative.bills_cosponsored_total || 0,
+        lawsPassed: representative.bills_laws_passed || 0,
+        activeBills: representative.bills_active || 0,
+        policyAreas: representative.policy_areas_count || 0
+      };
+      console.log('📊 Using pre-computed stats from database');
+      console.log('⚡ Stats:', stats);
+
+      // Still fetch recent bills for display (limit 50 for speed)
+      const { sponsoredBills: sponsored, cosponsoredBills: cosponsored } = await fetchMemberBills(bioguideId, {
+        limit: 50,
+        timeout: 30000
+      });
+      sponsoredBills = sponsored;
+      cosponsoredBills = cosponsored;
+
+    } else {
+      // Fallback: Calculate stats on-the-fly (slower, Phase 1 behavior)
+      console.log('⚠️  No pre-computed stats found, calculating on-the-fly...');
+      const { sponsoredBills: sponsored, cosponsoredBills: cosponsored } = await fetchMemberBills(bioguideId, {
+        limit: 50,
+        timeout: 30000
+      });
+      sponsoredBills = sponsored;
+      cosponsoredBills = cosponsored;
+
+      stats = calculateBillStats(sponsoredBills, cosponsoredBills);
+      console.log('📊 Calculated stats:', stats);
+    }
 
     // Parse committees if stored as JSON string
     let committees = [];
