@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { BillProgressTracker } from './bill-progress-tracker';
 import { useState } from 'react';
+import Link from 'next/link';
 
 export interface Bill {
   id: string;
@@ -372,9 +373,11 @@ export function BillCard({
         </div>
 
         <div className="flex gap-2">
-          <Button size="sm" variant="outline" className="flex-1">
-            View Details
-          </Button>
+          <Link href={`/bills/${bill.id}`} className="flex-1">
+            <Button size="sm" variant="outline" className="w-full">
+              View Details
+            </Button>
+          </Link>
           {tracked ? (
             <Button
               size="sm"
