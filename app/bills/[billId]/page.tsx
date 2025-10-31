@@ -11,6 +11,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert } from '@/components/ui/alert';
 import { BillAnalysis } from '@/lib/ai/cerebras';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface Bill {
   id: string;
@@ -441,7 +443,46 @@ export default function BillDetailsPage() {
                         : 'bg-muted mr-8'
                     }`}
                   >
-                    <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                    {/* Markdown-rendered content */}
+                    <div className="text-sm prose prose-sm dark:prose-invert max-w-none prose-p:my-2 prose-headings:my-2 prose-li:my-1">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          // Style tables nicely
+                          table: ({ node, ...props }) => (
+                            <div className="overflow-x-auto my-3">
+                              <table className="min-w-full divide-y divide-border border border-border rounded-md" {...props} />
+                            </div>
+                          ),
+                          thead: ({ node, ...props }) => (
+                            <thead className="bg-muted/50" {...props} />
+                          ),
+                          th: ({ node, ...props }) => (
+                            <th className="px-3 py-2 text-left text-xs font-semibold" {...props} />
+                          ),
+                          td: ({ node, ...props }) => (
+                            <td className="px-3 py-2 text-xs border-t border-border" {...props} />
+                          ),
+                          // Style lists
+                          ul: ({ node, ...props }) => (
+                            <ul className="list-disc list-inside space-y-1" {...props} />
+                          ),
+                          ol: ({ node, ...props }) => (
+                            <ol className="list-decimal list-inside space-y-1" {...props} />
+                          ),
+                          // Style bold text
+                          strong: ({ node, ...props }) => (
+                            <strong className="font-semibold text-foreground" {...props} />
+                          ),
+                          // Style paragraphs
+                          p: ({ node, ...props }) => (
+                            <p className="leading-relaxed" {...props} />
+                          ),
+                        }}
+                      >
+                        {msg.content}
+                      </ReactMarkdown>
+                    </div>
 
                     {/* Similar Bills List */}
                     {msg.similarBills && msg.similarBills.length > 0 && (
