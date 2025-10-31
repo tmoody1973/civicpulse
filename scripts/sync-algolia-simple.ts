@@ -25,6 +25,7 @@ interface AlgoliaRecord {
   title: string;
   summary: string | null;
   sponsorName: string | null;
+  sponsorBioguideId: string | null;
   sponsorParty: string | null;
   sponsorState: string | null;
   sponsorDistrict: string | null;
@@ -75,6 +76,7 @@ function transformToAlgoliaRecord(bill: any): AlgoliaRecord {
     title: bill.title || '',
     summary: bill.summary,
     sponsorName: bill.sponsor_name,
+    sponsorBioguideId: bill.sponsor_bioguide_id || null,
     sponsorParty: bill.sponsor_party,
     sponsorState: bill.sponsor_state,
     sponsorDistrict: bill.sponsor_district || null,
@@ -150,6 +152,7 @@ async function main() {
         'title',
         'summary',
         'sponsorName',
+        'sponsorBioguideId',
         'sponsorParty',
         'sponsorState',
         'sponsorDistrict',

@@ -87,9 +87,9 @@ export async function GET(
       console.log('📊 Using pre-computed stats from database');
       console.log('⚡ Stats:', stats);
 
-      // Still fetch recent bills for display (limit 50 for speed)
+      // Still fetch recent bills for display (limit 10 - pagination shows 10 per page)
       const { sponsoredBills: sponsored, cosponsoredBills: cosponsored } = await fetchMemberBills(bioguideId, {
-        limit: 50,
+        limit: 10,
         timeout: 30000
       });
       sponsoredBills = sponsored;
@@ -99,7 +99,7 @@ export async function GET(
       // Fallback: Calculate stats on-the-fly (slower, Phase 1 behavior)
       console.log('⚠️  No pre-computed stats found, calculating on-the-fly...');
       const { sponsoredBills: sponsored, cosponsoredBills: cosponsored } = await fetchMemberBills(bioguideId, {
-        limit: 50,
+        limit: 10,
         timeout: 30000
       });
       sponsoredBills = sponsored;

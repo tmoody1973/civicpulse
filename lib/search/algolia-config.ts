@@ -121,6 +121,7 @@ export const indexSettings = {
     'title',
     'summary',
     'sponsorName',
+    'sponsorBioguideId',   // For linking to representative detail pages
     'sponsorParty',
     'sponsorState',
     'policyArea',

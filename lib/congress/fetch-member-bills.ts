@@ -5,10 +5,19 @@
  * and error recovery.
  */
 
+// Load environment variables for standalone script usage
+import { config } from 'dotenv';
+import { resolve } from 'path';
+
+// Try to load .env.local if running outside Next.js context (e.g., in scripts)
+if (!process.env.NEXT_RUNTIME) {
+  config({ path: resolve(process.cwd(), '.env.local') });
+}
+
 const CONGRESS_API_KEY = process.env.CONGRESS_API_KEY;
 const CONGRESS_API_BASE = 'https://api.congress.gov/v3';
 const DEFAULT_TIMEOUT = 30000; // 30 seconds
-const DEFAULT_LIMIT = 50; // Reduced from 250 for faster loads
+const DEFAULT_LIMIT = 10; // Show 10 bills per page (pagination handles more)
 
 export interface CongressBill {
   id: string;
