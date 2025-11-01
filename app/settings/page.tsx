@@ -272,9 +272,8 @@ export default function SettingsPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {ISSUE_CATEGORIES.map(({ id, label, icon: Icon, color }) => (
-                  <div
+                  <label
                     key={id}
-                    onClick={() => toggleInterest(id)}
                     className={`
                       flex items-center gap-3 p-3 rounded-lg border-2 transition-all cursor-pointer
                       ${formData.interests.includes(id)
@@ -282,15 +281,6 @@ export default function SettingsPage() {
                         : 'border-border hover:border-primary/50 hover:bg-muted/50'
                       }
                     `}
-                    role="button"
-                    tabIndex={0}
-                    aria-pressed={formData.interests.includes(id)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        toggleInterest(id);
-                      }
-                    }}
                   >
                     <div className={`flex-shrink-0 ${color}`} aria-hidden="true">
                       <Icon className="w-5 h-5" />
@@ -301,7 +291,7 @@ export default function SettingsPage() {
                       onCheckedChange={() => toggleInterest(id)}
                       aria-label={`Select ${label}`}
                     />
-                  </div>
+                  </label>
                 ))}
               </div>
             </CardContent>
