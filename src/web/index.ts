@@ -29,6 +29,7 @@ export default class extends Service<Env> {
         state TEXT,
         district TEXT,
         interests TEXT,
+        onboarding_completed INTEGER DEFAULT 0,
         email_notifications BOOLEAN DEFAULT true,
         audio_enabled BOOLEAN DEFAULT true,
         audio_frequencies TEXT,
@@ -183,6 +184,27 @@ export default class extends Service<Env> {
         roll_call_number INTEGER
       )
     `);
+
+    // Create sync_history table for tracking automated bill syncs
+    await this.env.CIVIC_DB.exec(`
+      CREATE TABLE IF NOT EXISTS sync_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sync_type TEXT NOT NULL,
+        status TEXT NOT NULL,
+        started_at TIMESTAMP NOT NULL,
+        completed_at TIMESTAMP,
+        run_id TEXT,
+        run_url TEXT,
+        error_message TEXT,
+        bills_fetched INTEGER,
+        bills_processed INTEGER,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await this.env.CIVIC_DB.exec('CREATE INDEX IF NOT EXISTS idx_sync_history_status ON sync_history(status)');
+    await this.env.CIVIC_DB.exec('CREATE INDEX IF NOT EXISTS idx_sync_history_started_at ON sync_history(started_at DESC)');
+    await this.env.CIVIC_DB.exec('CREATE INDEX IF NOT EXISTS idx_sync_history_type ON sync_history(sync_type)');
   }
 
   async fetch(request: Request): Promise<Response> {
