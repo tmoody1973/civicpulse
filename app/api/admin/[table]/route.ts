@@ -9,7 +9,8 @@ const VALID_TABLES = [
   'user_bills',
   'podcasts',
   'rss_articles',
-  'vote_records'
+  'vote_records',
+  'sync_history'
 ];
 
 /**

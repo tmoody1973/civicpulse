@@ -1,47 +1,37 @@
-name: Daily Bill Sync
+name: Test Bill Sync (Quick)
 
-# When this runs:
-# 1. Every day at 2 AM UTC (9 PM EST / 6 PM PST)
-# 2. Manually via "Run workflow" button in GitHub Actions tab
+# Manual trigger only - for testing
 on:
-  schedule:
-    - cron: '0 2 * * *'  # 2 AM UTC daily
-  workflow_dispatch:  # Allows manual trigger
+  workflow_dispatch:
 
 jobs:
-  sync-bills:
-    name: Sync Bills from Congress.gov
+  test-sync:
+    name: Test Bill Sync (10 bills, no full text)
     runs-on: ubuntu-latest
-    timeout-minutes: 120  # 2 hours (fetch ~60min + pipeline ~25min + buffer)
+    timeout-minutes: 30
 
     steps:
-      # Step 1: Get the code
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Step 2: Set up Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
 
-      # Step 3: Install dependencies
       - name: Install dependencies
         run: npm ci
 
-      # Step 4: Fetch new bills from Congress.gov
-      - name: Fetch bills from Congress.gov
+      - name: Fetch bills (metadata only, fast)
         env:
           CONGRESS_API_KEY: ${{ secrets.CONGRESS_API_KEY }}
           RAINDROP_SERVICE_URL: ${{ secrets.RAINDROP_SERVICE_URL }}
         run: |
-          echo "📥 Fetching bills from Congress.gov..."
-          echo "⚠️  Full text mode: This will take ~50-60 minutes"
-          npm run fetch:bills -- --full
+          echo "📥 Fetching 10 bills (metadata only - fast test)"
+          npm run fetch:bills -- --limit 10
           echo "✅ Bills fetched successfully"
 
-      # Step 5: Run the processing pipeline
       - name: Run post-fetch pipeline
         env:
           RAINDROP_SERVICE_URL: ${{ secrets.RAINDROP_SERVICE_URL }}
@@ -50,29 +40,22 @@ jobs:
           ALGOLIA_ADMIN_KEY: ${{ secrets.ALGOLIA_ADMIN_KEY }}
         run: |
           echo "⚙️  Running post-fetch pipeline..."
-          echo "  1. AI policy area inference"
-          echo "  2. SmartBuckets indexing"
-          echo "  3. Algolia sync"
-          echo "  4. Search tests"
           npx tsx scripts/post-fetch-pipeline.ts
           echo "✅ Pipeline complete"
 
-      # Step 6: Save sync status (for admin dashboard)
-      - name: Save sync status
-        if: always()  # Run even if previous steps failed
+      - name: Save test sync status
+        if: always()
         env:
           RAINDROP_SERVICE_URL: ${{ secrets.RAINDROP_SERVICE_URL }}
         run: |
-          echo "💾 Saving sync status..."
+          echo "💾 Saving test sync status..."
 
-          # Determine status
           if [ ${{ job.status }} == 'success' ]; then
             STATUS='success'
           else
             STATUS='failure'
           fi
 
-          # Save to database via API
           npx tsx -e "
           (async () => {
             const response = await fetch('${RAINDROP_SERVICE_URL}/api/admin/query', {
@@ -87,31 +70,29 @@ jobs:
                     started_at,
                     completed_at,
                     run_id,
-                    run_url
-                  ) VALUES (?, ?, ?, ?, ?, ?)
+                    run_url,
+                    bills_fetched,
+                    bills_processed
+                  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 \`,
                 values: [
-                  'daily_bill_sync',
+                  'test_sync',
                   '${STATUS}',
                   new Date().toISOString(),
                   new Date().toISOString(),
-                  '${GITHUB_RUN_ID}',
-                  'https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}'
+                  '${{ github.run_id }}',
+                  'https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}',
+                  10,
+                  10
                 ]
               })
             });
 
-            console.log('✅ Sync status saved');
+            console.log('✅ Test sync status saved');
           })();
           "
 
-      # Step 7: Notify on failure
-      - name: Notify on failure
-        if: failure()
+      - name: Test complete
         run: |
-          echo "❌ Sync failed! Check logs at:"
-          echo "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-
-# Permissions needed for this workflow
-permissions:
-  contents: read
+          echo "✅ Test sync complete!"
+          echo "Check the admin dashboard to see results"

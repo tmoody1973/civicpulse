@@ -392,7 +392,7 @@ export default class extends Service<Env> {
         const { table, query } = body;
 
         // Validate table name for security
-        const validTables = ['users', 'bills', 'representatives', 'user_bills', 'podcasts', 'rss_articles', 'vote_records'];
+        const validTables = ['users', 'bills', 'representatives', 'user_bills', 'podcasts', 'rss_articles', 'vote_records', 'sync_history'];
 
         if (!validTables.includes(table)) {
           return this.jsonResponse({
@@ -410,7 +410,7 @@ export default class extends Service<Env> {
         const { table, query } = body;
 
         // Validate table name for security
-        const validTables = ['users', 'bills', 'representatives', 'user_bills', 'podcasts', 'rss_articles', 'vote_records'];
+        const validTables = ['users', 'bills', 'representatives', 'user_bills', 'podcasts', 'rss_articles', 'vote_records', 'sync_history'];
 
         if (!validTables.includes(table)) {
           return this.jsonResponse({

@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Database, RefreshCw, Users, FileText, UserCheck, Mic, Newspaper, Vote } from 'lucide-react';
+import { Database, RefreshCw, Users, FileText, UserCheck, Mic, Newspaper, Vote, History } from 'lucide-react';
+import { SyncStatusWidget } from '@/components/admin/sync-status-widget';
 
 interface TableInfo {
   name: string;
@@ -55,6 +56,12 @@ const TABLES: TableInfo[] = [
     icon: <Vote className="h-5 w-5" />,
     description: 'Representative voting history',
     color: 'bg-indigo-500'
+  },
+  {
+    name: 'sync_history',
+    icon: <History className="h-5 w-5" />,
+    description: 'Automated bill sync logs',
+    color: 'bg-teal-500'
   }
 ];
 
@@ -172,6 +179,11 @@ export default function AdminDashboard() {
       </header>
 
       <div className="container mx-auto px-4 py-8">
+        {/* Sync Status Widget - Shows automated bill sync status */}
+        <div className="mb-6">
+          <SyncStatusWidget />
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Sidebar - Table List */}
           <div className="lg:col-span-1">
