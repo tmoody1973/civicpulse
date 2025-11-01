@@ -327,18 +327,48 @@ function detectBillStatus(actions: Array<{ description: string; classification: 
 }
 ```
 
-### 3. Fetching Strategy
+### 3. Fetching Strategy (Demand-Driven Approach)
 
-**Daily Sync Workflow (Optimized with state-pulse patterns):**
+**Key Principle: Only fetch state bills for states where you have users!**
+
+This dramatically reduces API calls, storage, and processing time. Don't waste resources on Wyoming bills if you have zero Wyoming users.
+
+#### On User Signup (One-Time State Bill Fetch)
+
+```
+User signs up with zip code 90210
+  ↓
+Detect state: California
+  ↓
+Check: Do we have CA bills in database?
+  ↓
+  NO → Trigger background job: Fetch CA bills (~2-3 min)
+       - Fetch current session bills
+       - Get full text for each
+       - Index in SmartBuckets
+       - Sync to Algolia
+  ↓
+  YES → Skip (already have CA bills)
+  ↓
+Save user with state: 'CA'
+```
+
+This ensures users see relevant state bills immediately without waiting for next daily sync.
+
+#### Daily Sync Workflow (Optimized with state-pulse patterns)
 
 ```
 GitHub Actions: Daily Bill Sync (2 AM UTC)
 ├─ Step 1: Fetch Federal Bills (existing, 50-60 min)
 │
-├─ Step 2: Fetch State Bills (NEW, ~10-15 min with updated_since!)
-│  ├─ Load last sync timestamp from database
+├─ Step 2: Fetch State Bills (NEW, ~2-5 min for typical deployment!)
 │  ├─ Query unique states from users table
-│  ├─ For each state:
+│  │  └─ SELECT DISTINCT state FROM users WHERE state IS NOT NULL
+│  │  └─ Example result: ['CA', 'NY', 'TX'] (only 3 states!)
+│  │
+│  ├─ Load last sync timestamp from database
+│  │
+│  ├─ For each state WITH USERS:
 │  │  ├─ Get current sessions (using isCurrentSession filter)
 │  │  ├─ Fetch bills with updated_since parameter (CRITICAL!)
 │  │  │  └─ Example: ?updated_since=2024-10-31T02:00:00Z
@@ -347,6 +377,7 @@ GitHub Actions: Daily Bill Sync (2 AM UTC)
 │  │  ├─ Delay 1.5s between pages
 │  │  ├─ Delay 3s between states
 │  │  └─ Fetch full text only for NEW bills
+│  │
 │  └─ Update last sync timestamp
 │
 ├─ Step 3: Run Post-Fetch Pipeline (existing)
@@ -399,23 +430,46 @@ GitHub Actions: Daily Bill Sync (2 AM UTC)
    await sleep(10000); // Between state batches (10s)
    ```
 
-**Estimated Performance:**
+**Estimated Performance (Demand-Driven Approach):**
 
-| Scenario | Time | Bills Fetched |
-|----------|------|---------------|
-| **First sync** (all states) | ~45-60 min | ~5-10K bills |
-| **Daily sync** (updated only) | ~10-15 min | ~50-200 bills |
-| **User's state only** (testing) | ~2-3 min | ~500-1000 bills |
+| Scenario | States | Time | Bills Fetched |
+|----------|--------|------|---------------|
+| **First user (CA)** - Initial fetch | 1 state | ~2-3 min | ~500-1K bills |
+| **Daily sync** (you only, CA) | 1 state | ~30-60 sec | ~10-20 bills |
+| **100 users in 5 states** - Initial | 5 states | ~10-15 min | ~2.5-5K bills |
+| **Daily sync** (5 states) | 5 states | ~2-3 min | ~50-100 bills |
+| **1000 users in 20 states** - Initial | 20 states | ~40-60 min | ~10-20K bills |
+| **Daily sync** (20 states) | 20 states | ~8-12 min | ~200-400 bills |
 
-**Why so much faster after first sync?**
-- `updated_since` parameter = only changed bills
-- Most bills don't change daily
-- Only ~50-200 bills across all states get updates per day
+**Why This Approach Is Better:**
 
-**Storage Optimization:**
-- Only fetch states where users exist
-- Skip full text for bills that already have it
-- Use database to track what we've already fetched
+1. **Scales With Your Users**
+   - 1 user in CA = fetch CA only
+   - 10 users in CA = still fetch CA only (already have it!)
+   - Users in 5 states = fetch 5 states, not 50
+
+2. **Faster Initial Experience**
+   - First sync: 2-3 min (your state only)
+   - Not: 45-60 min (all 50 states)
+   - User sees state bills immediately after signup
+
+3. **Lower Ongoing Costs**
+   - Daily sync: 2-3 min (5 typical states)
+   - Not: 10-15 min (all 50 states)
+   - `updated_since` means only changed bills
+
+4. **Pay-As-You-Grow**
+   - Start small (your state)
+   - Add states as users join
+   - Never waste resources on empty states
+
+**Real-World Example:**
+
+If Civic Pulse has users in California, New York, and Texas only:
+- **Initial Setup:** Fetch 3 states (~6-9 min) instead of 50 (~45-60 min)
+- **Daily Updates:** Update 3 states (~2-3 min) instead of 50 (~10-15 min)
+- **Storage:** ~1.5-3K bills instead of ~5-10K bills
+- **API Calls:** 85% reduction!
 
 ### 4. SmartBuckets Integration
 
@@ -533,21 +587,77 @@ export function LegislationFeed({ userState, view }: LegislationFeedProps) {
 
 ### First-Time User Experience
 
-**Onboarding Flow Enhancement:**
+**Onboarding Flow Enhancement (with Demand-Driven State Bill Fetch):**
 
 ```
 Step 1: Location
-  "Enter your zip code"
-  → Determines state + congressional district
+  "Enter your zip code: 90210"
+  → Determines state (California) + congressional district (30)
+  → Background: Check if we have CA bills in database
+      ├─ YES → Skip fetch
+      └─ NO  → Trigger background job to fetch CA bills
 
 Step 2: Show What You'll Get
   "We'll show you legislation from:"
   ✓ US Congress (federal laws)
   ✓ California Legislature (state laws)
 
+  [If first CA user]
+  "⏳ Loading California bills... This takes 2-3 minutes"
+  "You can browse federal bills while we fetch state bills"
+
+  [If CA bills exist]
+  "✅ California bills ready!"
+
 Step 3: Interests
   (existing flow)
 ```
+
+**Implementation Details:**
+
+```typescript
+// On zip code submit
+async function handleZipCodeSubmit(zipCode: string) {
+  // Lookup location
+  const location = await lookupZipCode(zipCode);
+  // { state: 'CA', district: 30 }
+
+  // Check if we have state bills
+  const hasStateBills = await db.bills
+    .where('jurisdiction', '==', location.state.toLowerCase())
+    .limit(1)
+    .first();
+
+  if (!hasStateBills) {
+    // First user from this state!
+    // Trigger background job to fetch state bills
+    await queueStateBillFetch({
+      state: location.state,
+      priority: 'high', // User is waiting
+      notifyUser: true  // Show progress
+    });
+
+    // Show loading message
+    setLoadingState({
+      message: `Fetching ${getStateName(location.state)} bills...`,
+      showFederalBillsWhileWaiting: true
+    });
+  }
+
+  // Save user
+  await saveUser({
+    ...userData,
+    state: location.state,
+    district: location.district
+  });
+}
+```
+
+This ensures:
+- ✅ Users see state bills immediately (or federal bills while loading)
+- ✅ No wasted fetching for states with no users
+- ✅ Background job doesn't block onboarding flow
+- ✅ Subsequent users from same state see bills instantly
 
 ---
 
@@ -726,10 +836,13 @@ Keep it conversational and explain why each bill matters locally.
 ### Phase 5: Onboarding & Education (Week 3)
 **Priority: MEDIUM - User communication**
 
-- [ ] **Task 5.1:** Update onboarding flow
+- [ ] **Task 5.1:** Update onboarding flow (with demand-driven state bill fetch)
+  - Trigger background job to fetch state bills on first user signup
+  - Add loading state: "Fetching California bills..."
+  - Allow browsing federal bills while state bills load
+  - Show success message when state bills ready
+  - Skip fetch if state bills already exist
   - Add explanation of federal + state coverage
-  - Show preview of state bills
-  - Set user expectations
 
 - [ ] **Task 5.2:** Create help/education content
   - "What's the difference between federal and state bills?"
