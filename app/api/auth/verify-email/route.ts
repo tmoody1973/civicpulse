@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { WorkOS } from '@workos-inc/node';
-
-const workos = new WorkOS(process.env.WORKOS_API_KEY);
+import { verifyEmail } from '@/lib/auth/workos';
+import { executeQuery } from '@/lib/db/client';
 
 /**
  * POST /api/auth/verify-email
@@ -18,19 +17,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify the email verification code with WorkOS
-    // WorkOS email verification uses their passwordless API
+    // Look up user ID from email
+    const userResult = await executeQuery(
+      `SELECT id FROM users WHERE email = '${email}' LIMIT 1`,
+      'users'
+    );
+
+    if (!userResult.rows || userResult.rows.length === 0) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      );
+    }
+
+    const userId = userResult.rows[0].id as string;
+
+    // Verify the email with WorkOS
     try {
-      await workos.passwordless.verifySession({
-        email,
-        code,
-      });
+      const result = await verifyEmail(userId, code);
 
       console.log(`✅ Email verified successfully: ${email}`);
 
       return NextResponse.json({
         success: true,
         message: 'Email verified successfully',
+        emailVerified: result.emailVerified,
       });
     } catch (workosError: any) {
       console.error('WorkOS verification error:', workosError);
@@ -43,7 +54,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      if (workosError.message?.includes('invalid')) {
+      if (workosError.message?.includes('invalid') || workosError.message?.includes('not found')) {
         return NextResponse.json(
           { error: 'Invalid verification code. Please check and try again.' },
           { status: 400 }

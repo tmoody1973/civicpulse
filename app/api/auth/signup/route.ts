@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createUserWithPassword } from '@/lib/auth/workos';
+import { createUserWithPassword, sendVerificationEmail } from '@/lib/auth/workos';
 import { createSession } from '@/lib/auth/session';
 import { upsert } from '@/lib/db/client';
 import { z } from 'zod';
@@ -56,11 +56,20 @@ export async function POST(request: NextRequest) {
 
     console.log(`✅ Created database user: ${email} (${workosUser.id})`);
 
+    // Send verification email
+    try {
+      await sendVerificationEmail(workosUser.id);
+      console.log(`📧 Sent verification email to: ${email}`);
+    } catch (emailError) {
+      console.error('Failed to send verification email:', emailError);
+      // Don't fail the signup if email sending fails
+    }
+
     // For email/password, we need to authenticate after creation
     // WorkOS doesn't return tokens on user creation
     return NextResponse.json({
       success: true,
-      message: 'Account created successfully. Please sign in.',
+      message: 'Account created successfully. Please check your email for verification.',
       userId: workosUser.id,
       email: workosUser.email,
       emailVerified: workosUser.emailVerified,

@@ -205,3 +205,22 @@ export async function sendVerificationEmail(userId: string) {
     userId,
   });
 }
+
+/**
+ * Verify email with token from verification link
+ * @param userId User ID
+ * @param code Verification code from email
+ */
+export async function verifyEmail(userId: string, code: string) {
+  const workos = getWorkOS();
+  const { user } = await workos.userManagement.verifyEmail({
+    userId,
+    code,
+  });
+
+  return {
+    id: user.id,
+    email: user.email,
+    emailVerified: user.emailVerified,
+  };
+}

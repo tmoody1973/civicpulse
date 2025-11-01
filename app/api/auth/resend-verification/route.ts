@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { WorkOS } from '@workos-inc/node';
-
-const workos = new WorkOS(process.env.WORKOS_API_KEY);
+import { sendVerificationEmail } from '@/lib/auth/workos';
+import { executeQuery } from '@/lib/db/client';
 
 /**
  * POST /api/auth/resend-verification
- * Resends email verification code
+ * Resends email verification email
  */
 export async function POST(request: NextRequest) {
   try {
@@ -18,18 +17,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Send a new verification code via WorkOS passwordless
-    try {
-      await workos.passwordless.sendSession({
-        email,
-        type: 'MagicLink', // This will send a code via email
-      });
+    // Look up user ID from email
+    const userResult = await executeQuery(
+      `SELECT id FROM users WHERE email = '${email}' LIMIT 1`,
+      'users'
+    );
 
-      console.log(`✅ Resent verification code to: ${email}`);
+    if (!userResult.rows || userResult.rows.length === 0) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      );
+    }
+
+    const userId = userResult.rows[0].id as string;
+
+    // Send verification email via WorkOS
+    try {
+      await sendVerificationEmail(userId);
+
+      console.log(`✅ Resent verification email to: ${email}`);
 
       return NextResponse.json({
         success: true,
-        message: 'Verification code sent',
+        message: 'Verification email sent',
       });
     } catch (workosError: any) {
       console.error('WorkOS resend error:', workosError);
@@ -47,7 +58,7 @@ export async function POST(request: NextRequest) {
     console.error('Resend verification error:', error);
     return NextResponse.json(
       {
-        error: 'Failed to resend verification code',
+        error: 'Failed to resend verification email',
         message: error instanceof Error ? error.message : 'Unknown error',
       },
       { status: 500 }
