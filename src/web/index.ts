@@ -270,10 +270,21 @@ export default class extends Service<Env> {
         const category = url.searchParams.get('category');
         const limit = parseInt(url.searchParams.get('limit') || '50');
 
-        // If ID is provided, fetch single bill
+        // If ID is provided, fetch single bill with sponsor details
         if (id) {
           const billResult = await this.env.CIVIC_DB.prepare(`
-            SELECT * FROM bills WHERE id = ?
+            SELECT
+              b.*,
+              r.image_url as sponsor_image_url,
+              r.office_address as sponsor_office_address,
+              r.phone as sponsor_phone,
+              r.website_url as sponsor_website_url,
+              r.contact_form as sponsor_contact_form,
+              r.twitter_handle as sponsor_twitter_handle,
+              r.facebook_url as sponsor_facebook_url
+            FROM bills b
+            LEFT JOIN representatives r ON b.sponsor_bioguide_id = r.bioguide_id
+            WHERE b.id = ?
           `).bind(id).first();
 
           if (!billResult) {

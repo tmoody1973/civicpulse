@@ -13,6 +13,11 @@ import { Alert } from '@/components/ui/alert';
 import { BillAnalysis } from '@/lib/ai/cerebras';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { BillProgressTimeline } from '@/components/bills/bill-progress-timeline';
+import { BillTldrCard } from '@/components/bills/bill-tldr-card';
+import { BillSponsorCard } from '@/components/bills/bill-sponsor-card';
+import { JargonTooltip, legislativeTerms } from '@/components/ui/jargon-tooltip';
+import { Mail, Bell, ExternalLink, ThumbsUp, ThumbsDown, AlertCircle, Check } from 'lucide-react';
 
 interface Bill {
   id: string;
@@ -25,6 +30,13 @@ interface Bill {
   sponsor_name: string | null;
   sponsor_party: string | null;
   sponsor_state: string | null;
+  sponsor_image_url: string | null;
+  sponsor_office_address: string | null;
+  sponsor_phone: string | null;
+  sponsor_website_url: string | null;
+  sponsor_contact_form: string | null;
+  sponsor_twitter_handle: string | null;
+  sponsor_facebook_url: string | null;
   introduced_date: string | null;
   latest_action_date: string | null;
   latest_action_text: string | null;
@@ -142,13 +154,13 @@ export default function BillDetailsPage() {
     }
   };
 
-  // Suggested questions
+  // Citizen-focused suggested questions
   const suggestedQuestions = [
-    'What does this bill do?',
-    'Who would this bill affect?',
-    'What are the key provisions?',
+    'Will this cost me money?',
+    'How do I qualify for this?',
+    'When will this take effect?',
     'Are there similar bills?',
-    'When would this take effect?',
+    'Who opposes this bill and why?',
   ];
 
   if (loading) {
@@ -209,10 +221,61 @@ export default function BillDetailsPage() {
               {bill.sponsor_name} ({bill.sponsor_party}-{bill.sponsor_state})
             </Badge>
             {bill.cosponsor_count > 0 && (
-              <span className="text-sm">+ {bill.cosponsor_count} cosponsors</span>
+              <span className="text-sm">
+                + {bill.cosponsor_count}{' '}
+                <JargonTooltip
+                  term={legislativeTerms.cosponsor.term}
+                  explanation={legislativeTerms.cosponsor.explanation}
+                >
+                  {bill.cosponsor_count === 1 ? 'cosponsor' : 'cosponsors'}
+                </JargonTooltip>
+              </span>
             )}
           </div>
         )}
+      </div>
+
+      {/* TL;DR Summary Card */}
+      {analysis && (
+        <div className="mb-8">
+          <BillTldrCard
+            whatItDoes={analysis.whatItDoes}
+            whoItAffects={analysis.whoItAffects}
+            status={bill.status}
+            introducedDate={bill.introduced_date}
+          />
+        </div>
+      )}
+
+      {/* Sponsor Information Card */}
+      {bill.sponsor_name && (
+        <div className="mb-8">
+          <BillSponsorCard
+            name={bill.sponsor_name}
+            party={bill.sponsor_party}
+            state={bill.sponsor_state}
+            imageUrl={bill.sponsor_image_url}
+            officeAddress={bill.sponsor_office_address}
+            phone={bill.sponsor_phone}
+            websiteUrl={bill.sponsor_website_url}
+            contactForm={bill.sponsor_contact_form}
+            twitterHandle={bill.sponsor_twitter_handle}
+            facebookUrl={bill.sponsor_facebook_url}
+          />
+        </div>
+      )}
+
+      {/* Visual Progress Timeline */}
+      <div className="mb-8">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Bill Progress</CardTitle>
+            <CardDescription>Track where this bill is in the legislative process</CardDescription>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <BillProgressTimeline billStatus={bill.status} />
+          </CardContent>
+        </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -225,7 +288,12 @@ export default function BillDetailsPage() {
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-4">
               <div>
-                <p className="text-sm text-muted-foreground">Introduced</p>
+                <p className="text-sm text-muted-foreground">
+                  <JargonTooltip
+                    term={legislativeTerms.introduced.term}
+                    explanation={legislativeTerms.introduced.explanation}
+                  />
+                </p>
                 <p className="font-medium">
                   {bill.introduced_date
                     ? new Date(bill.introduced_date).toLocaleDateString()
@@ -234,7 +302,12 @@ export default function BillDetailsPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Congress</p>
-                <p className="font-medium">{bill.congress}th Congress</p>
+                <p className="font-medium">
+                  <JargonTooltip
+                    term={legislativeTerms.congress(bill.congress).term}
+                    explanation={legislativeTerms.congress(bill.congress).explanation}
+                  />
+                </p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Latest Action</p>
@@ -298,37 +371,64 @@ export default function BillDetailsPage() {
                     </ul>
                   </div>
 
-                  {/* Potential Impact */}
+                  {/* Potential Impact - Visual Pros/Cons */}
                   <div>
-                    <h3 className="font-semibold mb-3">Potential Impact</h3>
-                    <Tabs defaultValue="positive">
-                      <TabsList className="grid w-full grid-cols-3">
-                        <TabsTrigger value="positive">Positive</TabsTrigger>
-                        <TabsTrigger value="negative">Negative</TabsTrigger>
-                        <TabsTrigger value="neutral">Neutral</TabsTrigger>
-                      </TabsList>
-                      <TabsContent value="positive" className="mt-4">
-                        <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-                          {analysis.potentialImpact.positive.map((impact, i) => (
-                            <li key={i}>{impact}</li>
-                          ))}
-                        </ul>
-                      </TabsContent>
-                      <TabsContent value="negative" className="mt-4">
-                        <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-                          {analysis.potentialImpact.negative.map((impact, i) => (
-                            <li key={i}>{impact}</li>
-                          ))}
-                        </ul>
-                      </TabsContent>
-                      <TabsContent value="neutral" className="mt-4">
-                        <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-                          {analysis.potentialImpact.neutral.map((impact, i) => (
-                            <li key={i}>{impact}</li>
-                          ))}
-                        </ul>
-                      </TabsContent>
-                    </Tabs>
+                    <h3 className="font-semibold mb-4">Potential Impact</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Positive Impacts */}
+                      {analysis.potentialImpact.positive.length > 0 && (
+                        <div className="p-4 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-900">
+                          <div className="flex items-center gap-2 mb-3">
+                            <ThumbsUp className="w-4 h-4 text-green-600" />
+                            <h4 className="font-semibold text-green-900 dark:text-green-100">Potential Benefits</h4>
+                          </div>
+                          <ul className="space-y-2">
+                            {analysis.potentialImpact.positive.map((impact, i) => (
+                              <li key={i} className="flex items-start gap-2 text-sm">
+                                <Check className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
+                                <span className="text-green-800 dark:text-green-200">{impact}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Negative Impacts */}
+                      {analysis.potentialImpact.negative.length > 0 && (
+                        <div className="p-4 bg-red-50 dark:bg-red-950/20 rounded-lg border border-red-200 dark:border-red-900">
+                          <div className="flex items-center gap-2 mb-3">
+                            <ThumbsDown className="w-4 h-4 text-red-600" />
+                            <h4 className="font-semibold text-red-900 dark:text-red-100">Potential Concerns</h4>
+                          </div>
+                          <ul className="space-y-2">
+                            {analysis.potentialImpact.negative.map((impact, i) => (
+                              <li key={i} className="flex items-start gap-2 text-sm">
+                                <AlertCircle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
+                                <span className="text-red-800 dark:text-red-200">{impact}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Neutral Impacts */}
+                      {analysis.potentialImpact.neutral.length > 0 && (
+                        <div className="p-4 bg-gray-50 dark:bg-gray-950/20 rounded-lg border border-gray-200 dark:border-gray-800 md:col-span-2">
+                          <div className="flex items-center gap-2 mb-3">
+                            <AlertCircle className="w-4 h-4 text-gray-600" />
+                            <h4 className="font-semibold text-gray-900 dark:text-gray-100">Other Considerations</h4>
+                          </div>
+                          <ul className="space-y-2">
+                            {analysis.potentialImpact.neutral.map((impact, i) => (
+                              <li key={i} className="flex items-start gap-2 text-sm">
+                                <span className="w-1.5 h-1.5 bg-gray-400 rounded-full mt-2 flex-shrink-0" />
+                                <span className="text-gray-700 dark:text-gray-300">{impact}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Additional Info */}
@@ -354,6 +454,28 @@ export default function BillDetailsPage() {
                   <p>Unable to generate analysis. Please try again later.</p>
                 </Alert>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Call to Action */}
+          <Card className="border-2">
+            <CardHeader>
+              <CardTitle>Take Action</CardTitle>
+              <CardDescription>Make your voice heard on this bill</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Button className="w-full justify-start" size="lg">
+                <Mail className="mr-2 h-4 w-4" />
+                Contact Your Representative
+              </Button>
+              <Button variant="outline" className="w-full justify-start" size="lg">
+                <Bell className="mr-2 h-4 w-4" />
+                Track This Bill for Updates
+              </Button>
+              <Button variant="outline" className="w-full justify-start" size="lg">
+                <ExternalLink className="mr-2 h-4 w-4" />
+                View on Congress.gov
+              </Button>
             </CardContent>
           </Card>
 
