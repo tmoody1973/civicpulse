@@ -12,7 +12,7 @@ export function HeroSection() {
           {/* Large Logo */}
           <div className="flex justify-center mb-8">
             <Image
-              src="/logo.svg"
+              src="/hakivo-logo.svg"
               alt="HakiVo - Making Congress Accessible"
               width={400}
               height={120}

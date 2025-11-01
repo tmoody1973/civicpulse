@@ -148,7 +148,7 @@ export default function OnboardingPage() {
         {/* Logo */}
         <div className="flex justify-center mb-8">
           <img
-            src="/logo.svg"
+            src="/hakivo-logo.svg"
             alt="HakiVo"
             className="h-12 sm:h-16 w-auto"
           />

@@ -14,7 +14,7 @@ export async function AppHeader() {
           {/* Logo */}
           <Link href={user ? '/dashboard' : '/'} className="flex items-center gap-2">
             <Image
-              src="/logo.svg"
+              src="/hakivo-logo.svg"
               alt="HakiVo - Making Congress Accessible"
               width={150}
               height={45}
