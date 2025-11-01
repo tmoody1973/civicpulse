@@ -31,15 +31,15 @@ export async function GET(request: NextRequest) {
     // Authenticate with WorkOS
     const { user, accessToken, refreshToken } = await authenticateWithCode(code);
 
-    // Check if user exists and has completed onboarding (check for zip_code)
+    // Check if user exists and has completed onboarding
     const existingUser = await executeQuery(
-      `SELECT id, email, zip_code, state, district FROM users WHERE id = '${user.id}' LIMIT 1`,
+      `SELECT id, email, onboarding_completed, zip_code, state, district FROM users WHERE id = '${user.id}' LIMIT 1`,
       'users'
     );
 
     const hasCompletedOnboarding = existingUser.rows &&
                                    existingUser.rows.length > 0 &&
-                                   existingUser.rows[0].zip_code;
+                                   existingUser.rows[0].onboarding_completed === 1;
 
     // Create or update user in database
     // Combine firstName and lastName from Google OAuth
