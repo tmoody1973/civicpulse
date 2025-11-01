@@ -92,9 +92,139 @@ export async function fetchRecentBills(options: FetchBillsOptions = {}): Promise
 }
 
 /**
- * Fetch detailed bill information including full text summary
+ * Fetch bill summary from Congress.gov
+ * Returns the latest summary text (usually the most comprehensive)
  */
-export async function fetchBillDetails(congress: number, billType: string, billNumber: number): Promise<Bill & { fullText?: string }> {
+export async function fetchBillSummary(congress: number, billType: string, billNumber: number): Promise<string | null> {
+  const url = new URL(`${API_BASE}/bill/${congress}/${billType}/${billNumber}/summaries`);
+  url.searchParams.set('format', 'json');
+  url.searchParams.set('api_key', API_KEY!);
+
+  try {
+    const response = await fetch(url.toString(), {
+      headers: {
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        return null; // No summary available
+      }
+      throw new Error(`Congress API error: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    // Get the latest summary (usually most comprehensive)
+    const latestSummary = data.summaries?.[0];
+    return latestSummary?.text || null;
+  } catch (error) {
+    console.warn(`Could not fetch summary for ${billType}${billNumber}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Strip HTML tags and decode entities to get plain text
+ */
+function stripHtmlTags(html: string): string {
+  // Remove script and style tags and their content
+  let text = html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+  text = text.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+
+  // Remove HTML tags
+  text = text.replace(/<[^>]+>/g, ' ');
+
+  // Decode HTML entities
+  text = text.replace(/&nbsp;/g, ' ');
+  text = text.replace(/&amp;/g, '&');
+  text = text.replace(/&lt;/g, '<');
+  text = text.replace(/&gt;/g, '>');
+  text = text.replace(/&quot;/g, '"');
+  text = text.replace(/&#39;/g, "'");
+
+  // Clean up whitespace
+  text = text.replace(/\s+/g, ' ');
+  text = text.trim();
+
+  return text;
+}
+
+/**
+ * Fetch full bill text from Congress.gov
+ * Returns the latest available text version (formatted text as HTML, converted to plain text)
+ */
+export async function fetchBillText(congress: number, billType: string, billNumber: number): Promise<string | null> {
+  const url = new URL(`${API_BASE}/bill/${congress}/${billType}/${billNumber}/text`);
+  url.searchParams.set('format', 'json');
+  url.searchParams.set('api_key', API_KEY!);
+
+  try {
+    // Step 1: Get list of available text versions
+    const response = await fetch(url.toString(), {
+      headers: {
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        return null; // No text available yet
+      }
+      throw new Error(`Congress API error: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    const textVersions = data.textVersions;
+
+    if (!textVersions || textVersions.length === 0) {
+      return null;
+    }
+
+    // Step 2: Get the latest version (first in array is usually latest)
+    const latestVersion = textVersions[0];
+
+    // Find formatted text format (HTML) - easiest to parse
+    const formats = latestVersion.formats;
+    const htmlFormat = formats?.find((f: any) => f.type === 'Formatted Text');
+
+    if (!htmlFormat?.url) {
+      console.warn(`No HTML format available for ${billType}${billNumber}`);
+      return null;
+    }
+
+    // Step 3: Fetch the HTML content
+    const textResponse = await fetch(htmlFormat.url, {
+      headers: {
+        'Accept': 'text/html',
+      },
+    });
+
+    if (!textResponse.ok) {
+      throw new Error(`Failed to fetch text content: ${textResponse.status}`);
+    }
+
+    const htmlContent = await textResponse.text();
+
+    // Step 4: Strip HTML tags to get plain text
+    const plainText = stripHtmlTags(htmlContent);
+
+    return plainText;
+  } catch (error) {
+    console.warn(`Could not fetch full text for ${billType}${billNumber}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Fetch detailed bill information including summary and full text
+ */
+export async function fetchBillDetails(
+  congress: number,
+  billType: string,
+  billNumber: number,
+  options: { fetchSummary?: boolean; fetchFullText?: boolean } = {}
+): Promise<Bill & { summary?: string; fullText?: string }> {
   const url = new URL(`${API_BASE}/bill/${congress}/${billType}/${billNumber}`);
   url.searchParams.set('format', 'json');
   url.searchParams.set('api_key', API_KEY!);
@@ -113,36 +243,36 @@ export async function fetchBillDetails(congress: number, billType: string, billN
     const data = await response.json();
     const bill = data.bill;
 
-    // Fetch summary text separately
-    const summaryUrl = new URL(`${API_BASE}/bill/${congress}/${billType}/${billNumber}/summaries`);
-    summaryUrl.searchParams.set('format', 'json');
-    summaryUrl.searchParams.set('api_key', API_KEY!);
-
-    let summary = '';
-    try {
-      const summaryResponse = await fetch(summaryUrl.toString());
-      if (summaryResponse.ok) {
-        const summaryData = await summaryResponse.json();
-        summary = summaryData.summaries?.[0]?.text || '';
-      }
-    } catch (err) {
-      console.warn(`Could not fetch summary for bill ${billType}${billNumber}:`, err);
-    }
-
-    return {
+    const result: Bill & { summary?: string; fullText?: string } = {
       congress: bill.congress,
       billType: bill.type.toLowerCase(),
       billNumber: bill.number,
       title: bill.title || 'No title available',
-      summary,
       introducedDate: bill.introducedDate,
       latestActionDate: bill.latestAction?.actionDate,
       latestActionText: bill.latestAction?.text || 'No action recorded',
       sponsorBioguideId: bill.sponsors?.[0]?.bioguideId || '',
       sponsorName: bill.sponsors?.[0]?.fullName || 'Unknown',
       url: bill.url,
-      fullText: summary,
     };
+
+    // Optionally fetch summary
+    if (options.fetchSummary) {
+      const summary = await fetchBillSummary(congress, billType, billNumber);
+      if (summary) {
+        result.summary = summary;
+      }
+    }
+
+    // Optionally fetch full text
+    if (options.fetchFullText) {
+      const fullText = await fetchBillText(congress, billType, billNumber);
+      if (fullText) {
+        result.fullText = fullText;
+      }
+    }
+
+    return result;
   } catch (error) {
     console.error(`Error fetching bill details for ${billType}${billNumber}:`, error);
     throw error;
@@ -424,5 +554,203 @@ export async function fetchMemberDetails(bioguideId: string): Promise<Representa
   } catch (error) {
     console.error(`Error fetching member details for ${bioguideId}:`, error);
     throw error;
+  }
+}
+
+/**
+ * Fetch cosponsors for a bill
+ */
+export async function fetchBillCosponsors(
+  congress: number,
+  billType: string,
+  billNumber: number
+): Promise<Array<{
+  bioguideId: string;
+  name: string;
+  party: string;
+  state: string;
+  sponsorshipDate: string;
+}> | null> {
+  const url = new URL(`${API_BASE}/bill/${congress}/${billType}/${billNumber}/cosponsors`);
+  url.searchParams.set('format', 'json');
+  url.searchParams.set('api_key', API_KEY!);
+
+  try {
+    const response = await fetch(url.toString(), {
+      headers: {
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) return null;
+      throw new Error(`Congress API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (!data.cosponsors || data.cosponsors.length === 0) {
+      return [];
+    }
+
+    return data.cosponsors.map((cosponsor: any) => ({
+      bioguideId: cosponsor.bioguideId,
+      name: cosponsor.fullName || `${cosponsor.firstName} ${cosponsor.lastName}`,
+      party: cosponsor.party || 'Unknown',
+      state: cosponsor.state,
+      sponsorshipDate: cosponsor.sponsorshipDate
+    }));
+  } catch (error) {
+    console.warn(`Could not fetch cosponsors for ${billType}${billNumber}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Fetch actions (legislative history) for a bill
+ */
+export async function fetchBillActions(
+  congress: number,
+  billType: string,
+  billNumber: number
+): Promise<Array<{
+  actionDate: string;
+  text: string;
+  type: string;
+  actionCode?: string;
+  sourceSystem?: string;
+}> | null> {
+  const url = new URL(`${API_BASE}/bill/${congress}/${billType}/${billNumber}/actions`);
+  url.searchParams.set('format', 'json');
+  url.searchParams.set('api_key', API_KEY!);
+
+  try {
+    const response = await fetch(url.toString(), {
+      headers: {
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) return null;
+      throw new Error(`Congress API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (!data.actions || data.actions.length === 0) {
+      return [];
+    }
+
+    return data.actions.map((action: any) => ({
+      actionDate: action.actionDate,
+      text: action.text,
+      type: action.type || 'Unknown',
+      actionCode: action.actionCode,
+      sourceSystem: action.sourceSystem?.name
+    }));
+  } catch (error) {
+    console.warn(`Could not fetch actions for ${billType}${billNumber}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Fetch amendments to a bill
+ */
+export async function fetchBillAmendments(
+  congress: number,
+  billType: string,
+  billNumber: number
+): Promise<Array<{
+  number: string;
+  type: string;
+  purpose: string;
+  description: string;
+  congress: number;
+  latestActionDate: string;
+  latestActionText: string;
+}> | null> {
+  const url = new URL(`${API_BASE}/bill/${congress}/${billType}/${billNumber}/amendments`);
+  url.searchParams.set('format', 'json');
+  url.searchParams.set('api_key', API_KEY!);
+
+  try {
+    const response = await fetch(url.toString(), {
+      headers: {
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) return null;
+      throw new Error(`Congress API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (!data.amendments || data.amendments.length === 0) {
+      return [];
+    }
+
+    return data.amendments.map((amendment: any) => ({
+      number: amendment.number,
+      type: amendment.type,
+      purpose: amendment.purpose || '',
+      description: amendment.description || '',
+      congress: amendment.congress,
+      latestActionDate: amendment.latestAction?.actionDate || '',
+      latestActionText: amendment.latestAction?.text || ''
+    }));
+  } catch (error) {
+    console.warn(`Could not fetch amendments for ${billType}${billNumber}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Fetch subjects (issue categories) for a bill
+ * Returns both policy area (broad) and legislative subjects (specific)
+ */
+export async function fetchBillSubjects(
+  congress: number,
+  billType: string,
+  billNumber: number
+): Promise<{
+  policyArea: string | null;
+  legislativeSubjects: string[];
+} | null> {
+  const url = new URL(`${API_BASE}/bill/${congress}/${billType}/${billNumber}/subjects`);
+  url.searchParams.set('format', 'json');
+  url.searchParams.set('api_key', API_KEY!);
+
+  try {
+    const response = await fetch(url.toString(), {
+      headers: {
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) return null;
+      throw new Error(`Congress API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (!data.subjects) {
+      return { policyArea: null, legislativeSubjects: [] };
+    }
+
+    const policyArea = data.subjects.policyArea?.name || null;
+    const legislativeSubjects = data.subjects.legislativeSubjects?.map((subject: any) => subject.name) || [];
+
+    return {
+      policyArea,
+      legislativeSubjects,
+    };
+  } catch (error) {
+    console.warn(`Could not fetch subjects for ${billType}${billNumber}:`, error);
+    return null;
   }
 }

@@ -162,13 +162,16 @@ export default function SignUpPage() {
                 <Input
                   id="password"
                   type="password"
-                  placeholder="At least 8 characters"
+                  placeholder="Enter secure password"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   disabled={loading || success}
                   required
                   minLength={8}
                 />
+                <p className="text-xs text-muted-foreground">
+                  Must include: 8+ characters, uppercase, lowercase, number, and special character
+                </p>
               </div>
 
               {/* Confirm password field */}

@@ -1,6 +1,7 @@
 import { getSession } from '@/lib/auth/session';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import Image from 'next/image';
 import { LogOut, User } from 'lucide-react';
 
 export async function AppHeader() {
@@ -12,7 +13,14 @@ export async function AppHeader() {
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <Link href={user ? '/dashboard' : '/'} className="flex items-center gap-2">
-            <h1 className="text-xl font-bold">Civic Pulse</h1>
+            <Image
+              src="/logo.svg"
+              alt="Civic Pulse - Making Congress Accessible"
+              width={150}
+              height={45}
+              priority
+              className="dark:brightness-90"
+            />
           </Link>
 
           {/* Navigation */}
@@ -23,6 +31,12 @@ export async function AppHeader() {
                 className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
                 Dashboard
+              </Link>
+              <Link
+                href="/search"
+                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Search
               </Link>
               <Link
                 href="/onboarding"

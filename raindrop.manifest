@@ -18,6 +18,13 @@ application "civic-pulse" {
     // Accessed via Vultr S3-compatible API
   }
 
+  // SmartBucket for bill full text - enables semantic search
+  smartbucket "bills-smartbucket" {
+    // Stores bill full text with AI-powered semantic search
+    // Automatically indexes content for natural language queries
+    // Accessed as this.env.BILLS_SMARTBUCKET
+  }
+
   // Optional: SmartMemory for AI agent context (future enhancement)
   // smartmemory "civic_memory" {}
 }

@@ -91,6 +91,15 @@ export default function LoginPage() {
               </Alert>
             )}
 
+            {message === 'password_reset' && (
+              <Alert className="border-green-500 bg-green-50">
+                <AlertCircle className="h-4 w-4 text-green-600" />
+                <AlertDescription className="text-green-800">
+                  Password reset successful! You can now sign in with your new password.
+                </AlertDescription>
+              </Alert>
+            )}
+
             {/* Error message */}
             {(error || loginError) && (
               <Alert variant="destructive">
