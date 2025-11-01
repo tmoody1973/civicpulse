@@ -9,9 +9,22 @@
 
 import Cerebras from '@cerebras/cerebras_cloud_sdk';
 
-const cerebras = new Cerebras({
-  apiKey: process.env.CEREBRAS_API_KEY,
-});
+// Lazy initialize Cerebras client - don't initialize at module load
+function getCerebrasClient(): Cerebras | null {
+  if (!process.env.CEREBRAS_API_KEY) {
+    console.warn('CEREBRAS_API_KEY not set - using fallback');
+    return null;
+  }
+
+  try {
+    return new Cerebras({
+      apiKey: process.env.CEREBRAS_API_KEY,
+    });
+  } catch (error) {
+    console.error('Failed to initialize Cerebras client:', error);
+    return null;
+  }
+}
 
 interface Bill {
   id: string;
@@ -39,9 +52,82 @@ export interface BillAnalysis {
 }
 
 /**
+ * Helper: Retry with exponential backoff
+ */
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 2,
+  baseDelay: number = 1000
+): Promise<T> {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      const isLastRetry = i === maxRetries - 1;
+      const isRetryableError =
+        error?.status === 429 || // Rate limit
+        error?.status === 500 || // Server error
+        error?.status === 503;   // Service unavailable
+
+      if (isLastRetry || !isRetryableError) {
+        throw error;
+      }
+
+      const delay = baseDelay * Math.pow(2, i);
+      console.log(`Retrying after ${delay}ms (attempt ${i + 1}/${maxRetries})...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  throw new Error('Max retries exceeded');
+}
+
+/**
+ * Helper: Safe JSON parse with repair attempts
+ */
+function safeJSONParse(text: string): any {
+  // Try direct parse first
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    // Attempt 1: Fix truncated JSON by adding closing braces
+    try {
+      const openBraces = (text.match(/{/g) || []).length;
+      const closeBraces = (text.match(/}/g) || []).length;
+      const missingBraces = openBraces - closeBraces;
+
+      if (missingBraces > 0) {
+        const repaired = text + '}'.repeat(missingBraces);
+        return JSON.parse(repaired);
+      }
+    } catch (e2) {
+      // Repair attempt failed
+    }
+
+    // Attempt 2: Extract JSON from text (handle cases with extra text)
+    try {
+      const match = text.match(/\{[\s\S]*\}/);
+      if (match) {
+        return JSON.parse(match[0]);
+      }
+    } catch (e3) {
+      // Extraction attempt failed
+    }
+
+    throw new Error(`JSON parse failed: ${e}`);
+  }
+}
+
+/**
  * Generate comprehensive AI analysis of a bill
  */
 export async function generateBillAnalysis(bill: Bill): Promise<BillAnalysis> {
+  // Get Cerebras client
+  const cerebras = getCerebrasClient();
+  if (!cerebras) {
+    console.warn('Cerebras client not available, using fallback analysis');
+    return getFallbackAnalysis(bill);
+  }
+
   const prompt = `You are a legislative analyst. Analyze this bill and provide a comprehensive, unbiased analysis.
 
 Bill: ${bill.bill_type.toUpperCase()} ${bill.bill_number} - ${bill.title}
@@ -66,28 +152,34 @@ Provide your analysis in this exact JSON format:
 Be specific, factual, and non-partisan. Focus on real-world impact.`;
 
   try {
-    // Use non-streaming for reliable JSON parsing
-    const response = await cerebras.chat.completions.create({
-      messages: [
-        {
-          role: 'system',
-          content: 'You are an expert legislative analyst. You MUST respond with ONLY valid JSON, no other text before or after.',
-        },
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
-      model: 'gpt-oss-120b',
-      stream: false,
-      max_completion_tokens: 2000,
-      temperature: 0.3, // Lower temperature for factual analysis
-      top_p: 1,
-      reasoning_effort: 'high',
+    // Use retry logic for API call
+    const response = await retryWithBackoff(async () => {
+      return await cerebras.chat.completions.create({
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an expert legislative analyst. You MUST respond with ONLY valid JSON, no other text before or after.',
+          },
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+        model: 'gpt-oss-120b',
+        stream: false,
+        max_completion_tokens: 2000,
+        temperature: 0.3, // Lower temperature for factual analysis
+        top_p: 1,
+        reasoning_effort: 'high',
+      });
     });
 
     const choices = response.choices as Array<{ message?: { content?: string } }>;
     const content = choices[0]?.message?.content || '';
+
+    if (!content) {
+      throw new Error('Empty response from Cerebras API');
+    }
 
     // Clean up response - remove markdown code blocks if present
     let cleanedContent = content.trim();
@@ -97,36 +189,54 @@ Be specific, factual, and non-partisan. Focus on real-world impact.`;
       cleanedContent = cleanedContent.replace(/^```\n/, '').replace(/\n```$/, '');
     }
 
-    // Parse JSON response
-    const analysis = JSON.parse(cleanedContent);
+    // Use safe JSON parsing with repair attempts
+    const analysis = safeJSONParse(cleanedContent);
 
     // Validate required fields
     if (!analysis.whatItDoes || !analysis.whoItAffects || !analysis.keyProvisions) {
-      throw new Error('Invalid analysis structure');
+      console.error('Invalid analysis structure:', analysis);
+      throw new Error('Missing required fields in analysis');
     }
 
     return analysis;
-  } catch (error) {
-    console.error('Cerebras API error:', error);
+  } catch (error: any) {
+    console.error('Cerebras API error:', {
+      message: error?.message,
+      status: error?.status,
+      billId: bill.id,
+      billNumber: `${bill.bill_type.toUpperCase()} ${bill.bill_number}`,
+    });
 
-    // Return a fallback minimal analysis if parsing fails
-    return {
-      whatItDoes: `This bill, titled "${bill.title}", is currently being processed. Full analysis is temporarily unavailable.`,
-      whoItAffects: ['General public', 'Government entities'],
-      keyProvisions: ['Detailed provisions pending'],
-      potentialImpact: {
-        positive: ['To be determined pending full analysis'],
-        negative: ['To be determined pending full analysis'],
-        neutral: [],
-      },
-    };
+    // Return fallback analysis
+    return getFallbackAnalysis(bill);
   }
+}
+
+/**
+ * Generate fallback analysis when API is unavailable
+ */
+function getFallbackAnalysis(bill: Bill): BillAnalysis {
+  return {
+    whatItDoes: `This bill, titled "${bill.title}", is currently being processed. Full AI analysis is temporarily unavailable. ${bill.summary ? `Official summary: ${bill.summary.substring(0, 200)}...` : ''}`,
+    whoItAffects: ['General public', 'Government entities'],
+    keyProvisions: bill.summary ? ['See official summary for details'] : ['Detailed provisions pending'],
+    potentialImpact: {
+      positive: ['Full impact analysis pending'],
+      negative: ['Full impact analysis pending'],
+      neutral: [],
+    },
+  };
 }
 
 /**
  * Generate a quick plain-English summary (non-streaming)
  */
 export async function generateQuickSummary(bill: Bill): Promise<string> {
+  const cerebras = getCerebrasClient();
+  if (!cerebras) {
+    return bill.summary || `Summary of ${bill.title} is currently unavailable.`;
+  }
+
   const prompt = `Summarize this bill in 2-3 sentences for the average American:
 
 ${bill.title}
@@ -179,6 +289,11 @@ export async function generateSimilarBillsExplanation(
     similarity: number;
   }>
 ): Promise<string> {
+  const cerebras = getCerebrasClient();
+  if (!cerebras) {
+    return `Found ${similarBills.length} bills related to ${currentBill.title}. These bills share similar legislative goals or address related aspects of this topic.`;
+  }
+
   const billsList = similarBills
     .map((b, i) => `${i + 1}. ${b.billNumber} - ${b.title} (${Math.round(b.similarity * 100)}% similar)`)
     .join('\n');
@@ -235,6 +350,11 @@ export async function answerBillQuestion(
   question: string,
   context?: string
 ): Promise<string> {
+  const cerebras = getCerebrasClient();
+  if (!cerebras) {
+    return `I'm currently unable to answer questions about bills. However, based on the available information: ${bill.summary || bill.title}. Please check the official bill summary for more details.`;
+  }
+
   const billInfo = `
 Bill Number: ${bill.bill_type.toUpperCase()} ${bill.bill_number}
 Title: ${bill.title}
