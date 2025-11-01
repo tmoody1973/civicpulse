@@ -16,7 +16,10 @@ export async function GET() {
 
     // Fetch full user profile from database
     const result = await executeQuery(
-      `SELECT id, email, name, zip_code, state, district, city, created_at, updated_at
+      `SELECT
+        id, email, name, zip_code, state, district, city,
+        interests, email_notifications, audio_enabled, audio_frequencies,
+        created_at, updated_at
        FROM users
        WHERE id = '${user.id}'
        LIMIT 1`,
@@ -27,7 +30,30 @@ export async function GET() {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    return NextResponse.json(result.rows[0]);
+    const userData = result.rows[0];
+
+    // Parse JSON fields (interests and audio_frequencies are stored as JSON strings)
+    if (userData.interests) {
+      try {
+        userData.interests = JSON.parse(userData.interests);
+      } catch (e) {
+        userData.interests = [];
+      }
+    } else {
+      userData.interests = [];
+    }
+
+    if (userData.audio_frequencies) {
+      try {
+        userData.audio_frequencies = JSON.parse(userData.audio_frequencies);
+      } catch (e) {
+        userData.audio_frequencies = ['daily', 'weekly'];
+      }
+    } else {
+      userData.audio_frequencies = ['daily', 'weekly'];
+    }
+
+    return NextResponse.json(userData);
   } catch (error) {
     console.error('Failed to fetch user profile:', error);
     return NextResponse.json(
