@@ -10,7 +10,27 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { ClientHeader } from '@/components/shared/client-header';
 import { Skeleton } from '@/components/ui/skeleton';
-import { MapPin, Mail, Bell, User, Save, Loader2 } from 'lucide-react';
+import { MapPin, Mail, Bell, User, Save, Loader2, Heart, Stethoscope, GraduationCap, Leaf, DollarSign, Shield, Home, Users, Cpu, Briefcase, Calculator, Globe, Truck, Sprout, Scale } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+
+// Maps to Congress.gov's Policy Areas for bill filtering
+const ISSUE_CATEGORIES = [
+  { id: 'healthcare', label: 'Healthcare', icon: Stethoscope, color: 'text-red-500' },
+  { id: 'education', label: 'Education', icon: GraduationCap, color: 'text-blue-500' },
+  { id: 'science', label: 'Science & Research', icon: Users, color: 'text-purple-500' },
+  { id: 'technology', label: 'Technology & Privacy', icon: Cpu, color: 'text-cyan-500' },
+  { id: 'climate', label: 'Climate & Environment', icon: Leaf, color: 'text-green-500' },
+  { id: 'economy', label: 'Economy & Jobs', icon: DollarSign, color: 'text-yellow-500' },
+  { id: 'business', label: 'Business & Trade', icon: Briefcase, color: 'text-orange-500' },
+  { id: 'taxes', label: 'Taxes & Budget', icon: Calculator, color: 'text-emerald-500' },
+  { id: 'immigration', label: 'Immigration', icon: Globe, color: 'text-indigo-500' },
+  { id: 'housing', label: 'Housing', icon: Home, color: 'text-amber-500' },
+  { id: 'defense', label: 'Defense & Security', icon: Shield, color: 'text-slate-500' },
+  { id: 'transportation', label: 'Transportation & Infrastructure', icon: Truck, color: 'text-gray-500' },
+  { id: 'agriculture', label: 'Agriculture & Food', icon: Sprout, color: 'text-lime-500' },
+  { id: 'social', label: 'Social Services', icon: Heart, color: 'text-pink-500' },
+  { id: 'civil-rights', label: 'Civil Rights & Justice', icon: Scale, color: 'text-violet-500' },
+];
 
 interface UserProfile {
   id: string;
@@ -74,6 +94,15 @@ export default function SettingsPage() {
 
     loadProfile();
   }, [router]);
+
+  const toggleInterest = (id: string) => {
+    setFormData(prev => ({
+      ...prev,
+      interests: prev.interests.includes(id)
+        ? prev.interests.filter(i => i !== id)
+        : [...prev.interests, id]
+    }));
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -220,6 +249,61 @@ export default function SettingsPage() {
                   {profile.city && <span>• {profile.city}</span>}
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Interests */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Heart className="h-5 w-5" />
+                Your Interests
+              </CardTitle>
+              <CardDescription>
+                Select topics you care about. We'll prioritize relevant bills and updates.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {formData.interests.length > 0 && (
+                <p className="text-sm text-primary font-medium">
+                  {formData.interests.length} {formData.interests.length === 1 ? 'topic' : 'topics'} selected
+                </p>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {ISSUE_CATEGORIES.map(({ id, label, icon: Icon, color }) => (
+                  <div
+                    key={id}
+                    onClick={() => toggleInterest(id)}
+                    className={`
+                      flex items-center gap-3 p-3 rounded-lg border-2 transition-all cursor-pointer
+                      ${formData.interests.includes(id)
+                        ? 'border-primary bg-primary/5'
+                        : 'border-border hover:border-primary/50 hover:bg-muted/50'
+                      }
+                    `}
+                    role="button"
+                    tabIndex={0}
+                    aria-pressed={formData.interests.includes(id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        toggleInterest(id);
+                      }
+                    }}
+                  >
+                    <div className={`flex-shrink-0 ${color}`} aria-hidden="true">
+                      <Icon className="w-5 h-5" />
+                    </div>
+                    <span className="flex-1 text-left font-medium text-sm">{label}</span>
+                    <Checkbox
+                      checked={formData.interests.includes(id)}
+                      onCheckedChange={() => toggleInterest(id)}
+                      aria-label={`Select ${label}`}
+                    />
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
 
