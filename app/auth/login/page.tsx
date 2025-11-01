@@ -15,10 +15,12 @@ export default function LoginPage() {
   const searchParams = useSearchParams();
   const error = searchParams.get('error');
   const message = searchParams.get('message');
+  const verified = searchParams.get('verified');
   const redirectTo = searchParams.get('redirect') || '/dashboard';
 
   const [loading, setLoading] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -41,13 +43,21 @@ export default function LoginPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to sign in');
+        // Check if it's an unverified email error
+        if (response.status === 403 && data.error?.includes('verify')) {
+          setUnverifiedEmail(formData.email);
+          setLoginError('Please verify your email address before signing in.');
+        } else {
+          throw new Error(data.error || 'Failed to sign in');
+        }
+        return;
       }
 
       // Redirect to appropriate page
       router.push(data.redirectTo);
     } catch (err) {
       setLoginError(err instanceof Error ? err.message : 'An error occurred');
+      setUnverifiedEmail(null);
     } finally {
       setLoading(false);
     }
@@ -91,6 +101,15 @@ export default function LoginPage() {
               </Alert>
             )}
 
+            {verified === 'true' && (
+              <Alert className="border-green-500 bg-green-50">
+                <AlertCircle className="h-4 w-4 text-green-600" />
+                <AlertDescription className="text-green-800">
+                  Email verified successfully! You can now sign in.
+                </AlertDescription>
+              </Alert>
+            )}
+
             {message === 'password_reset' && (
               <Alert className="border-green-500 bg-green-50">
                 <AlertCircle className="h-4 w-4 text-green-600" />
@@ -104,12 +123,22 @@ export default function LoginPage() {
             {(error || loginError) && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  {loginError ||
-                    (error === 'auth_failed' && 'Authentication failed. Please try again.') ||
-                    (error === 'no_code' && 'Missing authorization code. Please try again.') ||
-                    (error === 'cancelled' && 'Sign in was cancelled.') ||
-                    'An error occurred. Please try again.'}
+                <AlertDescription className="flex flex-col gap-2">
+                  <span>
+                    {loginError ||
+                      (error === 'auth_failed' && 'Authentication failed. Please try again.') ||
+                      (error === 'no_code' && 'Missing authorization code. Please try again.') ||
+                      (error === 'cancelled' && 'Sign in was cancelled.') ||
+                      'An error occurred. Please try again.'}
+                  </span>
+                  {unverifiedEmail && (
+                    <Link
+                      href={`/auth/verify-email?email=${encodeURIComponent(unverifiedEmail)}`}
+                      className="text-sm underline font-medium"
+                    >
+                      Go to verification page →
+                    </Link>
+                  )}
                 </AlertDescription>
               </Alert>
             )}

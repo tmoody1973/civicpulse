@@ -62,9 +62,9 @@ export default function SignUpPage() {
 
       setSuccess(true);
 
-      // Redirect to login page after 2 seconds
+      // Redirect to email verification page after 2 seconds
       setTimeout(() => {
-        router.push('/auth/login?message=account_created');
+        router.push(`/auth/verify-email?email=${encodeURIComponent(formData.email)}`);
       }, 2000);
 
     } catch (err) {
@@ -102,9 +102,9 @@ export default function SignUpPage() {
             {/* Success message */}
             {success && (
               <Alert className="border-green-500 bg-green-50">
-                <AlertCircle className="h-4 w-4 text-green-600" />
+                <Mail className="h-4 w-4 text-green-600" />
                 <AlertDescription className="text-green-800">
-                  Account created successfully! Redirecting to sign in...
+                  Account created! Check your email for a 6-digit verification code...
                 </AlertDescription>
               </Alert>
             )}
