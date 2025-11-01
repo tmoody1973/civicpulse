@@ -45,15 +45,24 @@ export async function GET(request: NextRequest) {
     // Combine firstName and lastName from Google OAuth
     const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ') || null;
 
-    await upsert('users', {
-      id: user.id,
-      email: user.email,
-      name: fullName,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    });
-
-    console.log(`✅ User authenticated: ${user.email} (${user.id})`);
+    // Only create user if they don't exist - don't overwrite existing data
+    if (!existingUser.rows || existingUser.rows.length === 0) {
+      await upsert('users', {
+        id: user.id,
+        email: user.email,
+        name: fullName,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+      console.log(`✅ Created new user: ${user.email} (${user.id})`);
+    } else {
+      // User exists - only update name and timestamp, preserve all other fields
+      await executeQuery(
+        `UPDATE users SET name = '${fullName}', updated_at = '${new Date().toISOString()}' WHERE id = '${user.id}'`,
+        'users'
+      );
+      console.log(`✅ User authenticated: ${user.email} (${user.id})`);
+    }
 
     // Create session with tokens and user info
     await createSession(accessToken, refreshToken, { id: user.id, email: user.email });
