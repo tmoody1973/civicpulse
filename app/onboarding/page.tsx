@@ -131,7 +131,7 @@ export default function OnboardingPage() {
         <div className="flex justify-center mb-8">
           <img
             src="/logo.svg"
-            alt="Civic Pulse"
+            alt="HakiVo"
             className="h-12 sm:h-16 w-auto"
           />
         </div>

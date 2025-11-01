@@ -95,7 +95,7 @@
 [context.deploy-preview]
   command = "npm run build"
   [context.deploy-preview.environment]
-    NEXT_PUBLIC_APP_URL = "https://deploy-preview-${DEPLOY_ID}--civicpulse.netlify.app"
+    NEXT_PUBLIC_APP_URL = "https://deploy-preview-${DEPLOY_ID}--hakivo.netlify.app"
 
 # Branch deploys (for testing)
 [context.branch-deploy]
@@ -104,4 +104,4 @@
 # Production context
 [context.production]
   [context.production.environment]
-    NEXT_PUBLIC_APP_URL = "https://civicpulse.netlify.app"
+    NEXT_PUBLIC_APP_URL = "https://hakivo.netlify.app"

@@ -1,4 +1,4 @@
-# **The Complete Guide to Legislative Search in Civic Pulse**
+# **The Complete Guide to Legislative Search in HakiVo**
 
 ## **Making 10,000+ Bills Instantly Discoverable**
 
@@ -12,7 +12,7 @@ Imagine you're standing in a library with 10,000 books, but there's no card cata
 
 Every two-year congressional session produces thousands of bills. The 119th Congress (2025-2026) will likely introduce 8,000-12,000 bills. Add historical congresses, and we're talking about 100,000+ bills in our database within a few years.
 
-Users come to Civic Pulse with questions like:
+Users come to HakiVo with questions like:
 
 - "What's Congress doing about student loan debt?"  
 - "Show me bills about climate change that actually have a chance of passing"  
@@ -39,7 +39,7 @@ This is where Algolia becomes essential.
 
 **Her Journey**:
 
-1. She opens Civic Pulse and types "HR 5544" into the search bar  
+1. She opens HakiVo and types "HR 5544" into the search bar  
 2. As she types "HR 5", autocomplete suggestions appear:  
    - HR 5544 \- Student Loan Interest Rate Cap Act  
    - HR 5521 \- Medicare Expansion Act  
@@ -629,7 +629,7 @@ These metrics guide our optimization efforts.
 
 ### **The Search Bar Component**
 
-The search bar is always visible at the top of every page in Civic Pulse.
+The search bar is always visible at the top of every page in HakiVo.
 
 **Design Principles**:
 
@@ -731,7 +731,7 @@ We show a "?" button that reveals all shortcuts.
 
 **Key Features**:
 
-**Instant Filter Updates** Clicking any filter immediately updates results without page reload. The URL updates too, so users can bookmark or share searches: `civicpulse.com/search?q=student+loans&status=active&bipartisan=high`
+**Instant Filter Updates** Clicking any filter immediately updates results without page reload. The URL updates too, so users can bookmark or share searches: `hakivo.com/search?q=student+loans&status=active&bipartisan=high`
 
 **Highlighted Search Terms** In results, the user's search terms are bolded: "This bill limits interest rates on federal **student loans** to 4%..."
 
@@ -1434,7 +1434,7 @@ The investment (\~$50-300/month) pays for itself in:
 - Reduced server load (searches don't hit our database)  
 - Better educational outcomes (students find relevant bills faster)
 
-Search is the heart of Civic Pulse. With Algolia, we build that heart right from the start.
+Search is the heart of HakiVo. With Algolia, we build that heart right from the start.
 
 ---
 

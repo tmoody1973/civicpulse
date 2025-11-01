@@ -218,7 +218,7 @@ export function SyncStatusWidget() {
             )}
             <Button variant="outline" size="sm" asChild>
               <a
-                href="https://github.com/YOUR_USERNAME/civicpulse/actions/workflows/daily-bill-sync.yml"
+                href="https://github.com/YOUR_USERNAME/hakivo/actions/workflows/daily-bill-sync.yml"
                 target="_blank"
                 rel="noopener noreferrer"
               >

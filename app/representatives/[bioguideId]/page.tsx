@@ -122,7 +122,7 @@ export async function generateMetadata({ params }: PageProps) {
   const user = await getSession();
   if (!user) {
     return {
-      title: 'Sign In Required | Civic Pulse',
+      title: 'Sign In Required | HakiVo',
     };
   }
 
@@ -134,7 +134,7 @@ export async function generateMetadata({ params }: PageProps) {
 
     if (!data) {
       return {
-        title: 'Representative Not Found | Civic Pulse',
+        title: 'Representative Not Found | HakiVo',
       };
     }
 
@@ -145,7 +145,7 @@ export async function generateMetadata({ params }: PageProps) {
       : representative.state;
 
     return {
-      title: `${representative.name} - ${chamberText} (${representative.party}) | Civic Pulse`,
+      title: `${representative.name} - ${chamberText} (${representative.party}) | HakiVo`,
       description: `View legislative activity for ${representative.name}, ${representative.party} ${chamberText} from ${location}. ${stats.totalSponsored} bills sponsored, ${stats.totalCosponsored} co-sponsored, ${stats.lawsPassed} laws passed.`,
       openGraph: {
         title: `${representative.name} - ${chamberText}`,
@@ -155,7 +155,7 @@ export async function generateMetadata({ params }: PageProps) {
     };
   } catch (error) {
     return {
-      title: 'Representative | Civic Pulse',
+      title: 'Representative | HakiVo',
     };
   }
 }

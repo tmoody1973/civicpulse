@@ -145,7 +145,7 @@ export default function AdminDashboard() {
             <div className="flex items-center gap-3">
               <Database className="h-6 w-6 text-primary" />
               <div>
-                <h1 className="text-2xl font-bold">Civic Pulse Admin</h1>
+                <h1 className="text-2xl font-bold">HakiVo Admin</h1>
                 <p className="text-sm text-muted-foreground">Database Management Console</p>
               </div>
             </div>

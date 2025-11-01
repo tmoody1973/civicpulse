@@ -45,6 +45,7 @@ interface Bill {
   issue_categories: string[] | null;
   cosponsor_count: number;
   smartbucket_key: string | null;
+  updated_at?: string;
 }
 
 interface SimilarBill {
@@ -122,7 +123,15 @@ export default function BillDetailsPage() {
         const response = await fetch(`/api/bills/${billId}`);
         if (!response.ok) throw new Error('Failed to fetch bill');
         const data = await response.json();
-        setBill(data.bill || data);
+        const billData = data.bill || data;
+        setBill(billData);
+
+        // Auto-sync: Refresh bill if stale or missing full text
+        const needsRefresh = checkIfBillNeedsRefresh(billData);
+        if (needsRefresh.shouldRefresh) {
+          console.log(`🔄 Auto-refreshing ${billId}: ${needsRefresh.reason}`);
+          triggerBillRefresh(billId);
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load bill');
       } finally {
@@ -132,6 +141,56 @@ export default function BillDetailsPage() {
 
     fetchBill();
   }, [billId]);
+
+  // Check if bill needs refresh
+  function checkIfBillNeedsRefresh(bill: Bill): { shouldRefresh: boolean; reason?: string } {
+    // Check if bill was last updated more than 24 hours ago
+    if (bill.updated_at) {
+      const updatedAt = new Date(bill.updated_at).getTime();
+      const now = Date.now();
+      const hoursSinceUpdate = (now - updatedAt) / (1000 * 60 * 60);
+
+      if (hoursSinceUpdate > 24) {
+        return { shouldRefresh: true, reason: `Stale (${Math.round(hoursSinceUpdate)}h old)` };
+      }
+    }
+
+    // Check if missing full text
+    if (!bill.full_text) {
+      return { shouldRefresh: true, reason: 'Missing full text' };
+    }
+
+    // Check if missing summary
+    if (!bill.summary) {
+      return { shouldRefresh: true, reason: 'Missing summary' };
+    }
+
+    return { shouldRefresh: false };
+  }
+
+  // Trigger background refresh
+  async function triggerBillRefresh(billId: string) {
+    try {
+      // Fire and forget - don't block UI
+      fetch(`/api/bills/${billId}/refresh`, {
+        method: 'POST'
+      }).then(async (response) => {
+        if (response.ok) {
+          const data = await response.json();
+          console.log(`✅ Bill refreshed successfully:`, data.updated);
+
+          // Optionally re-fetch bill to show updated data
+          // (User will see updates on next page load or we can trigger a state update)
+        } else {
+          console.warn(`⚠️  Bill refresh failed (${response.status})`);
+        }
+      }).catch(err => {
+        console.error('Background refresh error:', err);
+      });
+    } catch (err) {
+      console.error('Failed to trigger bill refresh:', err);
+    }
+  }
 
   // Fetch AI analysis
   useEffect(() => {

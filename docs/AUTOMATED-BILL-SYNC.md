@@ -271,7 +271,7 @@ Add this to the workflow:
     password: ${{ secrets.MAIL_PASSWORD }}
     subject: "❌ Bill Sync Failed"
     to: your-email@example.com
-    from: Civic Pulse Alerts
+    from: HakiVo Alerts
     body: "The daily bill sync failed. Check logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 ```
 

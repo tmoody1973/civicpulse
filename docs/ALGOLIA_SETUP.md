@@ -1,6 +1,6 @@
 # Algolia Setup Guide
 
-This guide walks you through setting up Algolia for the Civic Pulse legislation search system.
+This guide walks you through setting up Algolia for the HakiVo legislation search system.
 
 ## Step 1: Create Algolia Account
 
@@ -36,7 +36,7 @@ This guide walks you through setting up Algolia for the Civic Pulse legislation 
 
 ### Local Development (.env.local)
 
-Create or update `/Users/tarikmoody/Documents/Projects/civicpulse/.env.local`:
+Create or update `/Users/tarikmoody/Documents/Projects/hakivo/.env.local`:
 
 ```bash
 # Algolia Search

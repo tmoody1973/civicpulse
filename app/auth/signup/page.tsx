@@ -87,14 +87,14 @@ export default function SignUpPage() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="flex justify-center mb-8">
-          <h1 className="text-4xl font-bold">Civic Pulse</h1>
+          <h1 className="text-4xl font-bold">HakiVo</h1>
         </div>
 
         <Card>
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">Create an Account</CardTitle>
             <CardDescription>
-              Join Civic Pulse to get personalized legislative briefings
+              Join HakiVo to get personalized legislative briefings
             </CardDescription>
           </CardHeader>
 

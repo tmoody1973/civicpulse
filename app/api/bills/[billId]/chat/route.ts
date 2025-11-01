@@ -156,6 +156,7 @@ export async function POST(
         id: fullBill.id,
         title: fullBill.title,
         summary: fullBill.summary || null,
+        full_text: fullBill.full_text || null, // Include full text for comprehensive analysis
         bill_type: fullBill.bill_type,
         bill_number: fullBill.bill_number,
         sponsor_name: fullBill.sponsor_name || null,
@@ -164,8 +165,8 @@ export async function POST(
         latest_action_text: fullBill.latest_action_text || null,
       };
 
-      // Use summary as additional context if available
-      const context = fullBill.summary || fullBill.latest_action_text || undefined;
+      // Context is no longer needed - Cerebras functions now use full_text directly
+      const context = undefined;
 
       // Create a streaming response
       const encoder = new TextEncoder();

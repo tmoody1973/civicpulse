@@ -1,7 +1,7 @@
 # News/RSS Integration Implementation Plan
 
 **Created:** October 28, 2025
-**Purpose:** Comprehensive technical plan for integrating The Hill + Politico RSS feeds into Civic Pulse podcast generation using Raindrop Platform patterns
+**Purpose:** Comprehensive technical plan for integrating The Hill + Politico RSS feeds into HakiVo podcast generation using Raindrop Platform patterns
 
 ---
 
@@ -536,7 +536,7 @@ function generateMarketplacePrompt(
   billsWithNews: any[],
   topNews: any[]
 ): string {
-  return `You are creating a ${type} podcast episode for Civic Pulse in the style of NPR's Marketplace.
+  return `You are creating a ${type} podcast episode for HakiVo in the style of NPR's Marketplace.
 
 HOSTS: Sarah (enthusiastic, conversational) and James (analytical, grounded)
 

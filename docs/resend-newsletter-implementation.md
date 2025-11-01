@@ -1,6 +1,6 @@
 # Resend Newsletter Implementation Guide
 
-**Purpose:** Send personalized weekly briefings to Civic Pulse users based on their tracked bills and interests
+**Purpose:** Send personalized weekly briefings to HakiVo users based on their tracked bills and interests
 
 **Built on:** Resend + React Email + Next.js API Routes + Netlify Scheduled Functions
 
@@ -82,15 +82,15 @@ npm install -D @types/react @types/react-dom
 ```bash
 # .env.local
 RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxx
-RESEND_FROM_EMAIL=briefings@civicpulse.app
-NEXT_PUBLIC_APP_URL=https://civicpulse.netlify.app
+RESEND_FROM_EMAIL=briefings@hakivo.app
+NEXT_PUBLIC_APP_URL=https://hakivo.netlify.app
 ```
 
 **Netlify Setup:**
 ```bash
 # Set in Netlify UI: Site Settings > Environment Variables
 netlify env:set RESEND_API_KEY "re_xxxxxxxxxxxxxxxxxxxx"
-netlify env:set RESEND_FROM_EMAIL "briefings@civicpulse.app"
+netlify env:set RESEND_FROM_EMAIL "briefings@hakivo.app"
 ```
 
 ### 4. Verify Domain (Required for Production)
@@ -99,7 +99,7 @@ netlify env:set RESEND_FROM_EMAIL "briefings@civicpulse.app"
 # In Resend Dashboard:
 1. Go to "Domains"
 2. Click "Add Domain"
-3. Enter: civicpulse.app
+3. Enter: hakivo.app
 4. Add DNS records (TXT, MX, CNAME)
 5. Wait for verification (usually 5-10 minutes)
 ```
@@ -302,7 +302,7 @@ export function WeeklyBriefing({
       <Body style={main}>
         <Container style={container}>
           {/* Header */}
-          <Heading style={h1}>Civic Pulse Weekly Briefing</Heading>
+          <Heading style={h1}>HakiVo Weekly Briefing</Heading>
           <Text style={text}>
             Hi {userName}! Here's what happened with your tracked bills from {weekStartDate} to {weekEndDate}.
           </Text>
@@ -380,7 +380,7 @@ export function WeeklyBriefing({
           {/* Footer */}
           <Section style={footer}>
             <Text style={footerText}>
-              You're receiving this because you signed up for weekly briefings at Civic Pulse.
+              You're receiving this because you signed up for weekly briefings at HakiVo.
             </Text>
             <Text style={footerText}>
               <Link href={`${appUrl}/settings`} style={footerLink}>
@@ -550,7 +550,7 @@ const sampleData = {
       oldStatus: 'Passed House',
       newStatus: 'In Senate Committee',
       latestAction: 'Referred to Senate Committee on Health, Education, Labor, and Pensions',
-      url: 'https://civicpulse.app/bills/119-hr-5031',
+      url: 'https://hakivo.app/bills/119-hr-5031',
     },
     {
       id: '119-s-3047',
@@ -559,7 +559,7 @@ const sampleData = {
       oldStatus: 'Introduced',
       newStatus: 'Committee Hearing Scheduled',
       latestAction: 'Committee hearing scheduled for November 15',
-      url: 'https://civicpulse.app/bills/119-s-3047',
+      url: 'https://hakivo.app/bills/119-s-3047',
     },
   ],
   newBillsMatching: [
@@ -570,13 +570,13 @@ const sampleData = {
       summary: 'Expands Medicare coverage for mental health services in rural areas and increases funding for community mental health centers.',
       sponsor: 'Rep. Thanedar, Shri [D-MI-13]',
       relevanceReason: 'Matches your interest in healthcare access',
-      url: 'https://civicpulse.app/bills/119-hr-5662',
+      url: 'https://hakivo.app/bills/119-hr-5662',
     },
   ],
   weekStartDate: 'October 21',
   weekEndDate: 'October 27',
-  appUrl: 'https://civicpulse.app',
-  unsubscribeUrl: 'https://civicpulse.app/unsubscribe?token=xxx',
+  appUrl: 'https://hakivo.app',
+  unsubscribeUrl: 'https://hakivo.app/unsubscribe?token=xxx',
 };
 
 const emailHtml = render(<WeeklyBriefing {...sampleData} />);
@@ -779,8 +779,8 @@ import { WeeklyBriefing } from '../../emails/WeeklyBriefing';
 import { generateBriefing } from './briefing-generator';
 
 const RAINDROP_SERVICE_URL = process.env.RAINDROP_SERVICE_URL!;
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'briefings@civicpulse.app';
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://civicpulse.app';
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'briefings@hakivo.app';
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://hakivo.app';
 
 interface User {
   id: string;
@@ -838,7 +838,7 @@ export async function sendWeeklyBriefing(user: User): Promise<void> {
       : `Your Weekly Briefing - ${newCount} New ${newCount === 1 ? 'Bill' : 'Bills'}`;
 
     const { data, error } = await resend.emails.send({
-      from: `Civic Pulse <${FROM_EMAIL}>`,
+      from: `HakiVo <${FROM_EMAIL}>`,
       to: user.email,
       subject,
       html: emailHtml,
@@ -1389,7 +1389,7 @@ async function updateDeliveryStatus(
 
 **Configure webhook in Resend:**
 1. Go to Resend Dashboard > Webhooks
-2. Add endpoint: `https://civicpulse.netlify.app/api/webhooks/resend`
+2. Add endpoint: `https://hakivo.netlify.app/api/webhooks/resend`
 3. Select events: `email.delivered`, `email.opened`, `email.clicked`, `email.bounced`
 
 ---

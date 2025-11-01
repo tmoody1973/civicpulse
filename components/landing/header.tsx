@@ -11,7 +11,7 @@ export function Header() {
           <Link href="/" className="flex items-center gap-2">
             <Image
               src="/logo.svg"
-              alt="Civic Pulse - Making Congress Accessible"
+              alt="HakiVo - Making Congress Accessible"
               width={150}
               height={45}
               priority

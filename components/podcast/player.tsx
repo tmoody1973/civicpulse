@@ -31,7 +31,7 @@ export function PodcastPlayer({ episode, onClose, onEnded }: PodcastPlayerProps)
     if ('mediaSession' in navigator) {
       navigator.mediaSession.metadata = new MediaMetadata({
         title: episode.title,
-        artist: 'Civic Pulse',
+        artist: 'HakiVo',
         album: episode.type === 'daily' ? 'Daily Brief' : 'Weekly Deep Dive',
         artwork: [
           { src: '/logo-192.png', sizes: '192x192', type: 'image/png' },

@@ -88,7 +88,7 @@ Think about a textbook:
 
 FTS5 is the index in the back of the book.
 
-### Real Numbers (for Civic Pulse)
+### Real Numbers (for HakiVo)
 
 - **10,000 bills** in our database
 - **Regular SQL search**: 50-100ms (has to scan every record)
@@ -166,7 +166,7 @@ Bill B mentions "healthcare" once → Lower rank
    - Can suggest: "There's a great Italian place that's actually Spanish but has amazing pasta"
    - Slower, but much smarter
 
-### For Civic Pulse:
+### For HakiVo:
 
 - **Bill number search** (HR 1234): Direct SQL lookup → 5ms
 - **Keyword search** ("healthcare"): FTS5 → 20ms
@@ -211,7 +211,7 @@ Step 4: Return Doc 1
 
 ---
 
-## Real-World Example (Civic Pulse)
+## Real-World Example (HakiVo)
 
 ### Scenario: User searches for "veterans benefits"
 
@@ -237,7 +237,7 @@ Step 4: Return Doc 1
 
 ---
 
-## Why FTS5 for Civic Pulse?
+## Why FTS5 for HakiVo?
 
 ### The Right Tool for the Job
 
@@ -311,7 +311,7 @@ Step 4: Return Doc 1
    - Can't understand synonyms or meaning
    - That's what SmartBuckets is for!
 
-4. **Perfect for Civic Pulse**
+4. **Perfect for HakiVo**
    - Right scale (10K bills)
    - Right speed (sub-50ms)
    - Right complexity (simple, reliable)
@@ -354,7 +354,7 @@ Step 4: Return Doc 1
 
 **It's not AI**, it just matches words really fast.
 
-**It's perfect for Civic Pulse** because it's simple, fast, reliable, and does exactly what we need without the complexity of external search services.
+**It's perfect for HakiVo** because it's simple, fast, reliable, and does exactly what we need without the complexity of external search services.
 
 ---
 

@@ -88,7 +88,7 @@ civic-pulse-podcasts/
 {
   "CORSRules": [
     {
-      "AllowedOrigins": ["https://civicpulse.com", "https://www.civicpulse.com"],
+      "AllowedOrigins": ["https://hakivo.com", "https://www.hakivo.com"],
       "AllowedMethods": ["GET", "HEAD"],
       "AllowedHeaders": ["*"],
       "MaxAgeSeconds": 3000
@@ -104,13 +104,13 @@ civic-pulse-podcasts/
 ### Enable CDN
 1. Configure Vultr CDN in dashboard
 2. Point to object storage bucket
-3. Set custom domain: `cdn.civicpulse.com`
+3. Set custom domain: `cdn.hakivo.com`
 4. Enable HTTPS
 
 ### CDN URL Format
 ```typescript
 const audioUrl = `${CDN_URL}/podcasts/${userId}/${type}/${timestamp}.mp3`;
-// Example: https://cdn.civicpulse.com/podcasts/user-123/daily/1698345600000.mp3
+// Example: https://cdn.hakivo.com/podcasts/user-123/daily/1698345600000.mp3
 ```
 
 ---
@@ -155,7 +155,7 @@ uploadPodcast(audio, 'test-user', 'daily', {
 "
 
 # Test CDN access
-curl -I https://cdn.civicpulse.com/podcasts/test-user/daily/1234567890.mp3
+curl -I https://cdn.hakivo.com/podcasts/test-user/daily/1234567890.mp3
 ```
 
 ---

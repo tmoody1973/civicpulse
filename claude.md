@@ -1,4 +1,4 @@
-# Civic Pulse - Development Rules
+# HakiVo - Development Rules
 
 **Project:** AI-powered civic engagement platform (Liquid Metal Hackathon)
 **Stack:** Next.js 16 App Router + Raindrop Platform + Vultr + Netlify + ElevenLabs + Claude Sonnet 4
@@ -94,7 +94,7 @@ npm run dev
 // Deploy preview
 netlify_deploy_services_updater: deploy-site
 {
-  deployDirectory: "/Users/tarikmoody/Documents/Projects/civicpulse",
+  deployDirectory: "/Users/tarikmoody/Documents/Projects/hakivo",
   siteId: "your-site-id" // Get from netlify link or UI
 }
 
@@ -408,7 +408,7 @@ npx shadcn-ui add button # Add UI component
 
 ```bash
 # Netlify (set via Netlify UI or CLI)
-NEXT_PUBLIC_APP_URL=https://civicpulse.netlify.app
+NEXT_PUBLIC_APP_URL=https://hakivo.netlify.app
 
 # Raindrop Platform
 RAINDROP_SQL_URL=
@@ -572,7 +572,7 @@ const config: NextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'vultr-cdn.civicpulse.com',
+        hostname: 'vultr-cdn.hakivo.com',
       },
     ],
   },
@@ -592,7 +592,7 @@ netlify env:set ELEVENLABS_SARAH_VOICE_ID "your-id"
 netlify env:set ELEVENLABS_JAMES_VOICE_ID "your-id"
 netlify env:set WORKOS_API_KEY "your-key"
 netlify env:set WORKOS_CLIENT_ID "your-id"
-netlify env:set WORKOS_REDIRECT_URI "https://civicpulse.netlify.app/api/auth/callback"
+netlify env:set WORKOS_REDIRECT_URI "https://hakivo.netlify.app/api/auth/callback"
 netlify env:set STRIPE_SECRET_KEY "your-key"
 netlify env:set STRIPE_WEBHOOK_SECRET "your-webhook-secret"
 netlify env:set VULTR_STORAGE_ENDPOINT "your-endpoint"
@@ -603,7 +603,7 @@ netlify env:set RAINDROP_SQL_URL "your-url"
 
 **Public variables (client-side):**
 ```bash
-netlify env:set NEXT_PUBLIC_APP_URL "https://civicpulse.netlify.app"
+netlify env:set NEXT_PUBLIC_APP_URL "https://hakivo.netlify.app"
 netlify env:set NEXT_PUBLIC_WORKOS_CLIENT_ID "your-client-id"
 netlify env:set NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY "your-publishable-key"
 ```

@@ -2,7 +2,7 @@
 
 ## Quick Overview
 
-**Civic Pulse uses AI-powered semantic search** to understand what you mean, not just what you type. The system automatically picks the fastest strategy for each query.
+**HakiVo uses AI-powered semantic search** to understand what you mean, not just what you type. The system automatically picks the fastest strategy for each query.
 
 ---
 

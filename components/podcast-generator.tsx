@@ -61,7 +61,7 @@ export function PodcastGenerator() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Radio className="w-6 h-6" />
-          Generate Your Civic Pulse Podcast
+          Generate Your HakiVo Podcast
         </CardTitle>
         <CardDescription>
           AI-powered audio briefings on the latest legislation

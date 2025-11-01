@@ -1,8 +1,10 @@
 name: Daily Bill Sync
 
-# When this runs:
-# 1. Every day at 2 AM UTC (9 PM EST / 6 PM PST)
-# 2. Manually via "Run workflow" button in GitHub Actions tab
+# HYBRID SYNC STRATEGY:
+# 1. This workflow discovers NEW bills (metadata only) - ~5 minutes
+# 2. Full details fetched on-demand when users view bills (auto-sync)
+# 3. Runs daily at 2 AM UTC (9 PM EST / 6 PM PST)
+# 4. Can be triggered manually via "Run workflow" button
 on:
   schedule:
     - cron: '0 2 * * *'  # 2 AM UTC daily
@@ -12,7 +14,7 @@ jobs:
   sync-bills:
     name: Sync Bills from Congress.gov
     runs-on: ubuntu-latest
-    timeout-minutes: 120  # 2 hours (fetch ~60min + pipeline ~25min + buffer)
+    timeout-minutes: 30  # Fast sync: ~5 min fetch + ~20 min pipeline
 
     steps:
       # Step 1: Get the code
@@ -29,16 +31,17 @@ jobs:
       - name: Install dependencies
         run: npm ci --ignore-scripts
 
-      # Step 4: Fetch new bills from Congress.gov
-      - name: Fetch bills from Congress.gov
+      # Step 4: Fetch new bills from Congress.gov (metadata only)
+      - name: Fetch new bills from Congress.gov
         env:
           CONGRESS_API_KEY: ${{ secrets.CONGRESS_API_KEY }}
           RAINDROP_SERVICE_URL: ${{ secrets.RAINDROP_SERVICE_URL }}
         run: |
-          echo "📥 Fetching bills from Congress.gov..."
-          echo "⚠️  Full text mode: This will take ~50-60 minutes"
-          npm run fetch:bills -- --full
-          echo "✅ Bills fetched successfully"
+          echo "📥 Fetching new bills from Congress.gov..."
+          echo "⚡ Metadata only - full details fetched on-demand when users view bills"
+          echo "🎯 Limit: 100 bills (discovers new bills from last ~48 hours)"
+          npm run fetch:bills -- --congress=119 --limit=100
+          echo "✅ New bills discovered and indexed"
 
       # Step 5: Run the processing pipeline
       - name: Run post-fetch pipeline

@@ -7,7 +7,7 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
           {/* Brand */}
           <div>
-            <h3 className="font-bold text-lg mb-4">Civic Pulse</h3>
+            <h3 className="font-bold text-lg mb-4">HakiVo</h3>
             <p className="text-sm text-muted-foreground">
               Making Congress accessible to everyone through AI-powered civic engagement.
             </p>
@@ -48,7 +48,7 @@ export function Footer() {
 
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-sm text-muted-foreground">
-            © 2025 Civic Pulse. Built for the Liquid Metal Hackathon.
+            © 2025 HakiVo. Built for the Liquid Metal Hackathon.
           </p>
           <p className="text-xs text-muted-foreground">
             Data from Congress.gov • Non-partisan civic engagement tool

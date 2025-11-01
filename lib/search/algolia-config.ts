@@ -1,4 +1,4 @@
-// Algolia search configuration for Civic Pulse
+// Algolia search configuration for HakiVo
 // Provides instant, typo-tolerant bill search with faceted filters
 
 // Load environment variables (for scripts running outside Next.js)

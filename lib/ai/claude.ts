@@ -45,7 +45,7 @@ export async function generateDialogueScript(
 ): Promise<DialogueLine[]> {
   const podcastFormat = PODCAST_FORMATS[format];
 
-  const systemPrompt = `You are an expert podcast script writer for a civic engagement show called "Civic Pulse".
+  const systemPrompt = `You are an expert podcast script writer for a civic engagement show called "HakiVo".
 Your job is to create natural, engaging dialogue between two hosts: Sarah and James.
 
 Style Guidelines:
@@ -75,7 +75,7 @@ Format Requirements:
 
 Return the dialogue as a JSON array of objects with this structure:
 [
-  {"host": "sarah", "text": "Good morning! Welcome to Civic Pulse..."},
+  {"host": "sarah", "text": "Good morning! Welcome to HakiVo..."},
   {"host": "james", "text": "Hey Sarah, great to be here! Today's episode is packed..."},
   ...
 ]`;
@@ -150,7 +150,7 @@ export function generateTestDialogue(): DialogueLine[] {
   return [
     {
       host: 'sarah',
-      text: 'Good morning and welcome to Civic Pulse! I\'m Sarah.',
+      text: 'Good morning and welcome to HakiVo! I\'m Sarah.',
     },
     {
       host: 'james',
@@ -182,7 +182,7 @@ export function generateTestDialogue(): DialogueLine[] {
     },
     {
       host: 'sarah',
-      text: 'That\'s what good legislation looks like. You can learn more about this bill and track its progress at congress.gov. Thanks for tuning in to Civic Pulse!',
+      text: 'That\'s what good legislation looks like. You can learn more about this bill and track its progress at congress.gov. Thanks for tuning in to HakiVo!',
     },
     {
       host: 'james',

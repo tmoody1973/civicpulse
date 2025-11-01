@@ -13,7 +13,14 @@
  *   npm run fetch:bills -- --full          # Fetch summaries + full text (SLOW!)
  */
 
-import { fetchRecentBills, fetchBillSummary, fetchBillText } from '../lib/api/congress';
+import {
+  fetchRecentBills,
+  fetchBillSummary,
+  fetchBillText,
+  fetchBillCosponsors,
+  fetchBillActions,
+  fetchBillSubjects
+} from '../lib/api/congress';
 
 interface FetchOptions {
   congresses: number[];
@@ -74,12 +81,17 @@ async function storeBills(bills: any[], raindropServiceUrl: string, fetchFullTex
     try {
       const billId = `${bill.congress}-${bill.billType}-${bill.billNumber}`;
 
-      // Optionally fetch summary and full text
+      // Optionally fetch summary, full text, and ALL metadata
       let summary = bill.summary || null;
       let fullText = null;
+      let cosponsors: any[] = [];
+      let cosponsorCount = 0;
+      let actions: any[] = [];
+      let policyArea = null;
+      let subjects: string[] = [];
 
       if (fetchFullText) {
-        console.log(`   📄 Fetching details for ${billId}...`);
+        console.log(`   📄 Fetching complete details for ${billId}...`);
 
         // Fetch summary
         if (!summary) {
@@ -94,6 +106,29 @@ async function storeBills(bills: any[], raindropServiceUrl: string, fetchFullTex
         const fetchedText = await fetchBillText(bill.congress, bill.billType, bill.billNumber);
         if (fetchedText) {
           fullText = fetchedText;
+        }
+        await sleep(1000); // Rate limit
+
+        // Fetch cosponsors
+        const fetchedCosponsors = await fetchBillCosponsors(bill.congress, bill.billType, bill.billNumber);
+        if (fetchedCosponsors && fetchedCosponsors.length > 0) {
+          cosponsors = fetchedCosponsors;
+          cosponsorCount = cosponsors.length;
+        }
+        await sleep(1000); // Rate limit
+
+        // Fetch actions/history
+        const fetchedActions = await fetchBillActions(bill.congress, bill.billType, bill.billNumber);
+        if (fetchedActions && fetchedActions.length > 0) {
+          actions = fetchedActions;
+        }
+        await sleep(1000); // Rate limit
+
+        // Fetch subjects (policy area + legislative subjects)
+        const fetchedSubjects = await fetchBillSubjects(bill.congress, bill.billType, bill.billNumber);
+        if (fetchedSubjects) {
+          policyArea = fetchedSubjects.policyArea;
+          subjects = fetchedSubjects.legislativeSubjects;
         }
         await sleep(1000); // Rate limit
       }
@@ -118,12 +153,18 @@ async function storeBills(bills: any[], raindropServiceUrl: string, fetchFullTex
           fullText: fullText,
           sponsorBioguideId: bill.sponsorBioguideId || null,
           sponsorName: bill.sponsorName || null,
+          sponsorParty: bill.sponsorParty || null,
+          sponsorState: bill.sponsorState || null,
           introducedDate: bill.introducedDate || null,
           latestActionDate: bill.latestActionDate || null,
           latestActionText: bill.latestActionText || null,
           status: bill.status || 'introduced',
-          issueCategories: bill.issueCategories || [],
+          policyArea: policyArea,
+          issueCategories: subjects.length > 0 ? subjects : (bill.issueCategories || []),
           impactScore: bill.impactScore || 0,
+          cosponsorCount: cosponsorCount,
+          cosponsors: cosponsors,
+          actions: actions,
           congressGovUrl: bill.url || null,
           searchableText: searchableText
         })
@@ -132,7 +173,7 @@ async function storeBills(bills: any[], raindropServiceUrl: string, fetchFullTex
       if (response.ok) {
         stored++;
         if (fetchFullText && fullText) {
-          console.log(`   ✅ Stored ${billId} with full text (${Math.round(fullText.length / 1024)}KB)`);
+          console.log(`   ✅ Stored ${billId}: ${Math.round(fullText.length / 1024)}KB text, ${cosponsorCount} cosponsors, ${actions.length} actions, ${subjects.length} subjects`);
         }
       } else {
         const error = await response.text();
@@ -257,7 +298,8 @@ async function main() {
   }
 
   if (flags.full) {
-    console.log('📄 Full mode: Fetching summaries + full text (SLOW - 2 extra API calls per bill!)');
+    console.log('📄 Full mode: Fetching ALL metadata (summary, full text, cosponsors, actions, subjects)');
+    console.log('⚠️  VERY SLOW - 6 API calls per bill! ~15 seconds per bill with rate limiting');
   }
 
   // Get Raindrop service URL

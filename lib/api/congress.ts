@@ -83,6 +83,8 @@ export async function fetchRecentBills(options: FetchBillsOptions = {}): Promise
       latestActionText: bill.latestAction?.text || 'No action recorded',
       sponsorBioguideId: bill.sponsors?.[0]?.bioguideId || '',
       sponsorName: bill.sponsors?.[0]?.fullName || 'Unknown',
+      sponsorParty: bill.sponsors?.[0]?.party || 'Unknown',
+      sponsorState: bill.sponsors?.[0]?.state || null,
       url: bill.url,
     })) || [];
   } catch (error) {
@@ -253,6 +255,8 @@ export async function fetchBillDetails(
       latestActionText: bill.latestAction?.text || 'No action recorded',
       sponsorBioguideId: bill.sponsors?.[0]?.bioguideId || '',
       sponsorName: bill.sponsors?.[0]?.fullName || 'Unknown',
+      sponsorParty: bill.sponsors?.[0]?.party || 'Unknown',
+      sponsorState: bill.sponsors?.[0]?.state || null,
       url: bill.url,
     };
 
@@ -319,6 +323,8 @@ export async function searchBills(query: string, options: FetchBillsOptions = {}
       latestActionText: bill.latestAction?.text || 'No action recorded',
       sponsorBioguideId: bill.sponsors?.[0]?.bioguideId || '',
       sponsorName: bill.sponsors?.[0]?.fullName || 'Unknown',
+      sponsorParty: bill.sponsors?.[0]?.party || 'Unknown',
+      sponsorState: bill.sponsors?.[0]?.state || null,
       url: bill.url,
     })) || [];
   } catch (error) {

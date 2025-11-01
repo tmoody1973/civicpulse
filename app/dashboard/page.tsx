@@ -54,7 +54,7 @@ export default function DashboardPage() {
   const [generatingPodcast, setGeneratingPodcast] = useState(false);
   const [podcastError, setPodcastError] = useState<string | null>(null);
 
-  // Check authentication on mount
+  // Check authentication and onboarding status on mount
   useEffect(() => {
     const checkAuth = async () => {
       try {
@@ -258,7 +258,7 @@ export default function DashboardPage() {
         </div>
         {/* Welcome Banner */}
         <div className="mb-6">
-          <h1 className="text-3xl sm:text-4xl font-serif font-bold mb-2">Welcome to Civic Pulse</h1>
+          <h1 className="text-3xl sm:text-4xl font-serif font-bold mb-2">Welcome to HakiVo</h1>
           <p className="text-muted-foreground">
             Your personalized source for congressional updates and legislative news
           </p>

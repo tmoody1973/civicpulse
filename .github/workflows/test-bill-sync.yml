@@ -22,13 +22,14 @@ jobs:
       - name: Install dependencies
         run: npm ci --ignore-scripts
 
-      - name: Fetch bills (metadata only, fast)
+      - name: Fetch bills (with full text to avoid data loss)
         env:
           CONGRESS_API_KEY: ${{ secrets.CONGRESS_API_KEY }}
           RAINDROP_SERVICE_URL: ${{ secrets.RAINDROP_SERVICE_URL }}
         run: |
-          echo "📥 Fetching 10 bills (metadata only - fast test)"
-          npm run fetch:bills -- --limit 10
+          echo "📥 Fetching 10 bills (WITH full text - prevents overwriting existing data)"
+          echo "⚠️  Using --full flag to avoid data loss from INSERT OR REPLACE"
+          npm run fetch:bills -- --limit 10 --full
           echo "✅ Bills fetched successfully"
 
       - name: Run post-fetch pipeline

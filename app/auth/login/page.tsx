@@ -69,7 +69,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="flex justify-center mb-8">
-          <h1 className="text-4xl font-bold">Civic Pulse</h1>
+          <h1 className="text-4xl font-bold">HakiVo</h1>
         </div>
 
         <Card>

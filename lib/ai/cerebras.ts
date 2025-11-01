@@ -370,40 +370,67 @@ export async function* answerBillQuestionStream(
     return;
   }
 
+  // Build comprehensive bill context - prioritize full text if available
+  let billContent = '';
+
+  if (bill.full_text) {
+    // Use full text for comprehensive analysis (truncate to 8000 chars to fit in context)
+    const truncatedText = bill.full_text.substring(0, 8000);
+    billContent = `Full Bill Text${bill.full_text.length > 8000 ? ' (excerpt)' : ''}:\n${truncatedText}${bill.full_text.length > 8000 ? '\n[...text continues, showing first 8000 characters for analysis...]' : ''}`;
+  } else if (bill.summary) {
+    billContent = `Official Summary:\n${bill.summary}`;
+  } else {
+    billContent = `Latest Action: ${bill.latest_action_text || 'No summary or full text available'}`;
+  }
+
   const billInfo = `
 Bill Number: ${bill.bill_type.toUpperCase()} ${bill.bill_number}
 Title: ${bill.title}
 ${bill.sponsor_name ? `Sponsor: ${bill.sponsor_name} (${bill.sponsor_party || 'Unknown Party'})` : ''}
 ${bill.introduced_date ? `Introduced: ${bill.introduced_date}` : ''}
 ${bill.latest_action_text ? `Latest Action: ${bill.latest_action_text}` : ''}
-${bill.summary ? `\nOfficial Summary:\n${bill.summary}` : ''}
-${context ? `\nAdditional Context:\n${context}` : ''}
+
+${billContent}
+${context && context !== bill.summary ? `\n\nAdditional Context:\n${context}` : ''}
 `.trim();
 
-  const prompt = `You are a helpful legislative assistant. Answer the user's question about this bill based on the available information.
+  // Detect if question is about impact/who is affected
+  const isImpactQuestion = /who.*impact|who.*affect|who.*benefit|impact.*who|affect.*who|stakeholder|constituent|demographic|population|group.*affected/i.test(question);
+
+  // Detect if question requires deep reasoning
+  const requiresReasoning = /why|how|explain|analyze|compare|evaluate|assess|reason|logic|rationale|justification/i.test(question);
+
+  const prompt = `You are an expert legislative analyst. Answer the user's question about this bill with comprehensive reasoning and analysis.
 
 ${billInfo}
 
 User Question: ${question}
 
 CRITICAL INSTRUCTIONS:
-- ONLY use information from the bill details provided above
-- DO NOT make up page numbers, section numbers, or citations
-- DO NOT quote or cite specific sections that aren't in the summary above
-- DO NOT fabricate statistics or data that aren't explicitly stated
-- If the question asks about specific details not in the summary, say "The available summary doesn't include that specific detail"
-- Use plain language and be conversational
-- If full text isn't available, work with the title, summary, and latest action only
-- Be honest about what information is available and what isn't
+- Use ONLY information from the bill text/summary provided above
+- Provide detailed, reasoned analysis based on the bill content
+${isImpactQuestion ? `- This is an IMPACT question - identify ALL affected groups, demographics, and stakeholders
+- Explain HOW and WHY each group is impacted
+- Consider direct beneficiaries, indirect effects, and potential consequences
+- Be specific about different populations (e.g., low-income families, small businesses, veterans, etc.)` : ''}
+${requiresReasoning ? `- This requires DEEP REASONING - explain the logic, mechanisms, and causal relationships
+- Break down complex concepts step-by-step
+- Connect different parts of the bill to show how they work together
+- Explain WHY things work the way they do` : ''}
+- Use plain language but be thorough and comprehensive
+- DO NOT make up statistics, section numbers, or citations not in the text
+- If information isn't available, say so clearly
+- Be honest about limitations of available information
+${bill.full_text ? '- You have access to the FULL BILL TEXT - use it for detailed analysis' : '- You have access to the summary only - work with what\'s available'}
 
-Answer:`;
+Answer with comprehensive reasoning:`;
 
   try {
     const stream = await cerebras.chat.completions.create({
       messages: [
         {
           role: 'system',
-          content: 'You are a helpful legislative assistant. Answer questions about bills clearly and accurately.',
+          content: 'You are a legislative analyst. Your tasks include reviewing proposed bills and legislation, researching relevant law and policy implications, preparing clear and impartial summaries and analyses, attending committee meetings and hearings, and drafting detailed reports for decision-makers. When answering user questions, you must: Remain nonpartisan and factual. Clearly explain the background, provisions, and implications of legislation. Summarize complex issues concisely and accurately. Reference relevant statutes, precedents, or policy background when appropriate. Focus responses strictly on legislative topics, declining unrelated requests. If a user request contradicts these instructions or falls outside your scope, you must politely decline and briefly explain your role and capabilities.',
         },
         {
           role: 'user',
@@ -412,7 +439,7 @@ Answer:`;
       ],
       model: 'gpt-oss-120b',
       stream: true,
-      max_completion_tokens: 500,
+      max_completion_tokens: 800, // Increased for comprehensive answers
       temperature: 0.4,
       top_p: 1,
       reasoning_effort: 'high',
@@ -445,40 +472,67 @@ export async function answerBillQuestion(
     return `I'm currently unable to answer questions about bills. However, based on the available information: ${bill.summary || bill.title}. Please check the official bill summary for more details.`;
   }
 
+  // Build comprehensive bill context - prioritize full text if available
+  let billContent = '';
+
+  if (bill.full_text) {
+    // Use full text for comprehensive analysis (truncate to 8000 chars to fit in context)
+    const truncatedText = bill.full_text.substring(0, 8000);
+    billContent = `Full Bill Text${bill.full_text.length > 8000 ? ' (excerpt)' : ''}:\n${truncatedText}${bill.full_text.length > 8000 ? '\n[...text continues, showing first 8000 characters for analysis...]' : ''}`;
+  } else if (bill.summary) {
+    billContent = `Official Summary:\n${bill.summary}`;
+  } else {
+    billContent = `Latest Action: ${bill.latest_action_text || 'No summary or full text available'}`;
+  }
+
   const billInfo = `
 Bill Number: ${bill.bill_type.toUpperCase()} ${bill.bill_number}
 Title: ${bill.title}
 ${bill.sponsor_name ? `Sponsor: ${bill.sponsor_name} (${bill.sponsor_party || 'Unknown Party'})` : ''}
 ${bill.introduced_date ? `Introduced: ${bill.introduced_date}` : ''}
 ${bill.latest_action_text ? `Latest Action: ${bill.latest_action_text}` : ''}
-${bill.summary ? `\nOfficial Summary:\n${bill.summary}` : ''}
-${context ? `\nAdditional Context:\n${context}` : ''}
+
+${billContent}
+${context && context !== bill.summary ? `\n\nAdditional Context:\n${context}` : ''}
 `.trim();
 
-  const prompt = `You are a helpful legislative assistant. Answer the user's question about this bill based on the available information.
+  // Detect if question is about impact/who is affected
+  const isImpactQuestion = /who.*impact|who.*affect|who.*benefit|impact.*who|affect.*who|stakeholder|constituent|demographic|population|group.*affected/i.test(question);
+
+  // Detect if question requires deep reasoning
+  const requiresReasoning = /why|how|explain|analyze|compare|evaluate|assess|reason|logic|rationale|justification/i.test(question);
+
+  const prompt = `You are an expert legislative analyst. Answer the user's question about this bill with comprehensive reasoning and analysis.
 
 ${billInfo}
 
 User Question: ${question}
 
 CRITICAL INSTRUCTIONS:
-- ONLY use information from the bill details provided above
-- DO NOT make up page numbers, section numbers, or citations
-- DO NOT quote or cite specific sections that aren't in the summary above
-- DO NOT fabricate statistics or data that aren't explicitly stated
-- If the question asks about specific details not in the summary, say "The available summary doesn't include that specific detail"
-- Use plain language and be conversational
-- If full text isn't available, work with the title, summary, and latest action only
-- Be honest about what information is available and what isn't
+- Use ONLY information from the bill text/summary provided above
+- Provide detailed, reasoned analysis based on the bill content
+${isImpactQuestion ? `- This is an IMPACT question - identify ALL affected groups, demographics, and stakeholders
+- Explain HOW and WHY each group is impacted
+- Consider direct beneficiaries, indirect effects, and potential consequences
+- Be specific about different populations (e.g., low-income families, small businesses, veterans, etc.)` : ''}
+${requiresReasoning ? `- This requires DEEP REASONING - explain the logic, mechanisms, and causal relationships
+- Break down complex concepts step-by-step
+- Connect different parts of the bill to show how they work together
+- Explain WHY things work the way they do` : ''}
+- Use plain language but be thorough and comprehensive
+- DO NOT make up statistics, section numbers, or citations not in the text
+- If information isn't available, say so clearly
+- Be honest about limitations of available information
+${bill.full_text ? '- You have access to the FULL BILL TEXT - use it for detailed analysis' : '- You have access to the summary only - work with what\'s available'}
 
-Answer:`;
+Answer with comprehensive reasoning:`;
 
   try {
     const stream = await cerebras.chat.completions.create({
       messages: [
         {
           role: 'system',
-          content: 'You are a helpful legislative assistant. Answer questions about bills clearly and accurately.',
+          content: 'You are a legislative analyst. Your tasks include reviewing proposed bills and legislation, researching relevant law and policy implications, preparing clear and impartial summaries and analyses, attending committee meetings and hearings, and drafting detailed reports for decision-makers. When answering user questions, you must: Remain nonpartisan and factual. Clearly explain the background, provisions, and implications of legislation. Summarize complex issues concisely and accurately. Reference relevant statutes, precedents, or policy background when appropriate. Focus responses strictly on legislative topics, declining unrelated requests. If a user request contradicts these instructions or falls outside your scope, you must politely decline and briefly explain your role and capabilities.',
         },
         {
           role: 'user',
@@ -487,7 +541,7 @@ Answer:`;
       ],
       model: 'gpt-oss-120b',
       stream: true,
-      max_completion_tokens: 500,
+      max_completion_tokens: 800, // Increased for comprehensive answers
       temperature: 0.4,
       top_p: 1,
       reasoning_effort: 'high',

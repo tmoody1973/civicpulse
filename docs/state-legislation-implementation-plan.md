@@ -2,7 +2,7 @@
 
 **Feature:** Integrate OpenStates API to provide state-level legislation alongside federal bills
 
-**Goal:** Make Civic Pulse more valuable by showing users legislation that affects them locally (schools, housing, transportation, healthcare) while maintaining the same clean UX.
+**Goal:** Make HakiVo more valuable by showing users legislation that affects them locally (schools, housing, transportation, healthcare) while maintaining the same clean UX.
 
 ---
 
@@ -465,7 +465,7 @@ GitHub Actions: Daily Bill Sync (2 AM UTC)
 
 **Real-World Example:**
 
-If Civic Pulse has users in California, New York, and Texas only:
+If HakiVo has users in California, New York, and Texas only:
 - **Initial Setup:** Fetch 3 states (~6-9 min) instead of 50 (~45-60 min)
 - **Daily Updates:** Update 3 states (~2-3 min) instead of 50 (~10-15 min)
 - **Storage:** ~1.5-3K bills instead of ~5-10K bills
@@ -973,7 +973,7 @@ Keep it conversational and explain why each bill matters locally.
 ### Before Implementation
 1. ✅ **OpenStates API Key:** Do we have one? Need to register
 2. ⚠️ **Rate Limits:** What are they? Need to test
-3. ⚠️ **Commercial Use:** Civic Pulse will have paid tiers - license OK?
+3. ⚠️ **Commercial Use:** HakiVo will have paid tiers - license OK?
 4. ⚠️ **Full Text Format:** PDF, HTML, plain text? Need to test
 5. ⚠️ **Session Handling:** How to determine "current session" per state?
 
@@ -1031,7 +1031,7 @@ Keep it conversational and explain why each bill matters locally.
 
 ## Conclusion
 
-Adding state legislation transforms Civic Pulse from "another congressional tracker" to **"the only civic engagement platform that shows you what matters locally."**
+Adding state legislation transforms HakiVo from "another congressional tracker" to **"the only civic engagement platform that shows you what matters locally."**
 
 ### Why This Matters
 

@@ -201,7 +201,7 @@ You search: "help for veterans"
 
 ## The Three-Layer Search Strategy
 
-Civic Pulse combines **three different search methods** to give you the best results:
+HakiVo combines **three different search methods** to give you the best results:
 
 ### Layer 1: Fast & Exact (When You Know the Bill)
 **Example:** "H.R. 1234"
@@ -460,14 +460,14 @@ Imagine searching like this:
 
 **You:** "I'm worried about my student loans"
 
-**Civic Pulse:** "I found 12 bills about student loan reform. Would you like to see:
+**HakiVo:** "I found 12 bills about student loan reform. Would you like to see:
 - Forgiveness programs (5 bills)
 - Interest rate reduction (3 bills)
 - Income-driven repayment changes (4 bills)"
 
 **You:** "Show me forgiveness programs for teachers"
 
-**Civic Pulse:** "Here are 2 bills specifically for teacher loan forgiveness, and 3 more that include teachers in broader forgiveness programs."
+**HakiVo:** "Here are 2 bills specifically for teacher loan forgiveness, and 3 more that include teachers in broader forgiveness programs."
 
 **That's the power of SmartBuckets** - conversational, intelligent, helpful search that understands context and intent.
 
@@ -475,7 +475,7 @@ Imagine searching like this:
 
 ## Get Started
 
-SmartBuckets is being integrated into Civic Pulse's legislation search right now!
+SmartBuckets is being integrated into HakiVo's legislation search right now!
 
 **Week 3 of our 3-week implementation plan:**
 - Days 14-15: SmartBuckets setup and configuration
@@ -767,7 +767,7 @@ SmartBuckets creates a **truly personalized feed** based on:
 
 #### Step 1: Understanding Your Interests
 
-**When You First Join Civic Pulse:**
+**When You First Join HakiVo:**
 
 ```
 What issues matter most to you? (Select 3-5)
@@ -987,7 +987,7 @@ const related = await SmartBuckets.search({
 #### Strategy 3: Representative-Specific Updates
 
 **How It Works:**
-- You set your location → Civic Pulse identifies your representatives
+- You set your location → HakiVo identifies your representatives
 - SmartBuckets filters for content involving YOUR reps
 - Shows how they vote on bills you care about
 
@@ -1560,7 +1560,7 @@ Hybrid (Smart):
 ### How It All Works Together
 
 ```
-                    Civic Pulse Search Experience
+                    HakiVo Search Experience
                                  ↓
               ┌──────────────────┴──────────────────┐
               ↓                                     ↓
@@ -1589,7 +1589,7 @@ ALGOLIA           SMARTBUCKETS    SMARTBUCKETS         RSS FEEDS
 
 **Monday Morning:**
 - Reads news: "Congress debates student loan forgiveness"
-- Opens Civic Pulse
+- Opens HakiVo
 - SmartBuckets finds all loan forgiveness bills
 - Algolia shows filters: [Active] [Bipartisan] [Democrats] [Republicans]
 - Clicks "Track All" → 4 bills tracked
@@ -1602,7 +1602,7 @@ ALGOLIA           SMARTBUCKETS    SMARTBUCKETS         RSS FEEDS
 
 **Wednesday:**
 - Bill passes Senate!
-- Civic Pulse shows: Vote results + News coverage + What's next
+- HakiVo shows: Vote results + News coverage + What's next
 - SmartBuckets finds: House version of the bill
 - Alex tracks House bill too
 
@@ -1624,7 +1624,7 @@ ALGOLIA           SMARTBUCKETS    SMARTBUCKETS         RSS FEEDS
 
 ## Summary: The Power of Smart Search
 
-### What Makes Civic Pulse Different
+### What Makes HakiVo Different
 
 **Other Civic Tech Tools:**
 - ❌ Keyword search only (guess the right words!)
@@ -1632,7 +1632,7 @@ ALGOLIA           SMARTBUCKETS    SMARTBUCKETS         RSS FEEDS
 - ❌ No personalization
 - ❌ Complex filters, steep learning curve
 
-**Civic Pulse with SmartBuckets + Algolia:**
+**HakiVo with SmartBuckets + Algolia:**
 - ✅ Natural language search (search the way you think!)
 - ✅ Bills and news are connected
 - ✅ Personalized to your interests
@@ -1677,4 +1677,4 @@ ALGOLIA           SMARTBUCKETS    SMARTBUCKETS         RSS FEEDS
 
 **Questions about SmartBuckets, Algolia integration, or news/RSS features?** Open an issue or reach out to the team!
 
-**Ready to try it?** Civic Pulse search launches in 3 weeks! 🚀
+**Ready to try it?** HakiVo search launches in 3 weeks! 🚀

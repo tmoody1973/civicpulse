@@ -172,7 +172,7 @@ For the automated sync to work, you need to add API keys to GitHub:
 ### Step-by-Step:
 
 1. **Go to your GitHub repository**
-   - Visit: https://github.com/YOUR_USERNAME/civicpulse
+   - Visit: https://github.com/YOUR_USERNAME/hakivo
 
 2. **Navigate to Settings**
    - Click "Settings" tab
@@ -228,7 +228,7 @@ Expected response:
 
 ### Trigger First Manual Sync
 
-1. Go to https://github.com/YOUR_USERNAME/civicpulse/actions
+1. Go to https://github.com/YOUR_USERNAME/hakivo/actions
 2. Click "Daily Bill Sync" workflow
 3. Click "Run workflow" dropdown
 4. Click green "Run workflow" button

@@ -1,4 +1,4 @@
-globalThis.__RAINDROP_GIT_COMMIT_SHA = "53b492ac61ba7ae12ec5c323b82ba3ca3c6463d7"; 
+globalThis.__RAINDROP_GIT_COMMIT_SHA = "b15661a725f1c5b6953da37e825035cb94bcb454"; 
 
 // node_modules/@liquidmetal-ai/raindrop-framework/dist/core/cors.js
 var matchOrigin = (request, env, config) => {
@@ -117,6 +117,7 @@ var web_default = class extends Service {
         state TEXT,
         district TEXT,
         interests TEXT,
+        onboarding_completed INTEGER DEFAULT 0,
         email_notifications BOOLEAN DEFAULT true,
         audio_enabled BOOLEAN DEFAULT true,
         audio_frequencies TEXT,
@@ -249,6 +250,24 @@ var web_default = class extends Service {
         roll_call_number INTEGER
       )
     `);
+    await this.env.CIVIC_DB.exec(`
+      CREATE TABLE IF NOT EXISTS sync_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sync_type TEXT NOT NULL,
+        status TEXT NOT NULL,
+        started_at TIMESTAMP NOT NULL,
+        completed_at TIMESTAMP,
+        run_id TEXT,
+        run_url TEXT,
+        error_message TEXT,
+        bills_fetched INTEGER,
+        bills_processed INTEGER,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    await this.env.CIVIC_DB.exec("CREATE INDEX IF NOT EXISTS idx_sync_history_status ON sync_history(status)");
+    await this.env.CIVIC_DB.exec("CREATE INDEX IF NOT EXISTS idx_sync_history_started_at ON sync_history(started_at DESC)");
+    await this.env.CIVIC_DB.exec("CREATE INDEX IF NOT EXISTS idx_sync_history_type ON sync_history(sync_type)");
   }
   async fetch(request) {
     const url = new URL(request.url);
@@ -321,6 +340,8 @@ var web_default = class extends Service {
           const billResult = await this.env.CIVIC_DB.prepare(`
             SELECT
               b.*,
+              r.party as sponsor_party,
+              r.state as sponsor_state,
               r.image_url as sponsor_image_url,
               r.office_address as sponsor_office_address,
               r.phone as sponsor_phone,
@@ -388,7 +409,7 @@ var web_default = class extends Service {
       if (url.pathname === "/api/admin/query" && request.method === "POST") {
         const body = await request.json();
         const { table, query } = body;
-        const validTables = ["users", "bills", "representatives", "user_bills", "podcasts", "rss_articles", "vote_records"];
+        const validTables = ["users", "bills", "representatives", "user_bills", "podcasts", "rss_articles", "vote_records", "sync_history"];
         if (!validTables.includes(table)) {
           return this.jsonResponse({
             error: "Invalid table name"
@@ -400,7 +421,7 @@ var web_default = class extends Service {
       if (url.pathname === "/api/admin/count" && request.method === "POST") {
         const body = await request.json();
         const { table, query } = body;
-        const validTables = ["users", "bills", "representatives", "user_bills", "podcasts", "rss_articles", "vote_records"];
+        const validTables = ["users", "bills", "representatives", "user_bills", "podcasts", "rss_articles", "vote_records", "sync_history"];
         if (!validTables.includes(table)) {
           return this.jsonResponse({
             error: "Invalid table name"
@@ -413,13 +434,16 @@ var web_default = class extends Service {
       if (url.pathname === "/api/smartbucket/sync" && request.method === "POST") {
         const { limit = 10 } = await request.json().catch(() => ({}));
         const bills = await this.env.CIVIC_DB.prepare(`
-          SELECT id, congress, bill_type, bill_number, title, summary, full_text,
-                 sponsor_name, sponsor_party, sponsor_state, sponsor_bioguide_id,
-                 introduced_date, latest_action_date, latest_action_text,
-                 status, cosponsor_count
-          FROM bills
-          WHERE full_text IS NOT NULL
-            AND smartbucket_key IS NULL
+          SELECT
+            b.id, b.congress, b.bill_type, b.bill_number, b.title, b.summary, b.full_text,
+            b.sponsor_name, b.sponsor_bioguide_id,
+            r.party as sponsor_party, r.state as sponsor_state,
+            b.introduced_date, b.latest_action_date, b.latest_action_text,
+            b.status, b.cosponsor_count
+          FROM bills b
+          LEFT JOIN representatives r ON b.sponsor_bioguide_id = r.bioguide_id
+          WHERE b.full_text IS NOT NULL
+            AND b.smartbucket_key IS NULL
           LIMIT ?
         `).bind(limit).all();
         const synced = [];

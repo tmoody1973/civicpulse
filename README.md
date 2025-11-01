@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="logo-github.svg" alt="Civic Pulse" width="400" />
+  <img src="logo-github.svg" alt="HakiVo" width="400" />
 
   <p><strong>Know What Congress Is Doing</strong> - An AI-powered civic engagement platform that makes congressional activity accessible to everyone.</p>
 
@@ -17,7 +17,7 @@ Congressional bills are complex, inaccessible, and overwhelming. The average Ame
 
 ## 💡 Our Solution
 
-Civic Pulse transforms congressional activity into digestible, personalized content:
+HakiVo transforms congressional activity into digestible, personalized content:
 
 - **📊 Track Bills** - Follow legislation that matters to you across 15 policy areas
 - **👥 Know Your Reps** - See who represents you and how they vote
@@ -76,8 +76,8 @@ Civic Pulse transforms congressional activity into digestible, personalized cont
 
 ```bash
 # Clone the repository
-git clone https://github.com/tmoody1973/civicpulse.git
-cd civicpulse
+git clone https://github.com/tmoody1973/hakivo.git
+cd hakivo
 
 # Install dependencies
 npm install
@@ -125,13 +125,13 @@ STRIPE_WEBHOOK_SECRET=
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
 
 # App Config
-NEXT_PUBLIC_APP_URL=https://civicpulse.netlify.app
+NEXT_PUBLIC_APP_URL=https://hakivo.netlify.app
 ```
 
 ## 🏗️ Project Structure
 
 ```
-civicpulse/
+hakivo/
 ├── app/                      # Next.js App Router pages
 │   ├── onboarding/          # User onboarding flow
 │   ├── dashboard/           # Main dashboard
@@ -276,7 +276,7 @@ MIT License - see [LICENSE](LICENSE) file for details
 
 - **Developer**: Tarik Moody
 - **GitHub**: [@tmoody1973](https://github.com/tmoody1973)
-- **Project**: [Civic Pulse](https://github.com/tmoody1973/civicpulse)
+- **Project**: [HakiVo](https://github.com/tmoody1973/hakivo)
 
 ---
 

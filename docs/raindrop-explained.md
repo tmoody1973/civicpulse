@@ -187,7 +187,7 @@ Return to user
                          │
                          ↓
 ┌─────────────────────────────────────────────────────────────────┐
-│                    Civic Pulse Backend                          │
+│                    HakiVo Backend                          │
 │                                                                  │
 │  ┌────────────────────┐           ┌─────────────────────────┐  │
 │  │   SmartSQL DB      │           │   SmartBuckets AI       │  │
@@ -439,4 +439,4 @@ You need both: SmartBuckets finds relevant bills, SmartSQL gets full details.
 
 **Last Updated:** October 29, 2025
 **Author:** Claude + Tarik Moody
-**Purpose:** Explain Raindrop Platform architecture for Civic Pulse
+**Purpose:** Explain Raindrop Platform architecture for HakiVo

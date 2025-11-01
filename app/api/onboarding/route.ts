@@ -36,6 +36,7 @@ export async function POST(request: NextRequest) {
       email_notifications: body.emailNotifications ? 1 : 0,
       audio_enabled: body.audioEnabled ? 1 : 0,
       audio_frequencies: JSON.stringify(body.audioFrequencies || ['daily', 'weekly']),
+      onboarding_completed: 1, // Mark onboarding as completed
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     });

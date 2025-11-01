@@ -5,7 +5,7 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Civic Pulse - Know What Congress Is Doing',
+  title: 'HakiVo - Know What Congress Is Doing',
   description: 'Track bills, understand legislation, follow your representatives\' votes, and stay informed—all in plain English',
 };
 
