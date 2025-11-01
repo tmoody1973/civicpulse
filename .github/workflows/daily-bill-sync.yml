@@ -33,7 +33,7 @@ jobs:
 
       # Step 4: Install dependencies
       - name: Install dependencies
-        run: pnpm install
+        run: npm ci
 
       # Step 4: Fetch new bills from Congress.gov
       - name: Fetch bills from Congress.gov
