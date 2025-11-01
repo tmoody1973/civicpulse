@@ -60,7 +60,7 @@ export function ClientHeader() {
                 Search
               </Link>
               <Link
-                href="/onboarding"
+                href="/settings"
                 className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
                 Settings
