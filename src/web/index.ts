@@ -275,6 +275,8 @@ export default class extends Service<Env> {
           const billResult = await this.env.CIVIC_DB.prepare(`
             SELECT
               b.*,
+              r.party as sponsor_party,
+              r.state as sponsor_state,
               r.image_url as sponsor_image_url,
               r.office_address as sponsor_office_address,
               r.phone as sponsor_phone,
@@ -406,13 +408,16 @@ export default class extends Service<Env> {
 
         // Get bills with full_text that haven't been synced yet (fetch ALL metadata)
         const bills = await this.env.CIVIC_DB.prepare(`
-          SELECT id, congress, bill_type, bill_number, title, summary, full_text,
-                 sponsor_name, sponsor_party, sponsor_state, sponsor_bioguide_id,
-                 introduced_date, latest_action_date, latest_action_text,
-                 status, cosponsor_count
-          FROM bills
-          WHERE full_text IS NOT NULL
-            AND smartbucket_key IS NULL
+          SELECT
+            b.id, b.congress, b.bill_type, b.bill_number, b.title, b.summary, b.full_text,
+            b.sponsor_name, b.sponsor_bioguide_id,
+            r.party as sponsor_party, r.state as sponsor_state,
+            b.introduced_date, b.latest_action_date, b.latest_action_text,
+            b.status, b.cosponsor_count
+          FROM bills b
+          LEFT JOIN representatives r ON b.sponsor_bioguide_id = r.bioguide_id
+          WHERE b.full_text IS NOT NULL
+            AND b.smartbucket_key IS NULL
           LIMIT ?
         `).bind(limit).all<{
           id: string;
