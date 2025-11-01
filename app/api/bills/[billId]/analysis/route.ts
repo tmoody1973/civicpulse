@@ -7,6 +7,7 @@ interface BillFromDB {
   id: string;
   title: string;
   summary: string | null;
+  full_text: string | null;
   bill_type: string;
   bill_number: number;
   sponsor_name: string | null;
@@ -66,6 +67,7 @@ export async function GET(
       id: bill.id,
       title: bill.title,
       summary: bill.summary,
+      full_text: bill.full_text,
       bill_type: bill.bill_type,
       bill_number: bill.bill_number,
       sponsor_name: bill.sponsor_name,
@@ -144,6 +146,7 @@ export async function POST(
       id: bill.id,
       title: bill.title,
       summary: bill.summary,
+      full_text: bill.full_text,
       bill_type: bill.bill_type,
       bill_number: bill.bill_number,
       sponsor_name: bill.sponsor_name,

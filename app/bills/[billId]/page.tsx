@@ -30,13 +30,13 @@ interface Bill {
   sponsor_name: string | null;
   sponsor_party: string | null;
   sponsor_state: string | null;
-  sponsor_image_url: string | null;
-  sponsor_office_address: string | null;
-  sponsor_phone: string | null;
-  sponsor_website_url: string | null;
-  sponsor_contact_form: string | null;
-  sponsor_twitter_handle: string | null;
-  sponsor_facebook_url: string | null;
+  sponsor_image_url?: string | null;
+  sponsor_office_address?: string | null;
+  sponsor_phone?: string | null;
+  sponsor_website_url?: string | null;
+  sponsor_contact_url?: string | null;
+  sponsor_twitter_handle?: string | null;
+  sponsor_facebook_url?: string | null;
   introduced_date: string | null;
   latest_action_date: string | null;
   latest_action_text: string | null;
@@ -247,7 +247,7 @@ export default function BillDetailsPage() {
         </div>
       )}
 
-      {/* Sponsor Information Card */}
+      {/* Sponsor Information */}
       {bill.sponsor_name && (
         <div className="mb-8">
           <BillSponsorCard
@@ -258,7 +258,7 @@ export default function BillDetailsPage() {
             officeAddress={bill.sponsor_office_address}
             phone={bill.sponsor_phone}
             websiteUrl={bill.sponsor_website_url}
-            contactForm={bill.sponsor_contact_form}
+            contactUrl={bill.sponsor_contact_url}
             twitterHandle={bill.sponsor_twitter_handle}
             facebookUrl={bill.sponsor_facebook_url}
           />

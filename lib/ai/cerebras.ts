@@ -30,6 +30,7 @@ interface Bill {
   id: string;
   title: string;
   summary: string | null;
+  full_text?: string | null;
   bill_type: string;
   bill_number: number;
   sponsor_name: string | null;
@@ -128,12 +129,25 @@ export async function generateBillAnalysis(bill: Bill): Promise<BillAnalysis> {
     return getFallbackAnalysis(bill);
   }
 
+  // Prepare bill context - use full text if available, otherwise summary
+  let billContext = '';
+  if (bill.full_text) {
+    // Truncate to first 4000 characters to avoid token limits and JSON truncation
+    const truncatedText = bill.full_text.substring(0, 4000);
+    billContext = `Full Bill Text (excerpt):\n${truncatedText}${bill.full_text.length > 4000 ? '\n[...text truncated for analysis...]' : ''}`;
+  } else if (bill.summary) {
+    billContext = `Official Summary:\n${bill.summary}`;
+  } else {
+    billContext = `Latest Action: ${bill.latest_action_text || 'No summary or full text available'}`;
+  }
+
   const prompt = `You are a legislative analyst. Analyze this bill and provide a comprehensive, unbiased analysis.
 
 Bill: ${bill.bill_type.toUpperCase()} ${bill.bill_number} - ${bill.title}
 Sponsor: ${bill.sponsor_name} (${bill.sponsor_party})
-${bill.summary ? `Summary: ${bill.summary}` : ''}
-${bill.latest_action_text ? `Latest Action: ${bill.latest_action_text}` : ''}
+Introduced: ${bill.introduced_date}
+
+${billContext}
 
 Provide your analysis in this exact JSON format:
 {
@@ -149,7 +163,7 @@ Provide your analysis in this exact JSON format:
   "timeline": "implementation timeline if mentioned, or null"
 }
 
-Be specific, factual, and non-partisan. Focus on real-world impact.`;
+Be specific, factual, and non-partisan. Focus on real-world impact based on the bill text provided.`;
 
   try {
     // Use retry logic for API call

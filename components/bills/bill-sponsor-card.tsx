@@ -12,7 +12,7 @@ interface BillSponsorCardProps {
   officeAddress?: string | null;
   phone?: string | null;
   websiteUrl?: string | null;
-  contactForm?: string | null;
+  contactUrl?: string | null;
   twitterHandle?: string | null;
   facebookUrl?: string | null;
 }
@@ -25,7 +25,7 @@ export function BillSponsorCard({
   officeAddress,
   phone,
   websiteUrl,
-  contactForm,
+  contactUrl,
   twitterHandle,
   facebookUrl,
 }: BillSponsorCardProps) {
@@ -106,9 +106,9 @@ export function BillSponsorCard({
                 Official Website
               </a>
             )}
-            {contactForm && (
+            {contactUrl && (
               <a
-                href={contactForm}
+                href={contactUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 text-sm text-primary hover:underline"

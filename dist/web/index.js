@@ -1,4 +1,4 @@
-globalThis.__RAINDROP_GIT_COMMIT_SHA = "669a82a1d28fbed180ab6da9b6dc477eca4d3e8e"; 
+globalThis.__RAINDROP_GIT_COMMIT_SHA = "53b492ac61ba7ae12ec5c323b82ba3ca3c6463d7"; 
 
 // node_modules/@liquidmetal-ai/raindrop-framework/dist/core/cors.js
 var matchOrigin = (request, env, config) => {
@@ -325,7 +325,7 @@ var web_default = class extends Service {
               r.office_address as sponsor_office_address,
               r.phone as sponsor_phone,
               r.website_url as sponsor_website_url,
-              r.contact_form as sponsor_contact_form,
+              r.contact_url as sponsor_contact_url,
               r.twitter_handle as sponsor_twitter_handle,
               r.facebook_url as sponsor_facebook_url
             FROM bills b
