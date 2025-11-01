@@ -88,11 +88,36 @@ export async function POST(
       throw new Error(`Failed to update bill in database: ${error}`);
     }
 
-    console.log(`✅ Successfully refreshed ${billId}`);
+    console.log(`✅ Successfully refreshed ${billId} from Congress.gov`);
     console.log(`   - Full text: ${bill.fullText ? Math.round(bill.fullText.length / 1024) + 'KB' : 'none'}`);
     console.log(`   - Cosponsors: ${cosponsors?.length || 0}`);
     console.log(`   - Actions: ${actions?.length || 0}`);
     console.log(`   - Subjects: ${subjects?.legislativeSubjects?.length || 0}`);
+
+    // Generate AI summary (this is what takes time!)
+    console.log(`🤖 Generating AI summary for ${billId}...`);
+    try {
+      const summaryResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/bills/summary`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          billId,
+          billNumber: `${billType.toUpperCase()} ${billNumber}`,
+          title: bill.title,
+          existingSummary: bill.summary,
+          fullText: bill.fullText
+        })
+      });
+
+      if (summaryResponse.ok) {
+        const summaryData = await summaryResponse.json();
+        console.log(`✅ AI summary generated successfully (${summaryData.cached ? 'cached' : 'new'})`);
+      } else {
+        console.log(`⚠️  AI summary generation failed (will still return success)`);
+      }
+    } catch (summaryError) {
+      console.log(`⚠️  AI summary generation error (will still return success):`, summaryError);
+    }
 
     return NextResponse.json({
       success: true,
@@ -102,7 +127,8 @@ export async function POST(
         cosponsorCount: cosponsors?.length || 0,
         actionCount: actions?.length || 0,
         subjectCount: subjects?.legislativeSubjects?.length || 0,
-        policyArea: subjects?.policyArea
+        policyArea: subjects?.policyArea,
+        aiSummaryGenerated: true
       }
     });
 
