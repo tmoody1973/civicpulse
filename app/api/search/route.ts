@@ -108,6 +108,7 @@ async function directedSearch(congress: number, billType: string, billNumber: nu
 async function algoliaSearch(
   query: string,
   limit: number = 20,
+  page: number = 1,
   filters: {
     status?: string;
     billType?: string;
@@ -153,6 +154,7 @@ async function algoliaSearch(
     const searchResult = await smartSearch(query, {
       filters: algoliaFilters.join(' AND '),
       hitsPerPage: limit,
+      page: page - 1, // Algolia uses 0-indexed pages
     });
 
     // Debug: Log first hit to see what Algolia returns
@@ -333,6 +335,7 @@ function applyFilters(results: any[], filters: {
 async function semanticSearch(
   query: string,
   limit: number = 20,
+  page: number = 1,
   filters: {
     status?: string;
     billType?: string;
@@ -344,8 +347,9 @@ async function semanticSearch(
   } = {}
 ) {
   try {
-    // Fetch more results than limit to account for filtering
-    const fetchLimit = Object.keys(filters).length > 0 ? limit * 3 : limit;
+    // Fetch more results to support pagination and filtering
+    // Get enough results for current page + some buffer for filtering
+    const fetchLimit = Math.max(limit * page * 2, 100);
 
     const response = await fetch(`${RAINDROP_SERVICE_URL}/api/smartbucket/search`, {
       method: 'POST',
@@ -410,13 +414,17 @@ async function semanticSearch(
     // Apply filters
     const filteredResults = applyFilters(enrichedResults, filters);
 
-    // Limit to requested amount
-    const finalResults = filteredResults.slice(0, limit);
+    // Paginate results
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const finalResults = filteredResults.slice(startIndex, endIndex);
 
     return {
       results: finalResults,
-      total: data.pagination?.total || normalizedResults.length,
+      total: filteredResults.length, // Total matching results after filtering
       filtered: filteredResults.length,
+      page,
+      totalPages: Math.ceil(filteredResults.length / limit),
     };
   } catch (error) {
     console.error('Semantic search error:', error);
@@ -431,6 +439,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const query = searchParams.get('q');
     const limitParam = searchParams.get('limit');
+    const pageParam = searchParams.get('page');
     const strategyParam = searchParams.get('strategy'); // explicit strategy override
 
     // Get filter parameters
@@ -450,6 +459,7 @@ export async function GET(req: NextRequest) {
     }
 
     const limit = limitParam ? parseInt(limitParam, 10) : 20;
+    const page = pageParam ? parseInt(pageParam, 10) : 1;
     const hasFilters = !!(party || status || category || state || billType || congress || hasFullText);
 
     // Determine optimal search strategy
@@ -469,8 +479,8 @@ export async function GET(req: NextRequest) {
 
     // Route to appropriate search method
     if (strategy === 'algolia') {
-      console.log(`⚡ Algolia fast search: "${query}"`);
-      const { results, total, searchTime } = await algoliaSearch(query, limit, filterObj);
+      console.log(`⚡ Algolia fast search: "${query}" (page ${page})`);
+      const { results, total, searchTime } = await algoliaSearch(query, limit, page, filterObj);
 
       const duration = Date.now() - start;
       console.log(`✅ Algolia search completed in ${duration}ms, found ${results.length} result(s)`);
@@ -486,7 +496,9 @@ export async function GET(req: NextRequest) {
           algoliaTime: searchTime,
           count: results.length,
           total,
+          page,
           limit,
+          totalPages: Math.ceil(total / limit),
           strategyUsed: 'Algolia fast keyword search',
           filtersApplied: hasFilters,
         }
@@ -494,10 +506,10 @@ export async function GET(req: NextRequest) {
     }
 
     if (strategy === 'hybrid') {
-      console.log(`🔄 Hybrid search: Trying Algolia first...`);
+      console.log(`🔄 Hybrid search (page ${page}): Trying Algolia first...`);
 
       // Try Algolia first
-      const { results: algoliaResults, total: algoliaTotal, searchTime } = await algoliaSearch(query, limit, filterObj);
+      const { results: algoliaResults, total: algoliaTotal, searchTime } = await algoliaSearch(query, limit, page, filterObj);
 
       // If we got good results (5+), return them
       if (algoliaResults.length >= 5) {
@@ -515,7 +527,9 @@ export async function GET(req: NextRequest) {
             algoliaTime: searchTime,
             count: algoliaResults.length,
             total: algoliaTotal,
+            page,
             limit,
+            totalPages: Math.ceil(algoliaTotal / limit),
             strategyUsed: 'Algolia (hybrid - sufficient results)',
             filtersApplied: hasFilters,
           }
@@ -524,7 +538,7 @@ export async function GET(req: NextRequest) {
 
       // Not enough Algolia results, try SmartBuckets
       console.log(`⚠️ Algolia returned only ${algoliaResults.length} results, trying SmartBuckets...`);
-      const { results: semanticResults, total: semanticTotal, filtered } = await semanticSearch(query, limit, filterObj);
+      const { results: semanticResults, total: semanticTotal, filtered, page: semanticPage, totalPages } = await semanticSearch(query, limit, page, filterObj);
 
       const duration = Date.now() - start;
       console.log(`✅ Hybrid search (SmartBuckets fallback): Found ${semanticResults.length} results in ${duration}ms`);
@@ -542,7 +556,9 @@ export async function GET(req: NextRequest) {
           count: semanticResults.length,
           total: semanticTotal,
           filtered,
+          page: semanticPage,
           limit,
+          totalPages,
           strategyUsed: 'SmartBuckets AI (hybrid - Algolia insufficient)',
           filtersApplied: hasFilters,
         }
@@ -550,8 +566,8 @@ export async function GET(req: NextRequest) {
     }
 
     // Default: Semantic search
-    console.log(`🤖 SmartBuckets AI semantic search: "${query}"`);
-    const { results, total, filtered } = await semanticSearch(query, limit, filterObj);
+    console.log(`🤖 SmartBuckets AI semantic search: "${query}" (page ${page})`);
+    const { results, total, filtered, page: semanticPage, totalPages } = await semanticSearch(query, limit, page, filterObj);
 
     const duration = Date.now() - start;
     console.log(`✅ Semantic search completed in ${duration}ms, found ${results.length} result(s) ${hasFilters ? `(${filtered} after filtering)` : ''}`);
@@ -567,7 +583,9 @@ export async function GET(req: NextRequest) {
         count: results.length,
         total,
         filtered: hasFilters ? filtered : undefined,
+        page: semanticPage,
         limit,
+        totalPages,
         strategyUsed: 'SmartBuckets AI semantic search',
         filtersApplied: hasFilters,
       }

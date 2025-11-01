@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { ClientHeader } from '@/components/shared/client-header';
 
 interface SearchResult {
   id: string;
@@ -131,6 +132,7 @@ export default function SearchPage() {
   const [loading, setLoading] = useState(false);
   const [searchResponse, setSearchResponse] = useState<SearchResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [authChecking, setAuthChecking] = useState(true);
 
   // Pagination
   const [page, setPage] = useState(1);
@@ -156,6 +158,26 @@ export default function SearchPage() {
     lawsOnly: false,
   });
 
+  // Check authentication on mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const response = await fetch('/api/auth/session');
+        const data = await response.json();
+        if (!data.user) {
+          // User not logged in, redirect to login
+          router.push('/auth/login');
+        } else {
+          setAuthChecking(false);
+        }
+      } catch (error) {
+        console.error('Auth check failed:', error);
+        router.push('/auth/login');
+      }
+    };
+    checkAuth();
+  }, [router]);
+
   // Load tracked bills on mount
   useEffect(() => {
     const loadTrackedBills = async () => {
@@ -172,14 +194,22 @@ export default function SearchPage() {
     loadTrackedBills();
   }, [userId]);
 
+  // Store current search query for pagination
+  const [currentSearchQuery, setCurrentSearchQuery] = useState(initialQuery);
+
   useEffect(() => {
     if (initialQuery) {
+      setCurrentSearchQuery(initialQuery);
+      setPage(1); // Reset to page 1 on new search
       performSearch(initialQuery);
     }
   }, [initialQuery]);
 
-  // Scroll to top when page changes
+  // Trigger new search when page changes (for server-side pagination)
   useEffect(() => {
+    if (currentSearchQuery && page > 1) {
+      performSearch(currentSearchQuery);
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [page]);
 
@@ -192,7 +222,8 @@ export default function SearchPage() {
     try {
       const params = new URLSearchParams({
         q: searchQuery,
-        limit: '200', // Fetch up to 200 results for client-side pagination
+        limit: pageSize.toString(),
+        page: page.toString(),
       });
 
       // Add filters
@@ -217,6 +248,7 @@ export default function SearchPage() {
       }
 
       setSearchResponse(data);
+      // Use server-side total from pagination metadata
       setTotalResults(data.meta.total || data.results.length);
 
       // Apply client-side sorting
@@ -247,6 +279,8 @@ export default function SearchPage() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
+    setCurrentSearchQuery(query);
+    setPage(1); // Reset to page 1 on new search
     performSearch(query);
   };
 
@@ -326,10 +360,27 @@ export default function SearchPage() {
   const layerInfo = searchResponse ? LAYER_INFO[searchResponse.searchType as keyof typeof LAYER_INFO] : null;
   const LayerIcon = layerInfo?.icon;
 
+  // Show loading state while checking authentication
+  if (authChecking) {
+    return (
+      <>
+        <ClientHeader />
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-gray-400" />
+            <p className="text-muted-foreground">Loading...</p>
+          </div>
+        </div>
+      </>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b sticky top-0 z-10">
+    <>
+      <ClientHeader />
+      <div className="min-h-screen bg-gray-50">
+        {/* Search Bar */}
+        <div className="bg-white border-b sticky top-16 z-10">
         <div className="container mx-auto px-4 py-4">
           <form onSubmit={handleSearch} className="flex gap-2">
             <div className="flex-1 relative">
@@ -582,9 +633,7 @@ export default function SearchPage() {
         {!loading && results.length > 0 && (
           <>
             <div className="space-y-4">
-              {results
-                .slice((page - 1) * pageSize, page * pageSize)
-                .map((bill) => {
+              {results.map((bill, index) => {
               // Skip bills with missing required fields
               if (!bill.bill_type || !bill.bill_number || !bill.title) {
                 console.warn('Skipping bill with missing data:', bill);
@@ -604,7 +653,7 @@ export default function SearchPage() {
               const hasRelevanceScore = typeof bill.relevance_score === 'number';
 
               return (
-                <div key={bill.id} className="space-y-2">
+                <div key={`${bill.id}-${index}`} className="space-y-2">
                   {/* Relevance Indicator for Semantic Search */}
                   {isSemanticSearch && hasRelevanceScore && (
                     <div className="flex items-center gap-2 text-sm">
@@ -776,5 +825,6 @@ export default function SearchPage() {
         })()}
       </div>
     </div>
+    </>
   );
 }
