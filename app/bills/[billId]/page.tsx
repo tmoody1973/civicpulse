@@ -116,29 +116,33 @@ export default function BillDetailsPage() {
     checkAuth();
   }, [router]);
 
-  // Fetch bill data
-  useEffect(() => {
-    async function fetchBill() {
-      try {
-        const response = await fetch(`/api/bills/${billId}`);
-        if (!response.ok) throw new Error('Failed to fetch bill');
-        const data = await response.json();
-        const billData = data.bill || data;
-        setBill(billData);
+  // Fetch bill data function (extracted so it can be reused)
+  const fetchBill = async (skipRefreshCheck = false) => {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/bills/${billId}`);
+      if (!response.ok) throw new Error('Failed to fetch bill');
+      const data = await response.json();
+      const billData = data.bill || data;
+      setBill(billData);
 
-        // Auto-sync: Refresh bill if stale or missing full text
+      // Auto-sync: Refresh bill if stale or missing full text
+      if (!skipRefreshCheck) {
         const needsRefresh = checkIfBillNeedsRefresh(billData);
         if (needsRefresh.shouldRefresh) {
           console.log(`🔄 Auto-refreshing ${billId}: ${needsRefresh.reason}`);
           triggerBillRefresh(billId);
         }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load bill');
-      } finally {
-        setLoading(false);
       }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load bill');
+    } finally {
+      setLoading(false);
     }
+  };
 
+  // Fetch bill data on mount
+  useEffect(() => {
     fetchBill();
   }, [billId]);
 
@@ -179,8 +183,9 @@ export default function BillDetailsPage() {
           const data = await response.json();
           console.log(`✅ Bill refreshed successfully:`, data.updated);
 
-          // Optionally re-fetch bill to show updated data
-          // (User will see updates on next page load or we can trigger a state update)
+          // Re-fetch bill to show updated data immediately
+          console.log('🔄 Reloading bill data to show updates...');
+          await fetchBill(true); // Skip refresh check to avoid infinite loop
         } else {
           console.warn(`⚠️  Bill refresh failed (${response.status})`);
         }
