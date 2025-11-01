@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import { Alert } from '@/components/ui/alert';
 import { BillAnalysis } from '@/lib/ai/cerebras';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { ClientHeader } from '@/components/shared/client-header';
 import { BillProgressTimeline } from '@/components/bills/bill-progress-timeline';
 import { BillTldrCard } from '@/components/bills/bill-tldr-card';
 import { BillSponsorCard } from '@/components/bills/bill-sponsor-card';
@@ -65,7 +66,24 @@ interface ChatMessage {
 
 export default function BillDetailsPage() {
   const params = useParams();
-  const billId = params.billId as string;
+  const router = useRouter();
+  const rawBillId = params.billId as string;
+
+  // Normalize bill ID format
+  // Handle both "119-s-3038" (correct) and "s3038-119" (old format)
+  const billId = (() => {
+    const parts = rawBillId.split('-');
+    if (parts.length === 2) {
+      // Format: "s3038-119" -> convert to "119-s-3038"
+      const [typeNum, congress] = parts;
+      const match = typeNum.match(/^([a-z]+)(\d+)$/i);
+      if (match) {
+        return `${congress}-${match[1].toLowerCase()}-${match[2]}`;
+      }
+    }
+    // Already correct format or unknown format, use as-is
+    return rawBillId;
+  })();
 
   const [bill, setBill] = useState<Bill | null>(null);
   const [analysis, setAnalysis] = useState<BillAnalysis | null>(null);
@@ -75,6 +93,27 @@ export default function BillDetailsPage() {
   const [chatLoading, setChatLoading] = useState(false);
   const [analysisLoading, setAnalysisLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [authChecking, setAuthChecking] = useState(true);
+
+  // Check authentication on mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const response = await fetch('/api/auth/session');
+        const data = await response.json();
+        if (!data.user) {
+          // User not logged in, redirect to login
+          router.push('/auth/login');
+        } else {
+          setAuthChecking(false);
+        }
+      } catch (error) {
+        console.error('Auth check failed:', error);
+        router.push('/auth/login');
+      }
+    };
+    checkAuth();
+  }, [router]);
 
   // Fetch bill data
   useEffect(() => {
@@ -99,9 +138,15 @@ export default function BillDetailsPage() {
     async function fetchAnalysis() {
       try {
         const response = await fetch(`/api/bills/${billId}/analysis`);
-        if (!response.ok) throw new Error('Failed to fetch analysis');
+        if (!response.ok) {
+          // Analysis is optional - log but don't throw
+          console.warn(`Analysis fetch failed with status ${response.status}`);
+          return;
+        }
         const data = await response.json();
-        setAnalysis(data.analysis);
+        if (data.analysis) {
+          setAnalysis(data.analysis);
+        }
       } catch (err) {
         console.error('Analysis error:', err);
         // Don't set error - analysis is optional
@@ -134,22 +179,77 @@ export default function BillDetailsPage() {
 
       if (!response.ok) throw new Error('Failed to get answer');
 
-      const data = await response.json();
-      const assistantMessage: ChatMessage = {
-        role: 'assistant',
-        content: data.answer,
-        source: data.source,
-        similarBills: data.similarBills || undefined,
-      };
+      // Check if response is streaming
+      const contentType = response.headers.get('Content-Type');
+      if (contentType?.includes('text/event-stream')) {
+        // Handle streaming response
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
+        let streamedContent = '';
+        let metadata: any = null;
 
-      setChatMessages((prev) => [...prev, assistantMessage]);
+        if (!reader) throw new Error('No reader available');
+
+        // Add placeholder message that will be updated
+        const messageIndex = chatMessages.length + 1; // +1 for user message already added
+        setChatMessages((prev) => [
+          ...prev,
+          { role: 'assistant', content: '', source: 'cerebras' },
+        ]);
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value);
+          const lines = chunk.split('\n');
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = JSON.parse(line.slice(6));
+
+              if (data.type === 'metadata') {
+                metadata = data.data;
+              } else if (data.type === 'chunk') {
+                streamedContent += data.data;
+                // Update the last message with accumulated content
+                setChatMessages((prev) => {
+                  const newMessages = [...prev];
+                  newMessages[messageIndex] = {
+                    role: 'assistant',
+                    content: streamedContent,
+                    source: metadata?.source || 'cerebras',
+                  };
+                  return newMessages;
+                });
+              } else if (data.type === 'done') {
+                setChatLoading(false);
+              } else if (data.type === 'error') {
+                throw new Error(data.error);
+              }
+            }
+          }
+        }
+      } else {
+        // Handle non-streaming response (SmartBucket, similar bills)
+        const data = await response.json();
+        const assistantMessage: ChatMessage = {
+          role: 'assistant',
+          content: data.answer,
+          source: data.source,
+          similarBills: data.similarBills || undefined,
+        };
+
+        setChatMessages((prev) => [...prev, assistantMessage]);
+        setChatLoading(false);
+      }
     } catch (err) {
+      console.error('Chat error:', err);
       const errorMessage: ChatMessage = {
         role: 'assistant',
         content: 'Sorry, I encountered an error answering your question. Please try again.',
       };
       setChatMessages((prev) => [...prev, errorMessage]);
-    } finally {
       setChatLoading(false);
     }
   };
@@ -163,9 +263,26 @@ export default function BillDetailsPage() {
     'Who opposes this bill and why?',
   ];
 
+  // Show loading state while checking authentication
+  if (authChecking) {
+    return (
+      <>
+        <ClientHeader />
+        <div className="container mx-auto px-4 py-8 max-w-6xl flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="w-12 h-12 border-4 border-gray-200 border-t-gray-600 rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading...</p>
+          </div>
+        </div>
+      </>
+    );
+  }
+
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
+      <>
+        <ClientHeader />
+        <div className="container mx-auto px-4 py-8 max-w-6xl">
         <Skeleton className="h-12 w-3/4 mb-4" />
         <Skeleton className="h-6 w-1/2 mb-8" />
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -178,17 +295,21 @@ export default function BillDetailsPage() {
           </div>
         </div>
       </div>
+      </>
     );
   }
 
   if (error || !bill) {
     return (
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
+      <>
+        <ClientHeader />
+        <div className="container mx-auto px-4 py-8 max-w-6xl">
         <Alert variant="destructive">
           <p className="font-semibold">Error</p>
           <p>{error || 'Bill not found'}</p>
         </Alert>
       </div>
+      </>
     );
   }
 
@@ -199,8 +320,10 @@ export default function BillDetailsPage() {
   }[bill.sponsor_party || ''] || 'bg-gray-100 text-gray-800';
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-6xl">
-      {/* Hero Section */}
+    <>
+      <ClientHeader />
+      <div className="container mx-auto px-4 py-8 max-w-6xl">
+        {/* Hero Section */}
       <div className="mb-8">
         <div className="flex items-center gap-2 mb-3">
           <Badge variant="outline" className="text-sm font-mono">
@@ -278,9 +401,15 @@ export default function BillDetailsPage() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Content */}
-        <div className="lg:col-span-2 space-y-6">
+      {/* Tabs for Bill Details and Chat */}
+      <Tabs defaultValue="details" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="details">Bill Details</TabsTrigger>
+          <TabsTrigger value="chat">Ask About the Bill</TabsTrigger>
+        </TabsList>
+
+        {/* Bill Details Tab */}
+        <TabsContent value="details" className="space-y-6">
           {/* Quick Facts */}
           <Card>
             <CardHeader>
@@ -517,11 +646,11 @@ export default function BillDetailsPage() {
               </Tabs>
             </CardContent>
           </Card>
-        </div>
+        </TabsContent>
 
-        {/* Chat Sidebar */}
-        <div className="lg:col-span-1">
-          <Card className="sticky top-4 h-[calc(100vh-2rem)] flex flex-col">
+        {/* Ask About the Bill Tab */}
+        <TabsContent value="chat" className="space-y-6">
+          <Card className="h-[calc(100vh-16rem)] flex flex-col">
             <CardHeader>
               <CardTitle>Ask About This Bill</CardTitle>
               <CardDescription>
@@ -566,7 +695,11 @@ export default function BillDetailsPage() {
                     }`}
                   >
                     {/* Markdown-rendered content */}
-                    <div className="text-sm prose prose-sm dark:prose-invert max-w-none prose-p:my-2 prose-headings:my-2 prose-li:my-1">
+                    <div className={`text-sm prose prose-sm max-w-none prose-p:my-2 prose-headings:my-2 prose-li:my-1 ${
+                      msg.role === 'user'
+                        ? 'prose-invert'
+                        : 'dark:prose-invert'
+                    }`}>
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm]}
                         components={{
@@ -610,9 +743,13 @@ export default function BillDetailsPage() {
                     {msg.similarBills && msg.similarBills.length > 0 && (
                       <div className="mt-3 space-y-2">
                         <p className="text-xs font-semibold opacity-80">Related Bills:</p>
-                        {msg.similarBills.map((similarBill) => (
+                        {msg.similarBills
+                          .filter((bill, index, self) =>
+                            index === self.findIndex(b => b.id === bill.id)
+                          )
+                          .map((similarBill, index) => (
                           <a
-                            key={similarBill.id}
+                            key={`${similarBill.id}-${index}`}
                             href={`/bills/${similarBill.id}`}
                             className="block p-2 bg-background/50 rounded border border-border/50 hover:bg-background/80 transition-colors"
                           >
@@ -672,8 +809,9 @@ export default function BillDetailsPage() {
               </form>
             </CardContent>
           </Card>
-        </div>
-      </div>
+        </TabsContent>
+      </Tabs>
     </div>
+    </>
   );
 }

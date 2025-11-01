@@ -356,6 +356,82 @@ Keep it concise (3-4 paragraphs max) and focus on helping citizens understand th
 }
 
 /**
+ * Answer a specific question about a bill using Cerebras (streaming)
+ * Returns an async iterable for streaming responses
+ */
+export async function* answerBillQuestionStream(
+  bill: Bill,
+  question: string,
+  context?: string
+): AsyncIterable<string> {
+  const cerebras = getCerebrasClient();
+  if (!cerebras) {
+    yield `I'm currently unable to answer questions about bills. However, based on the available information: ${bill.summary || bill.title}. Please check the official bill summary for more details.`;
+    return;
+  }
+
+  const billInfo = `
+Bill Number: ${bill.bill_type.toUpperCase()} ${bill.bill_number}
+Title: ${bill.title}
+${bill.sponsor_name ? `Sponsor: ${bill.sponsor_name} (${bill.sponsor_party || 'Unknown Party'})` : ''}
+${bill.introduced_date ? `Introduced: ${bill.introduced_date}` : ''}
+${bill.latest_action_text ? `Latest Action: ${bill.latest_action_text}` : ''}
+${bill.summary ? `\nOfficial Summary:\n${bill.summary}` : ''}
+${context ? `\nAdditional Context:\n${context}` : ''}
+`.trim();
+
+  const prompt = `You are a helpful legislative assistant. Answer the user's question about this bill based on the available information.
+
+${billInfo}
+
+User Question: ${question}
+
+CRITICAL INSTRUCTIONS:
+- ONLY use information from the bill details provided above
+- DO NOT make up page numbers, section numbers, or citations
+- DO NOT quote or cite specific sections that aren't in the summary above
+- DO NOT fabricate statistics or data that aren't explicitly stated
+- If the question asks about specific details not in the summary, say "The available summary doesn't include that specific detail"
+- Use plain language and be conversational
+- If full text isn't available, work with the title, summary, and latest action only
+- Be honest about what information is available and what isn't
+
+Answer:`;
+
+  try {
+    const stream = await cerebras.chat.completions.create({
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a helpful legislative assistant. Answer questions about bills clearly and accurately.',
+        },
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+      model: 'gpt-oss-120b',
+      stream: true,
+      max_completion_tokens: 500,
+      temperature: 0.4,
+      top_p: 1,
+      reasoning_effort: 'high',
+    });
+
+    for await (const chunk of stream) {
+      const choices = chunk.choices as Array<{ delta?: { content?: string } }>;
+      const content = choices[0]?.delta?.content || '';
+      if (content) {
+        yield content;
+      }
+    }
+  } catch (error) {
+    console.error('Cerebras API error:', error);
+    throw new Error('Failed to answer question');
+  }
+}
+
+/**
  * Answer a specific question about a bill using Cerebras
  * (Used when SmartBucket documentChat is not available)
  */
@@ -385,12 +461,15 @@ ${billInfo}
 
 User Question: ${question}
 
-Instructions:
-- Provide a clear, helpful answer based on the bill information above
-- If the question asks about specific details not in the summary, explain what we know and acknowledge what's not available
+CRITICAL INSTRUCTIONS:
+- ONLY use information from the bill details provided above
+- DO NOT make up page numbers, section numbers, or citations
+- DO NOT quote or cite specific sections that aren't in the summary above
+- DO NOT fabricate statistics or data that aren't explicitly stated
+- If the question asks about specific details not in the summary, say "The available summary doesn't include that specific detail"
 - Use plain language and be conversational
-- If full text isn't available, work with the title, summary, and latest action
-- If you truly cannot answer due to lack of information, suggest what kind of information would be needed
+- If full text isn't available, work with the title, summary, and latest action only
+- Be honest about what information is available and what isn't
 
 Answer:`;
 

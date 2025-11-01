@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Radio, Loader2, Phone, MapPin, Twitter, Facebook, Youtube, Instagram } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -26,6 +27,8 @@ interface NewsArticle {
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
+
   // Mock user interests (would come from user preferences in real app)
   const userInterests = ['healthcare', 'technology', 'defense', 'finance', 'transportation'];
 
@@ -43,12 +46,33 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [newsLoading, setNewsLoading] = useState(true);
   const [userLocation, setUserLocation] = useState<{ state: string; district: number; city?: string } | null>(null);
+  const [authChecking, setAuthChecking] = useState(true);
 
   // Podcast state
   const [podcasts, setPodcasts] = useState<PodcastEpisode[]>([]);
   const [currentPodcast, setCurrentPodcast] = useState<PodcastEpisode | null>(null);
   const [generatingPodcast, setGeneratingPodcast] = useState(false);
   const [podcastError, setPodcastError] = useState<string | null>(null);
+
+  // Check authentication on mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const response = await fetch('/api/auth/session');
+        const data = await response.json();
+        if (!data.user) {
+          // User not logged in, redirect to login
+          router.push('/auth/login');
+        } else {
+          setAuthChecking(false);
+        }
+      } catch (error) {
+        console.error('Auth check failed:', error);
+        router.push('/auth/login');
+      }
+    };
+    checkAuth();
+  }, [router]);
 
   // Fetch news articles when component mounts or when selected feeds change
   useEffect(() => {
@@ -208,6 +232,18 @@ export default function DashboardPage() {
   // Separate senators and house rep
   const senators = representatives.filter(r => r.chamber === 'Senate');
   const houseRep = representatives.filter(r => r.chamber === 'House')[0];
+
+  // Show loading state while checking authentication
+  if (authChecking) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-gray-400" />
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">

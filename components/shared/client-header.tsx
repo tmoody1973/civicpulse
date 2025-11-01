@@ -1,11 +1,32 @@
-import { getSession } from '@/lib/auth/session';
+'use client';
+
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import Image from 'next/image';
-import { LogOut, User } from 'lucide-react';
+import { LogOut, User, Menu } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+} from '@/components/ui/sheet';
 
-export async function AppHeader() {
-  const user = await getSession();
+export function ClientHeader() {
+  const [user, setUser] = useState<{ email: string } | null>(null);
+
+  useEffect(() => {
+    // Check if user is logged in via session
+    fetch('/api/auth/session')
+      .then(res => res.json())
+      .then(data => {
+        if (data.user) {
+          setUser(data.user);
+        }
+      })
+      .catch(() => {
+        // User not logged in
+      });
+  }, []);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -23,7 +44,7 @@ export async function AppHeader() {
             />
           </Link>
 
-          {/* Navigation */}
+          {/* Desktop Navigation */}
           {user && (
             <nav className="hidden md:flex items-center gap-6">
               <Link
@@ -57,8 +78,47 @@ export async function AppHeader() {
                   <span>{user.email}</span>
                 </div>
 
-                {/* Sign out button */}
-                <form action="/auth/logout" method="POST">
+                {/* Mobile menu */}
+                <Sheet>
+                  <SheetTrigger asChild className="md:hidden">
+                    <Button variant="ghost" size="sm">
+                      <Menu className="h-5 w-5" />
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent>
+                    <div className="flex flex-col gap-4 mt-8">
+                      <Link
+                        href="/dashboard"
+                        className="text-lg font-medium hover:text-primary transition-colors"
+                      >
+                        Dashboard
+                      </Link>
+                      <Link
+                        href="/search"
+                        className="text-lg font-medium hover:text-primary transition-colors"
+                      >
+                        Search
+                      </Link>
+                      <Link
+                        href="/onboarding"
+                        className="text-lg font-medium hover:text-primary transition-colors"
+                      >
+                        Settings
+                      </Link>
+                      <div className="pt-4 border-t">
+                        <form action="/auth/logout" method="POST">
+                          <Button variant="ghost" className="w-full justify-start" type="submit">
+                            <LogOut className="h-4 w-4 mr-2" />
+                            Sign Out
+                          </Button>
+                        </form>
+                      </div>
+                    </div>
+                  </SheetContent>
+                </Sheet>
+
+                {/* Sign out button (desktop) */}
+                <form action="/auth/logout" method="POST" className="hidden md:block">
                   <Button variant="ghost" size="sm" type="submit">
                     <LogOut className="h-4 w-4 mr-2" />
                     Sign Out

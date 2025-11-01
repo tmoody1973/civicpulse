@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { answerBillQuestion, generateSimilarBillsExplanation } from '@/lib/ai/cerebras';
+import { answerBillQuestion, answerBillQuestionStream, generateSimilarBillsExplanation } from '@/lib/ai/cerebras';
 
 const RAINDROP_SERVICE_URL = process.env.RAINDROP_SERVICE_URL;
 
@@ -140,7 +140,7 @@ export async function POST(
       });
     }
 
-    // If SmartBucket indicated fallback needed, use Cerebras
+    // If SmartBucket indicated fallback needed, use Cerebras with streaming
     if (raindropData.useFallback) {
       // Fetch complete bill data for better context
       const billResponse = await fetch(`${RAINDROP_SERVICE_URL}/api/bills?id=${billId}`);
@@ -166,14 +166,44 @@ export async function POST(
 
       // Use summary as additional context if available
       const context = fullBill.summary || fullBill.latest_action_text || undefined;
-      const answer = await answerBillQuestion(bill, question, context);
 
-      return NextResponse.json({
-        success: true,
-        answer,
-        source: 'cerebras',
-        billId,
-        note: raindropData.message || 'Using AI fallback - bill may not have full text yet',
+      // Create a streaming response
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream({
+        async start(controller) {
+          try {
+            // Send metadata first
+            const metadata = {
+              success: true,
+              source: 'cerebras',
+              billId,
+              note: raindropData.message || 'Using AI fallback - bill may not have full text yet',
+              streaming: true,
+            };
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'metadata', data: metadata })}\n\n`));
+
+            // Stream the answer
+            for await (const chunk of answerBillQuestionStream(bill, question, context)) {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'chunk', data: chunk })}\n\n`));
+            }
+
+            // Send done signal
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'done' })}\n\n`));
+            controller.close();
+          } catch (error) {
+            console.error('Streaming error:', error);
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'error', error: 'Streaming failed' })}\n\n`));
+            controller.close();
+          }
+        },
+      });
+
+      return new Response(stream, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+        },
       });
     }
 

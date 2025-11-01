@@ -8,13 +8,15 @@
  * Example: /representatives/W000817 (Elizabeth Warren)
  */
 
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RepresentativeHeader } from '@/components/representatives/representative-header';
 import { QuickStats } from '@/components/representatives/quick-stats';
 import { LegislationTabs } from '@/components/representatives/legislation-tabs';
+import { AppHeader } from '@/components/shared/app-header';
+import { getSession } from '@/lib/auth/session';
 
 interface PageProps {
   params: Promise<{
@@ -49,6 +51,12 @@ async function getRepresentativeData(bioguideId: string) {
 }
 
 export default async function RepresentativePage({ params }: PageProps) {
+  // Check authentication
+  const user = await getSession();
+  if (!user) {
+    redirect('/auth/login');
+  }
+
   // Next.js 16: params must be awaited
   const { bioguideId } = await params;
 
@@ -63,8 +71,10 @@ export default async function RepresentativePage({ params }: PageProps) {
   const { representative, sponsoredBills, cosponsoredBills, stats } = data;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
-      {/* Navigation breadcrumb */}
+    <>
+      <AppHeader />
+      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+        {/* Navigation breadcrumb */}
       <div className="bg-white border-b">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center gap-4">
@@ -102,11 +112,20 @@ export default async function RepresentativePage({ params }: PageProps) {
         </div>
       </div>
     </div>
+    </>
   );
 }
 
 // Generate metadata for SEO
 export async function generateMetadata({ params }: PageProps) {
+  // Check authentication
+  const user = await getSession();
+  if (!user) {
+    return {
+      title: 'Sign In Required | Civic Pulse',
+    };
+  }
+
   // Next.js 16: params must be awaited
   const { bioguideId } = await params;
 
