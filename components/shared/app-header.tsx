@@ -16,8 +16,8 @@ export async function AppHeader() {
             <Image
               src="/hakivo-logo.svg"
               alt="HakiVo - Making Congress Accessible"
-              width={150}
-              height={45}
+              width={105}
+              height={32}
               priority
               className="dark:brightness-90"
             />
