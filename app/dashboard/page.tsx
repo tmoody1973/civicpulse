@@ -63,7 +63,12 @@ export default function DashboardPage() {
         if (!data.user) {
           // User not logged in, redirect to login
           router.push('/auth/login');
+        } else if (!data.user.onboardingCompleted) {
+          // User logged in but hasn't completed onboarding
+          console.log('⚠️  Onboarding not completed, redirecting...');
+          router.push('/onboarding');
         } else {
+          // User authenticated and onboarded
           setAuthChecking(false);
         }
       } catch (error) {

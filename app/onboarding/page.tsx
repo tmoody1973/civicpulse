@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ZipCodeLookup } from '@/components/onboarding/zip-code-lookup';
 import { RepresentativeCards } from '@/components/onboarding/representative-cards';
@@ -44,6 +44,24 @@ export default function OnboardingPage() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const [data, setData] = useState<OnboardingData>(INITIAL_ONBOARDING_DATA);
+
+  // Check if user already completed onboarding
+  useEffect(() => {
+    const checkOnboardingStatus = async () => {
+      try {
+        const response = await fetch('/api/auth/session');
+        const sessionData = await response.json();
+        if (sessionData.user?.onboardingCompleted) {
+          // User already completed onboarding, redirect to dashboard
+          console.log('✅ Onboarding already completed, redirecting to dashboard');
+          router.push('/dashboard');
+        }
+      } catch (error) {
+        console.error('Error checking onboarding status:', error);
+      }
+    };
+    checkOnboardingStatus();
+  }, [router]);
 
   const handleLookupSuccess = (result: LookupResult) => {
     setData({

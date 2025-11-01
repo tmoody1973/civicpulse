@@ -23,6 +23,7 @@ export interface User {
   firstName: string | null;
   lastName: string | null;
   profilePictureUrl: string | null;
+  onboardingCompleted: boolean;
 }
 
 interface SessionPayload {
@@ -65,9 +66,9 @@ export async function getSession(): Promise<User | null> {
     // Verify and decode JWT
     const payload = jwt.verify(sessionToken, JWT_SECRET) as SessionPayload;
 
-    // Look up user from database
+    // Look up user from database including onboarding status
     const result = await executeQuery(
-      `SELECT id, email, created_at, updated_at FROM users WHERE id = '${payload.userId}' LIMIT 1`,
+      `SELECT id, email, onboarding_completed, created_at, updated_at FROM users WHERE id = '${payload.userId}' LIMIT 1`,
       'users'
     );
 
@@ -83,6 +84,7 @@ export async function getSession(): Promise<User | null> {
       firstName: null,
       lastName: null,
       profilePictureUrl: null,
+      onboardingCompleted: Boolean(user.onboarding_completed),
     };
   } catch (error) {
     console.error('Session verification failed:', error);

@@ -17,6 +17,7 @@ export async function GET() {
       user: {
         id: user.id,
         email: user.email,
+        onboardingCompleted: user.onboardingCompleted,
       },
     });
   } catch (error) {

@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="logo-github.svg" alt="HakiVo" width="400" />
+  <img src="hakivo-logo.svg" alt="HakiVo" width="400" />
 
   <p><strong>Know What Congress Is Doing</strong> - An AI-powered civic engagement platform that makes congressional activity accessible to everyone.</p>
 
