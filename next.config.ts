@@ -7,6 +7,11 @@ const nextConfig: NextConfig = {
   // Enable strict mode for better error handling
   reactStrictMode: true,
 
+  // Turbopack configuration
+  turbopack: {
+    root: __dirname,
+  },
+
   // Image optimization for Vultr CDN
   images: {
     remotePatterns: [
