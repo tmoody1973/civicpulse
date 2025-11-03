@@ -1,3 +1,4 @@
+import { requireAdmin } from "@/lib/auth/session";
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 
@@ -5,6 +6,7 @@ const RAINDROP_SERVICE_URL = process.env.RAINDROP_SERVICE_URL;
 
 export async function GET() {
   try {
+    await requireAdmin();
     const user = await getSession();
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

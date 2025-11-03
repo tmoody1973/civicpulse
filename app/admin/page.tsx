@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Database, RefreshCw, Users, FileText, UserCheck, Mic, Newspaper, Vote, History } from 'lucide-react';
+import { Database, RefreshCw, Users, FileText, UserCheck, Mic, Newspaper, Vote, History, Radio, LogOut, Home, Search, Settings, Shield } from 'lucide-react';
 import { SyncStatusWidget } from '@/components/admin/sync-status-widget';
+import Link from 'next/link';
 
 interface TableInfo {
   name: string;
@@ -46,6 +47,12 @@ const TABLES: TableInfo[] = [
     color: 'bg-red-500'
   },
   {
+    name: 'briefs',
+    icon: <Radio className="h-5 w-5" />,
+    description: 'Personalized daily/weekly briefs',
+    color: 'bg-pink-500'
+  },
+  {
     name: 'rss_articles',
     icon: <Newspaper className="h-5 w-5" />,
     description: 'Cached news articles',
@@ -72,11 +79,34 @@ export default function AdminDashboard() {
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [mounted, setMounted] = useState(false);
+  const [userEmail, setUserEmail] = useState<string>('');
 
   // Prevent hydration mismatch
   useEffect(() => {
     setMounted(true);
+    fetchUserSession();
   }, []);
+
+  const fetchUserSession = async () => {
+    try {
+      const response = await fetch('/api/auth/session');
+      if (response.ok) {
+        const data = await response.json();
+        setUserEmail(data.user?.email || '');
+      }
+    } catch (error) {
+      console.error('Error fetching user session:', error);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/auth/logout', { method: 'POST' });
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Error logging out:', error);
+    }
+  };
 
   // Fetch counts for all tables on mount
   useEffect(() => {
@@ -143,24 +173,64 @@ export default function AdminDashboard() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Database className="h-6 w-6 text-primary" />
+              <div className="flex items-center gap-2">
+                <Shield className="h-6 w-6 text-primary" />
+                <Database className="h-6 w-6 text-primary" />
+              </div>
               <div>
                 <h1 className="text-2xl font-bold">HakiVo Admin</h1>
                 <p className="text-sm text-muted-foreground">Database Management Console</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <Badge variant="outline" className="text-xs">
-                Raindrop v01k8kf2b3gre3k5my2x4mnrn58
-              </Badge>
+              {/* Quick Links */}
+              <div className="hidden md:flex items-center gap-2">
+                <Link href="/dashboard">
+                  <Button size="sm" variant="ghost" className="gap-2">
+                    <Home className="h-4 w-4" />
+                    Dashboard
+                  </Button>
+                </Link>
+                <Link href="/search">
+                  <Button size="sm" variant="ghost" className="gap-2">
+                    <Search className="h-4 w-4" />
+                    Search
+                  </Button>
+                </Link>
+                <Link href="/settings">
+                  <Button size="sm" variant="ghost" className="gap-2">
+                    <Settings className="h-4 w-4" />
+                    Settings
+                  </Button>
+                </Link>
+              </div>
+
+              {/* User Info */}
+              {mounted && userEmail && (
+                <div className="flex items-center gap-2 px-3 py-1 bg-muted rounded-lg">
+                  <Badge variant="secondary" className="gap-1">
+                    <Shield className="h-3 w-3" />
+                    Admin
+                  </Badge>
+                  <span className="text-sm font-medium">{userEmail}</span>
+                </div>
+              )}
+
+              {/* Refresh Button */}
               {mounted && (
-                <span className="text-sm text-muted-foreground">
-                  Last refresh: {lastRefresh.toLocaleTimeString()}
+                <span className="text-xs text-muted-foreground hidden lg:block">
+                  {lastRefresh.toLocaleTimeString()}
                 </span>
               )}
               <Button onClick={handleRefresh} size="sm" variant="outline">
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Refresh
+              </Button>
+
+              {/* Logout Button */}
+              <Button onClick={handleLogout} size="sm" variant="outline" className="gap-2">
+                <LogOut className="h-4 w-4" />
+                Logout
               </Button>
             </div>
           </div>

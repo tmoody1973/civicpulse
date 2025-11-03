@@ -108,6 +108,25 @@ export async function requireAuth(): Promise<User> {
 }
 
 /**
+ * Require admin access (tarikjmoody@gmail.com only)
+ * Use this for admin-only routes like /admin
+ */
+export async function requireAdmin(): Promise<User> {
+  const user = await getSession();
+
+  if (!user) {
+    throw new Error('Unauthorized - Please sign in');
+  }
+
+  // Only allow tarikjmoody@gmail.com
+  if (user.email !== 'tarikjmoody@gmail.com') {
+    throw new Error('Forbidden - Admin access only');
+  }
+
+  return user;
+}
+
+/**
  * Destroy the session by clearing cookies
  */
 export async function destroySession() {

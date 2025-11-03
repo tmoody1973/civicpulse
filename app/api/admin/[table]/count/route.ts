@@ -1,3 +1,4 @@
+import { requireAdmin } from "@/lib/auth/session";
 import { NextRequest, NextResponse } from 'next/server';
 
 const RAINDROP_SERVICE_URL = process.env.RAINDROP_SERVICE_URL || 'http://localhost:8787';
@@ -21,6 +22,7 @@ export async function GET(
   { params }: { params: Promise<{ table: string }> }
 ) {
   try {
+    await requireAdmin();
     const { table } = await params;
 
     // Validate table name

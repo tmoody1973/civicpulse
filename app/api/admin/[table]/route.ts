@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAdmin } from '@/lib/auth/session';
 
 const RAINDROP_SERVICE_URL = process.env.RAINDROP_SERVICE_URL || 'http://localhost:8787';
 
@@ -22,6 +23,9 @@ export async function GET(
   { params }: { params: Promise<{ table: string }> }
 ) {
   try {
+    // Check admin access
+    await requireAdmin();
+
     const { table } = await params;
 
     // Validate table name to prevent SQL injection
