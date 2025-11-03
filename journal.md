@@ -4,6 +4,199 @@ A journey building an AI-powered civic engagement platform that makes Congress a
 
 ---
 
+## November 3, 2025 - Enhanced Audio Player: Podcast-Quality Listening Experience 🎧
+
+**What I Built:** A professional-grade audio player with interactive transcripts, keyboard controls, lock screen integration, and playback persistence—bringing Spotify-level UX to civic engagement.
+
+**The Problem I Solved:** We've been generating daily and weekly audio briefs with AI hosts Sarah and James, but users had no good way to listen to them. The basic HTML5 audio player was too simple—no speed control, no way to jump to specific topics, no transcript to follow along, and no mobile lock screen controls. Users expect podcast-quality experiences like Spotify or Apple Podcasts, and we weren't delivering.
+
+**How I Did It:**
+
+**1. Custom Audio Player from Scratch:**
+
+Instead of using a pre-built library, I built a custom player using React and the native HTML5 Audio API. Think of it like building a custom car—I have complete control over every feature.
+
+The player includes:
+- **Play/Pause Button:** Large, touch-friendly circular button (perfect for mobile)
+- **Skip Controls:** ±15 seconds (industry standard for podcasts)
+- **Seekable Progress Bar:** Drag to any point in the audio
+- **Volume Control:** Slider with mute toggle
+- **Playback Speed:** 0.75x, 1x, 1.25x, 1.5x, 2x (for speed listeners)
+- **Download Button:** Save audio for offline listening
+
+**2. Interactive Transcript with Citations:**
+
+The transcript isn't just text—it's clickable navigation:
+
+```typescript
+interface TranscriptSegment {
+  timestamp: number;      // When this segment plays
+  speaker: 'sarah' | 'james';
+  text: string;
+  citation?: {
+    source: string;       // e.g., "The Hill", "Politico"
+    url: string;          // Link to original article
+  };
+}
+```
+
+**How it works:**
+- Each line shows the speaker, timestamp, and text
+- Click any line to jump to that moment in the audio
+- The currently playing segment is highlighted in blue
+- Source citations appear as clickable links (so users can verify facts)
+
+**Why this matters:** Users can see Sarah reference "According to The Hill..." and immediately click to read the original article. It's like having footnotes in a podcast.
+
+**3. Mobile Lock Screen Controls (Media Session API):**
+
+When you lock your iPhone and play a podcast from Spotify, you see controls on the lock screen. I implemented the same thing:
+
+```typescript
+if ('mediaSession' in navigator) {
+  navigator.mediaSession.metadata = new MediaMetadata({
+    title: "Daily Brief - Healthcare & Technology Updates",
+    artist: 'HakiVo',
+    artwork: [
+      { src: '/logo-192.png', sizes: '192x192' },
+      { src: '/logo-512.png', sizes: '512x512' }
+    ]
+  });
+
+  navigator.mediaSession.setActionHandler('play', () => {
+    audioRef.current?.play();
+  });
+
+  navigator.mediaSession.setActionHandler('seekforward', () => {
+    audioRef.current.currentTime += 15;
+  });
+}
+```
+
+**What this means:** Users can control playback without unlocking their phone. They see the HakiVo logo, brief title, and play/pause/skip buttons right on the lock screen. It works in the car, at the gym, anywhere.
+
+**4. Playback Position Persistence:**
+
+Ever close a podcast app and lose your place? Frustrating! I use localStorage to save progress:
+
+```typescript
+// On component load, restore position
+const savedPosition = localStorage.getItem(`playback-${audioUrl}`);
+if (savedPosition && audioRef.current) {
+  audioRef.current.currentTime = parseFloat(savedPosition);
+}
+
+// On unload, save position (unless finished)
+if (currentTime > 0 && currentTime < duration - 5) {
+  localStorage.setItem(`playback-${audioUrl}`, currentTime.toString());
+}
+```
+
+Users can close the app, come back hours later, and pick up right where they left off.
+
+**5. Keyboard Shortcuts:**
+
+Power users love keyboard shortcuts. I added three essentials:
+
+- **Space:** Play/Pause
+- **Arrow Left:** Skip back 15 seconds
+- **Arrow Right:** Skip forward 15 seconds
+
+These only work when you're NOT typing in a form (so they don't interfere with search boxes or comment fields).
+
+**6. Time Formatting Helper:**
+
+Audio players show time like "5:42" not "342 seconds". I wrote a helper function:
+
+```typescript
+const formatTime = (seconds: number): string => {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
+```
+
+`padStart(2, '0')` ensures we get "5:04" not "5:4" (looks cleaner).
+
+**What I Learned:**
+
+**Lesson 1: The Media Session API is Pure Magic**
+
+I had no idea browsers could control lock screen interfaces! The Media Session API is a Web Standard that lets web apps integrate with OS-level media controls.
+
+When you set `navigator.mediaSession.metadata`, the browser automatically:
+- Shows your logo on the lock screen
+- Displays the title and artist
+- Adds play/pause/skip buttons
+- Updates the notification center
+
+This works on iOS, Android, and desktop. No native app required!
+
+**Lesson 2: Interactive Transcripts Change Everything**
+
+I initially thought transcripts were just for accessibility (helping deaf users). But they're SO much more:
+
+1. **Navigation:** "I remember Sarah talking about healthcare—let me click that line and jump there"
+2. **Verification:** "Did she really say that? Let me check the transcript"
+3. **Citation Tracking:** "Where did that statistic come from? Oh, there's the source link"
+4. **Sharing:** Users can copy specific quotes to share on social media
+
+Transcripts turn passive listening into active engagement.
+
+**Lesson 3: Small UX Details Make or Break Audio Players**
+
+The difference between "good enough" and "professional" is tiny details:
+
+- **Play button icon needs `ml-1` (margin-left):** Play icons have visual weight on the left, so centering looks off-center. Adding a small left margin makes it look perfectly centered.
+
+- **Skip buttons show "15" label:** Users see `[⏮ 15]` and `[15 ⏭]` so they know exactly how much time they'll skip. No guessing.
+
+- **Progress bar is clickable AND draggable:** Some users click, others drag. Support both.
+
+- **Volume slider separate from volume icon:** Some users click mute, others drag volume. Independent controls = happy users.
+
+These aren't in the spec—they're learned from using Spotify, Apple Podcasts, Overcast, etc. I borrowed patterns that millions of users already understand.
+
+**Lesson 4: Playback Persistence is Harder Than It Seems**
+
+You'd think saving playback position is easy: just save `currentTime` on page close, right? But there are edge cases:
+
+- **Don't save if user finished the audio** (within last 5 seconds)
+- **Don't save if user just started** (0 seconds)
+- **Don't save on page refresh** (React cleanup runs)
+- **Do save on browser close** (useEffect cleanup)
+
+I had to test closing tabs, refreshing, finishing audio, and navigating away to get it right.
+
+**What's Next:**
+
+This player unlocks the core value of HakiVo—users can finally LISTEN to their personalized briefs with a great experience.
+
+Next priorities:
+1. **Integrate into Dashboard:** Replace basic player with this enhanced version on the homepage
+2. **Multi-Language Support:** Add language preference settings and switch ElevenLabs voices accordingly
+3. **Brief Generation UI:** Add "Generate Today's Brief" button so users can create briefs on-demand
+4. **Mobile PWA Improvements:** Add offline support and push notifications for new briefs
+
+**Quick Win 🎉:** Built a podcast-quality audio player that rivals Spotify and Apple Podcasts—complete with interactive transcripts, lock screen controls, and playback persistence. Users can now enjoy their personalized civic briefs with the same UX they expect from their favorite podcast apps.
+
+**Social Media Snippet:**
+
+Just shipped the Enhanced Audio Player for HakiVo! 🎧
+
+Features you'd expect from Spotify:
+✅ Interactive transcripts (click to jump)
+✅ Lock screen controls (play/pause without unlocking phone)
+✅ Playback persistence (picks up where you left off)
+✅ Keyboard shortcuts (Space, arrows)
+✅ Source citations (verify what you hear)
+
+Making civic engagement as easy as listening to a podcast. Try it at /test-player
+
+#CivicTech #WebDev #AudioUX #BuildInPublic
+
+---
+
 ## November 3, 2025 - Admin Panel Security: Protecting Platform Data 🔒
 
 **What I Built:** Secure admin dashboard with WorkOS authentication, restricting access to platform administrators only, with enhanced UX including user info display, logout functionality, and quick navigation links.
