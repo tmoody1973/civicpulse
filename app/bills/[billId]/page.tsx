@@ -169,6 +169,11 @@ export default function BillDetailsPage() {
       return { shouldRefresh: true, reason: 'Missing summary' };
     }
 
+    // Check if missing sponsor data
+    if (!bill.sponsor_name || bill.sponsor_name === 'Unknown') {
+      return { shouldRefresh: true, reason: 'Missing sponsor data' };
+    }
+
     return { shouldRefresh: false };
   }
 

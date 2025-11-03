@@ -114,9 +114,20 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Get user location from localStorage (set during onboarding)
-        const userLocationStr = localStorage.getItem('userLocation');
-        const location = userLocationStr ? JSON.parse(userLocationStr) : { state: 'CA', district: 12 };
+        // Get user location from profile API (not localStorage - that can be stale!)
+        const profileResponse = await fetch('/api/user/profile');
+        let location = { state: 'CA', district: 12, city: undefined }; // Default fallback
+
+        if (profileResponse.ok) {
+          const profile = await profileResponse.json();
+          if (profile.state && profile.district) {
+            location = {
+              state: profile.state,
+              district: parseInt(profile.district),
+              city: profile.city
+            };
+          }
+        }
 
         // Store in state for display
         setUserLocation(location);

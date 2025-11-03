@@ -51,6 +51,7 @@ export default function SettingsPage() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [refreshingReps, setRefreshingReps] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Form state
@@ -104,12 +105,31 @@ export default function SettingsPage() {
     }));
   };
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
+  const handleRefreshRepresentatives = async () => {
+    if (!formData.zipCode) {
+      setMessage({ type: 'error', text: 'Please enter a ZIP code first' });
+      return;
+    }
+
+    setRefreshingReps(true);
     setMessage(null);
 
     try {
+      console.log('🔄 Refreshing representatives for ZIP', formData.zipCode);
+
+      const lookupResponse = await fetch('/api/onboarding/lookup-reps', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ zipCode: formData.zipCode }),
+      });
+
+      if (!lookupResponse.ok) {
+        throw new Error('Failed to lookup representatives');
+      }
+
+      const lookupData = await lookupResponse.json();
+
+      // Save with new location data
       const response = await fetch('/api/onboarding', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -119,9 +139,83 @@ export default function SettingsPage() {
           emailNotifications: formData.emailNotifications,
           audioEnabled: formData.audioEnabled,
           interests: formData.interests,
-          // Preserve other fields
-          state: profile?.state,
-          district: profile?.district,
+          state: lookupData.district.state,
+          district: lookupData.district.number,
+          representatives: lookupData.representatives,
+          audioFrequencies: profile?.audio_frequencies || ['daily', 'weekly'],
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to update representatives');
+
+      setMessage({
+        type: 'success',
+        text: `Representatives updated! Found ${lookupData.representatives.length} reps for ${lookupData.district.state} District ${lookupData.district.number}`
+      });
+
+      // Reload profile
+      const profileResponse = await fetch('/api/user/profile');
+      if (profileResponse.ok) {
+        const data = await profileResponse.json();
+        setProfile(data);
+      }
+    } catch (error) {
+      console.error('Failed to refresh representatives:', error);
+      setMessage({ type: 'error', text: 'Failed to refresh representatives. Please try again.' });
+    } finally {
+      setRefreshingReps(false);
+    }
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    setMessage(null);
+
+    try {
+      // If zip code changed, look up new representatives
+      let locationData = {
+        state: profile?.state,
+        district: profile?.district,
+        representatives: undefined as any,
+      };
+
+      if (formData.zipCode !== profile?.zip_code) {
+        console.log('Zip code changed, looking up new representatives...');
+
+        const lookupResponse = await fetch('/api/onboarding/lookup-reps', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ zipCode: formData.zipCode }),
+        });
+
+        if (lookupResponse.ok) {
+          const lookupData = await lookupResponse.json();
+          locationData = {
+            state: lookupData.district.state,
+            district: lookupData.district.number,
+            representatives: lookupData.representatives,
+          };
+          console.log('✅ Found new representatives for', lookupData.district.state, 'district', lookupData.district.number);
+          console.log('✅ Representatives:', locationData.representatives?.length || 0);
+        } else {
+          throw new Error('Failed to lookup representatives for new zip code');
+        }
+      }
+
+      // Save settings with updated location data
+      const response = await fetch('/api/onboarding', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          zipCode: formData.zipCode,
+          emailNotifications: formData.emailNotifications,
+          audioEnabled: formData.audioEnabled,
+          interests: formData.interests,
+          state: locationData.state,
+          district: locationData.district,
+          representatives: locationData.representatives,
           audioFrequencies: profile?.audio_frequencies || ['daily', 'weekly'],
         }),
       });
