@@ -326,7 +326,7 @@ async function fetchPrioritizedBills(policyAreas: string[], userId: string): Pro
       END + impact_score + (JULIANDAY('now') - JULIANDAY(latest_action_date)) * -1 as priority_score
     FROM bills
     WHERE (${policyFilters})
-      AND congress = 119
+      AND congress IN (118, 119)
       AND latest_action_date >= DATE('now', '-30 days')
     ORDER BY priority_score DESC
     LIMIT 50
@@ -377,7 +377,7 @@ Source: ${breakingNews.source}` : 'No breaking news today.'}
 **PART 2 - TOP STORIES (5-7 min):**
 Cover these bills in detail:
 ${topBills.map((bill, idx) => `
-${idx + 1}. ${bill.bill_type.toUpperCase()} ${bill.bill_number} - ${bill.title}
+${idx + 1}. ${bill.bill_type.toUpperCase()} ${bill.bill_number} (Congress ${bill.congress}) - ${bill.title}
    Sponsor: ${bill.sponsor_name}
    Status: ${bill.status}
    Latest Action: ${bill.latest_action_text} (${bill.latest_action_date})
@@ -395,6 +395,8 @@ ${idx + 1}. ${bill.bill_type.toUpperCase()} ${bill.bill_number} - ${bill.title}
 - NPR-quality conversational tone
 - Sarah leads breaking news, James adds context
 - Explain legislation in plain language
+- **CRITICAL: ALWAYS mention the Congress number (118th or 119th) when introducing each bill**
+- **CRITICAL: ALWAYS mention the bill sponsor's name when discussing each bill**
 - Highlight real-world impact on everyday people
 - Natural back-and-forth (not monologues)
 - End with call-to-action
