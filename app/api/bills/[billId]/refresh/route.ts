@@ -62,7 +62,7 @@ export async function POST(
       introducedDate: bill.introducedDate || null,
       latestActionDate: bill.latestActionDate || null,
       latestActionText: bill.latestActionText || null,
-      status: bill.status || 'introduced',
+      status: 'introduced', // Default status
       policyArea: subjects?.policyArea || null,
       issueCategories: subjects?.legislativeSubjects || [],
       cosponsorCount: cosponsors?.length || 0,

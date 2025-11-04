@@ -200,6 +200,9 @@ function ResetPasswordForm() {
   );
 }
 
+// Force dynamic rendering - don't pre-render auth pages
+export const dynamic = 'force-dynamic';
+
 export default function ResetPasswordPage() {
   return (
     <Suspense fallback={

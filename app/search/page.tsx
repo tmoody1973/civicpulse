@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Search, SlidersHorizontal, Sparkles, Database, Zap, X, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -122,7 +122,7 @@ function predictSearchSpeed(query: string, hasFilters: boolean): 'fast' | 'slow'
   return 'fast';
 }
 
-export default function SearchPage() {
+function SearchContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialQuery = searchParams.get('q') || '';
@@ -826,5 +826,17 @@ export default function SearchPage() {
       </div>
     </div>
     </>
+  );
+}
+
+export default function SearchPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    }>
+      <SearchContent />
+    </Suspense>
   );
 }

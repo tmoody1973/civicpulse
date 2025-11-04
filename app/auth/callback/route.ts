@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authenticateWithCode } from '@/lib/auth/workos';
-import { createSession } from '@/lib/auth/session';
 import { upsert, executeQuery } from '@/lib/db/client';
+import jwt from 'jsonwebtoken';
 
 /**
  * GET /auth/callback
@@ -64,19 +64,34 @@ export async function GET(request: NextRequest) {
       console.log(`✅ User authenticated: ${user.email} (${user.id})`);
     }
 
-    // Create session with tokens and user info
-    await createSession(accessToken, refreshToken, { id: user.id, email: user.email });
+    // Create session token
+    const JWT_SECRET = process.env.JWT_SECRET || 'civic-pulse-secret-change-in-production';
+    const SESSION_MAX_AGE = 60 * 60 * 24 * 7; // 7 days
+
+    const sessionToken = jwt.sign(
+      { userId: user.id, email: user.email },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
 
     // Redirect based on onboarding status
-    if (hasCompletedOnboarding) {
-      // Existing user with onboarding complete → go to dashboard
-      console.log('👤 Returning user - redirecting to dashboard');
-      return NextResponse.redirect(new URL('/dashboard', request.url));
-    } else {
-      // New user or incomplete onboarding → go to onboarding
-      console.log('🆕 New user - redirecting to onboarding');
-      return NextResponse.redirect(new URL('/onboarding', request.url));
-    }
+    const redirectUrl = hasCompletedOnboarding
+      ? new URL('/dashboard', request.url)
+      : new URL('/onboarding', request.url);
+
+    console.log(`${hasCompletedOnboarding ? '👤 Returning user' : '🆕 New user'} - redirecting to ${redirectUrl.pathname}`);
+
+    // Create response with redirect and set session cookie
+    const response = NextResponse.redirect(redirectUrl);
+    response.cookies.set('civic_pulse_session', sessionToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: SESSION_MAX_AGE,
+    });
+
+    return response;
   } catch (error) {
     console.error('Authentication callback error:', error);
     return NextResponse.redirect(new URL('/auth/login?error=auth_failed', request.url));

@@ -26,6 +26,7 @@ interface Bill {
   id: string;
   title: string;
   summary: string | null;
+  full_text?: string | null;
   bill_type: string;
   bill_number: number;
   sponsor_name: string | null;
