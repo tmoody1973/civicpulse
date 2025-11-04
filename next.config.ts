@@ -12,7 +12,7 @@ const nextConfig: NextConfig = {
     root: __dirname,
   },
 
-  // Image optimization for Vultr CDN
+  // Image optimization for Vultr CDN and external sources
   images: {
     remotePatterns: [
       {
@@ -26,6 +26,67 @@ const nextConfig: NextConfig = {
       {
         protocol: 'https',
         hostname: 'www.congress.gov',
+      },
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'unsplash.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.perplexity.ai',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.pplx.ai',
+      },
+      // Allow common news source image domains
+      {
+        protocol: 'https',
+        hostname: '**.cnn.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.npr.org',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.politico.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.thehill.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.washingtonpost.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.nytimes.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.reuters.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.apnews.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.kff.org',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.cedar.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.ama-assn.org',
       },
     ],
   },
