@@ -53,6 +53,7 @@ export async function createSession(_accessToken: string, _refreshToken: string,
 /**
  * Get the current user from the session
  * Looks up user info from database using the JWT
+ * RESILIENT: Falls back to JWT data if database is unavailable
  */
 export async function getSession(): Promise<User | null> {
   const cookieStore = await cookies();
@@ -63,31 +64,47 @@ export async function getSession(): Promise<User | null> {
   }
 
   try {
-    // Verify and decode JWT
+    // Verify and decode JWT - this is our source of truth
     const payload = jwt.verify(sessionToken, JWT_SECRET) as SessionPayload;
 
-    // Look up user from database including onboarding status
-    const result = await executeQuery(
-      `SELECT id, email, onboarding_completed, created_at, updated_at FROM users WHERE id = '${payload.userId}' LIMIT 1`,
-      'users'
-    );
+    // Try to get additional user data from database (onboarding status, etc.)
+    // If database is unavailable, we still trust the JWT
+    try {
+      const result = await executeQuery(
+        `SELECT id, email, onboarding_completed, created_at, updated_at FROM users WHERE id = '${payload.userId}' LIMIT 1`,
+        'users'
+      );
 
-    if (!result.rows || result.rows.length === 0) {
-      return null;
+      if (result.rows && result.rows.length > 0) {
+        const user = result.rows[0];
+
+        return {
+          id: user.id as string,
+          email: user.email as string,
+          firstName: null,
+          lastName: null,
+          profilePictureUrl: null,
+          onboardingCompleted: Boolean(user.onboarding_completed),
+        };
+      }
+    } catch (dbError) {
+      // Database error - log it but don't fail auth
+      console.warn('Database unavailable, using JWT data:', dbError);
     }
 
-    const user = result.rows[0];
-
+    // Fallback: Return user from JWT with default onboarding status
+    // This keeps users authenticated even when database is down
     return {
-      id: user.id as string,
-      email: user.email as string,
+      id: payload.userId,
+      email: payload.email,
       firstName: null,
       lastName: null,
       profilePictureUrl: null,
-      onboardingCompleted: Boolean(user.onboarding_completed),
+      onboardingCompleted: true, // Assume completed to avoid redirect loops
     };
   } catch (error) {
-    console.error('Session verification failed:', error);
+    // JWT verification failed - this means invalid/expired token
+    console.error('JWT verification failed:', error);
     await destroySession();
     return null;
   }
