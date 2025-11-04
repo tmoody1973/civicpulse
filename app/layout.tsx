@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { AudioPlayerProvider } from '@/contexts/audio-player-context';
 import { PersistentPlayer } from '@/components/audio/persistent-player';
+import { PlayerAwareLayout } from '@/components/layout/player-aware-layout';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -21,9 +22,9 @@ export default function RootLayout({
       <body className={inter.className}>
         <AudioPlayerProvider>
           <PersistentPlayer />
-          <div className="pt-20">
+          <PlayerAwareLayout>
             {children}
-          </div>
+          </PlayerAwareLayout>
         </AudioPlayerProvider>
       </body>
     </html>

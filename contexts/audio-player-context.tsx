@@ -127,7 +127,8 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
             currentTime: parsed.currentTime,
             volume: parsed.volume,
             playbackRate: parsed.playbackRate,
-            isPlayerVisible: parsed.currentBrief ? true : false,
+            // Don't auto-show player on restore - only show when user plays
+            isPlayerVisible: false,
           },
         });
       } catch (error) {
