@@ -28,70 +28,129 @@ export interface AudioGenerationOptions {
 }
 
 /**
- * Generate complete podcast audio from dialogue script
+ * Generate complete podcast audio from dialogue script with automatic chunking
  * Uses text-to-dialogue endpoint for natural two-voice conversation
- * CRITICAL: Must stay under 5000 character limit
+ * Handles long-form content by splitting into chunks and concatenating
  */
 export async function generateDialogue(
   dialogue: DialogueLine[],
   options: AudioGenerationOptions = {}
 ): Promise<Buffer> {
   const {
-    modelId = 'eleven_v3', // v3 model for text-to-dialogue (required)
+    modelId = 'eleven_v3', // MUST be v3 family for text-to-dialogue (eleven_v3, eleven_turbo_v3, etc.)
     outputFormat = 'mp3_44100_192',
   } = options;
 
-  // Validate character count BEFORE processing
   const totalCharacters = dialogue.reduce((sum, line) => sum + line.text.length, 0);
   console.log(`📊 Dialogue stats: ${dialogue.length} lines, ${totalCharacters} characters`);
 
-  if (totalCharacters > 4800) {
-    throw new Error(
-      `Dialogue too long: ${totalCharacters} characters exceeds safe limit of 4800 (ElevenLabs max is 5000). ` +
-      `Please reduce dialogue to 8-10 short lines.`
-    );
+  // Character limit per chunk (conservative to account for formatting)
+  const CHUNK_LIMIT = 4500;
+
+  // If dialogue fits in one chunk, generate directly
+  if (totalCharacters <= CHUNK_LIMIT) {
+    console.log(`✅ Dialogue fits in single chunk, generating...`);
+    return await generateDialogueChunk(dialogue, modelId, outputFormat);
   }
 
+  // Split dialogue into chunks
+  console.log(`📦 Splitting dialogue into chunks (limit: ${CHUNK_LIMIT} chars/chunk)...`);
+  const chunks: DialogueLine[][] = [];
+  let currentChunk: DialogueLine[] = [];
+  let currentLength = 0;
+
+  for (const line of dialogue) {
+    const lineLength = line.text.length;
+
+    // If adding this line exceeds the limit, start a new chunk
+    if (currentLength + lineLength > CHUNK_LIMIT && currentChunk.length > 0) {
+      chunks.push(currentChunk);
+      console.log(`   Chunk ${chunks.length}: ${currentChunk.length} lines, ${currentLength} chars`);
+
+      currentChunk = [line];
+      currentLength = lineLength;
+    } else {
+      currentChunk.push(line);
+      currentLength += lineLength;
+    }
+  }
+
+  // Add the last chunk
+  if (currentChunk.length > 0) {
+    chunks.push(currentChunk);
+    console.log(`   Chunk ${chunks.length}: ${currentChunk.length} lines, ${currentLength} chars`);
+  }
+
+  console.log(`📦 Created ${chunks.length} chunks`);
+
+  // Generate audio for each chunk
+  const audioChunks: Buffer[] = [];
+
+  for (let i = 0; i < chunks.length; i++) {
+    console.log(`🎙️  Generating chunk ${i + 1}/${chunks.length}...`);
+
+    try {
+      const chunkAudio = await generateDialogueChunk(chunks[i], modelId, outputFormat);
+      audioChunks.push(chunkAudio);
+      console.log(`✅ Chunk ${i + 1} generated: ${chunkAudio.length} bytes`);
+    } catch (error) {
+      console.error(`❌ Failed to generate chunk ${i + 1}:`, error);
+      throw new Error(`Failed to generate audio chunk ${i + 1}: ${error}`);
+    }
+
+    // Rate limiting: wait 1 second between chunks to avoid hitting API limits
+    if (i < chunks.length - 1) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  }
+
+  // Concatenate all audio chunks
+  console.log(`🔗 Concatenating ${audioChunks.length} audio chunks...`);
+  const finalAudio = Buffer.concat(audioChunks);
+  console.log(`✅ Final audio: ${finalAudio.length} bytes`);
+
+  return finalAudio;
+}
+
+/**
+ * Generate audio for a single dialogue chunk
+ * Internal function called by generateDialogue
+ */
+async function generateDialogueChunk(
+  dialogueChunk: DialogueLine[],
+  modelId: string,
+  outputFormat: string
+): Promise<Buffer> {
   // Transform dialogue lines into ElevenLabs text-to-dialogue format
-  const inputs = dialogue.map((line) => ({
+  const inputs = dialogueChunk.map((line) => ({
     text: line.text,
     voice_id: line.host === 'sarah' ? SARAH_VOICE_ID : JAMES_VOICE_ID,
   }));
 
   const requestBody = {
-    model_id: modelId, // eleven_v3 required for text-to-dialogue
-    inputs: inputs, // ElevenLabs uses "inputs" not "dialogue"
+    model_id: modelId,
+    inputs: inputs,
   };
 
-  console.log(`🎙️ Generating multi-voice dialogue with ${dialogue.length} turns`);
+  const response = await fetch(`${API_BASE}/text-to-dialogue?output_format=${outputFormat}`, {
+    method: 'POST',
+    headers: {
+      'Accept': 'audio/mpeg',
+      'Content-Type': 'application/json',
+      'xi-api-key': API_KEY!,
+    },
+    body: JSON.stringify(requestBody),
+    signal: AbortSignal.timeout(180000), // 3 minute timeout
+  });
 
-  try {
-    const response = await fetch(`${API_BASE}/text-to-dialogue?output_format=${outputFormat}`, {
-      method: 'POST',
-      headers: {
-        'Accept': 'audio/mpeg',
-        'Content-Type': 'application/json',
-        'xi-api-key': API_KEY!,
-      },
-      body: JSON.stringify(requestBody),
-      signal: AbortSignal.timeout(180000), // 180 second (3 minute) timeout for audio generation
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`ElevenLabs API error (${response.status}):`, errorText);
-      throw new Error(`ElevenLabs API error: ${response.status} ${response.statusText} - ${errorText}`);
-    }
-
-    const arrayBuffer = await response.arrayBuffer();
-    const audioBuffer = Buffer.from(arrayBuffer);
-
-    console.log(`✅ Generated ${audioBuffer.length} bytes of multi-voice audio`);
-    return audioBuffer;
-  } catch (error) {
-    console.error('Error generating dialogue with ElevenLabs:', error);
-    throw error;
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`ElevenLabs API error (${response.status}):`, errorText);
+    throw new Error(`ElevenLabs API error: ${response.status} ${response.statusText} - ${errorText}`);
   }
+
+  const arrayBuffer = await response.arrayBuffer();
+  return Buffer.from(arrayBuffer);
 }
 
 /**
@@ -99,13 +158,13 @@ export async function generateDialogue(
  * Rough estimate: ~150 words per minute for natural conversation
  */
 export function estimateAudioDuration(dialogue: DialogueLine[]): number {
-  const totalWords = dialogue.reduce((sum, line) => {
-    const wordCount = line.text.split(/\s+/).length;
-    return sum + wordCount;
-  }, 0);
+  const totalCharacters = dialogue.reduce((sum, line) => sum + line.text.length, 0);
 
-  const wordsPerSecond = 150 / 60; // 150 words per minute
-  return Math.ceil(totalWords / wordsPerSecond);
+  // Based on empirical testing: 7267 characters = ~500 seconds (8+ minutes)
+  // This gives us ~14.5 characters per second for conversational dialogue
+  const charactersPerSecond = 14.5;
+
+  return Math.ceil(totalCharacters / charactersPerSecond);
 }
 
 /**

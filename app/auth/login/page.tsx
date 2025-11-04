@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -79,7 +80,16 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="flex justify-center mb-8">
-          <h1 className="text-4xl font-bold">HakiVo</h1>
+          <Link href="/">
+            <Image
+              src="/hakivo-logo.svg"
+              alt="HakiVo"
+              width={200}
+              height={100}
+              className="h-16 w-auto"
+              priority
+            />
+          </Link>
         </div>
 
         <Card>
