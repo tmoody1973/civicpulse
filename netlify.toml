@@ -14,54 +14,14 @@
   NEXT_TELEMETRY_DISABLED = "1"
   NPM_FLAGS = "--legacy-peer-deps"
 
-# API Routes as Netlify Functions
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/:splat"
-  status = 200
-
-# Stripe Webhook
-[[redirects]]
-  from = "/api/webhooks/stripe"
-  to = "/.netlify/functions/stripe-webhook"
-  status = 200
-
-# WorkOS Authentication Callback
-[[redirects]]
-  from = "/api/auth/callback"
-  to = "/.netlify/functions/auth-callback"
-  status = 200
-
-# WorkOS Login
-[[redirects]]
-  from = "/api/auth/login"
-  to = "/.netlify/functions/auth-login"
-  status = 200
-
-# Podcast Generation API
-[[redirects]]
-  from = "/api/generate-podcast"
-  to = "/.netlify/functions/generate-podcast"
-  status = 200
-
-# Congress.gov Proxy (optional - for caching)
-[[redirects]]
-  from = "/api/congress/*"
-  to = "/.netlify/functions/congress-proxy/:splat"
-  status = 200
-
-# SPA fallback for client-side routing
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
-  force = false
+# NOTE: @netlify/plugin-nextjs handles all routes automatically
+# No manual redirects needed for API routes or pages
 
 [functions]
   node_bundler = "esbuild"
   directory = ".netlify/functions"
-  # Increase timeout for podcast generation (max 26s on free tier, 60s on paid)
-  timeout = 26
+  # Note: Function timeout is configured per-function in netlify.toml v2
+  # Default is 10s (free tier), can be increased in Netlify UI
 
 # Headers for security and caching
 [[headers]]

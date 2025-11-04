@@ -8,26 +8,56 @@ if (typeof window === 'undefined' && !process.env.ALGOLIA_APP_ID) {
 
 import { algoliasearch } from 'algoliasearch';
 
-// Get environment variables
-const ALGOLIA_APP_ID = process.env.ALGOLIA_APP_ID || process.env.NEXT_PUBLIC_ALGOLIA_APP_ID;
-const ALGOLIA_ADMIN_API_KEY = process.env.ALGOLIA_ADMIN_API_KEY;
-const ALGOLIA_SEARCH_API_KEY = process.env.NEXT_PUBLIC_ALGOLIA_SEARCH_API_KEY;
+// IMPORTANT: Do NOT access env vars at module level for serverless functions
+// They may not be available until runtime. Use lazy loading functions instead.
 
-if (!ALGOLIA_APP_ID) {
-  throw new Error('ALGOLIA_APP_ID is not set in environment variables');
-}
+// IMPORTANT: No singleton caching for Netlify serverless functions
+// Create fresh clients on each invocation to ensure env vars are available
 
 // Server-side client (for indexing bills)
-export const algoliaAdmin = algoliasearch(
-  ALGOLIA_APP_ID,
-  ALGOLIA_ADMIN_API_KEY!
-);
+export function getAlgoliaAdmin() {
+  const appId = process.env.ALGOLIA_APP_ID || process.env.NEXT_PUBLIC_ALGOLIA_APP_ID;
+  const adminKey = process.env.ALGOLIA_ADMIN_API_KEY;
+
+  console.log('[Algolia Admin] Credentials check:', {
+    hasAppId: !!appId,
+    appIdValue: appId?.substring(0, 8) + '...',
+    hasAdminKey: !!adminKey,
+    adminKeyValue: adminKey?.substring(0, 10) + '...',
+  });
+
+  if (!appId || !adminKey) {
+    throw new Error(`Missing Algolia credentials for admin client: appId=${!!appId}, adminKey=${!!adminKey}`);
+  }
+
+  console.log('[Algolia] Creating fresh admin client');
+  return algoliasearch(appId, adminKey);
+}
 
 // Client-side search client (read-only, public)
-export const algoliaSearch = algoliasearch(
-  ALGOLIA_APP_ID,
-  ALGOLIA_SEARCH_API_KEY!
-);
+export function getAlgoliaSearch() {
+  const appId = process.env.ALGOLIA_APP_ID || process.env.NEXT_PUBLIC_ALGOLIA_APP_ID;
+  const searchKey = process.env.ALGOLIA_SEARCH_API_KEY || process.env.NEXT_PUBLIC_ALGOLIA_SEARCH_API_KEY;
+
+  console.log('[Algolia Search] Credentials check:', {
+    hasAppId: !!appId,
+    appIdValue: appId?.substring(0, 8) + '...',
+    hasSearchKey: !!searchKey,
+    searchKeyValue: searchKey?.substring(0, 10) + '...',
+  });
+
+  if (!appId || !searchKey) {
+    throw new Error(`Missing Algolia credentials for search client: appId=${!!appId}, searchKey=${!!searchKey}`);
+  }
+
+  console.log('[Algolia] Creating fresh search client');
+  return algoliasearch(appId, searchKey);
+}
+
+// Deprecated: Use getAlgoliaAdmin() and getAlgoliaSearch() functions instead
+// These are kept for backwards compatibility but will trigger lazy initialization
+// export const algoliaAdmin = getAlgoliaAdmin();
+// export const algoliaSearch = getAlgoliaSearch();
 
 // Index name for congressional bills
 export const BILLS_INDEX = 'bills';

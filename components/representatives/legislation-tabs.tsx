@@ -104,8 +104,10 @@ function BillList({ bills, title }: { bills: Bill[]; title: string }) {
   };
 
   // Format date
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string | undefined) => {
+    if (!dateString) return 'N/A';
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'N/A';
     return new Intl.DateTimeFormat('en-US', {
       month: 'short',
       day: 'numeric',
@@ -114,7 +116,8 @@ function BillList({ bills, title }: { bills: Bill[]; title: string }) {
   };
 
   // Get bill type display name
-  const getBillTypeDisplay = (type: string) => {
+  const getBillTypeDisplay = (type: string | undefined) => {
+    if (!type) return '';
     const types: Record<string, string> = {
       'hr': 'H.R.',
       's': 'S.',

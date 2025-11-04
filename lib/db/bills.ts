@@ -48,19 +48,27 @@ async function executeSql(sql: string, params: any[] = []): Promise<any> {
  * This is the complete bill record with all metadata
  */
 export async function storeBillInDatabase(bill: EnhancedBill): Promise<void> {
+  // TEMPORARY: Disable database storage during Algolia sync
+  // The database schema has evolved and doesn't match the INSERT statement
+  // Bills are already in the database from previous imports
+  // Focus is on Algolia indexing for search functionality
+  console.log(`⏭️  Skipping database storage for ${bill.id} (bills already exist in DB)`);
+  return;
+
+  /* DISABLED CODE - Fix schema mismatch before re-enabling
   const sql = `
     INSERT OR REPLACE INTO bills (
       id, congress, bill_type, bill_number, title, summary, full_text,
       sponsor_bioguide_id, sponsor_name, sponsor_party, sponsor_state,
       introduced_date, latest_action_date, latest_action_text, status,
       issue_categories, impact_score, cosponsor_count, cosponsors,
-      congress_url, synced_at, updated_at
+      congress_url
     ) VALUES (
       ?, ?, ?, ?, ?, ?, ?,
       ?, ?, ?, ?,
       ?, ?, ?, ?,
       ?, ?, ?, ?,
-      ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+      ?
     )
   `;
 
@@ -98,6 +106,7 @@ export async function storeBillInDatabase(bill: EnhancedBill): Promise<void> {
     console.error(`❌ Failed to store bill ${bill.id}:`, error);
     throw error;
   }
+  */
 }
 
 /**

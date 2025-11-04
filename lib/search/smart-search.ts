@@ -7,7 +7,7 @@
  * - Automatically syncs new bills to Algolia for next time
  */
 
-import { algoliaSearch, BILLS_INDEX } from './algolia-config';
+import { getAlgoliaSearch, BILLS_INDEX } from './algolia-config';
 import type { AlgoliaBill } from './algolia-config';
 
 // Type for Algolia v5 search response
@@ -63,8 +63,20 @@ export async function smartSearch(
   try {
     // STEP 1: Search Algolia (fast, instant)
     console.log(`🔍 Searching Algolia: "${query}"`);
+    console.log('[DEBUG] Search request:', {
+      indexName: BILLS_INDEX,
+      query: query.trim(),
+      filters,
+      facetFilters,
+      hitsPerPage,
+      page,
+    });
 
-    const algoliaResponse = await algoliaSearch.search({
+    // Get client and log initialization
+    const algoliaClient = getAlgoliaSearch();
+    console.log('[DEBUG] Algolia client obtained:', typeof algoliaClient);
+
+    const algoliaResponse = await algoliaClient.search({
       requests: [{
         indexName: BILLS_INDEX,
         query: query.trim(),
@@ -77,10 +89,19 @@ export async function smartSearch(
       }],
     });
 
+    console.log('[DEBUG] Algolia raw response:', JSON.stringify(algoliaResponse, null, 2));
+
     const algoliaTime = Date.now() - startTime;
     const result = algoliaResponse.results[0] as AlgoliaSearchResponse<AlgoliaBill>;
     const hits = result.hits;
     const totalHits = result.nbHits || 0;
+
+    console.log('[DEBUG] Parsed results:', {
+      hitsLength: hits.length,
+      totalHits,
+      processingTimeMS: result.processingTimeMS,
+      exhaustiveNbHits: result.exhaustiveNbHits,
+    });
 
     // If we found results in Algolia, return them
     if (hits.length > 0) {
@@ -155,7 +176,7 @@ export async function autocompleteSearch(
   const startTime = Date.now();
 
   try {
-    const response = await algoliaSearch.search({
+    const response = await getAlgoliaSearch().search({
       requests: [{
         indexName: BILLS_INDEX,
         query: query.trim(),
@@ -199,7 +220,7 @@ export async function getFacetValues(
   const { maxFacetHits = 100 } = options;
 
   try {
-    const response = await algoliaSearch.search({
+    const response = await getAlgoliaSearch().search({
       requests: [{
         indexName: BILLS_INDEX,
         query: '',

@@ -27,4 +27,59 @@ application "civic-pulse" {
 
   // Optional: SmartMemory for AI agent context (future enhancement)
   // smartmemory "civic_memory" {}
+
+  // ============================================================================
+  // PODCAST GENERATION QUEUE SYSTEM (Actor/Observer Pattern)
+  // ============================================================================
+
+  // Queue for podcast generation jobs
+  queue "podcast-generation-queue" {
+    // Handles asynchronous podcast generation requests
+    // Max retries: 3, Visibility timeout: 300s (5 minutes)
+  }
+
+  // Actor: Manages user's podcast queue and status
+  actor "podcast-generator" {
+    // Per-user instance tracks:
+    // - Queue of pending podcast requests
+    // - Current generation status
+    // - Generation history (last 10)
+    // - User preferences (voice, speed, length)
+    // Access via: env.PODCAST_GENERATOR.idFromName(userId)
+  }
+
+  // Observer: Processes podcast generation jobs
+  observer "podcast-queue-handler" {
+    source {
+      queue = "podcast-generation-queue"
+    }
+    // Watches queue and processes each podcast request:
+    // 1. Fetch bill data from SmartSQL
+    // 2. Generate dialogue script (Claude API)
+    // 3. Generate audio (ElevenLabs text-to-dialogue)
+    // 4. Upload to Vultr CDN
+    // 5. Update actor with result
+    // 6. Send notification to user
+  }
+
+  // Queue for user notifications (podcast ready, bill updates, etc.)
+  queue "user-notifications" {
+    // Handles push notifications, emails, and in-app alerts
+  }
+
+  // Observer: Processes notification delivery
+  observer "notification-handler" {
+    source {
+      queue = "user-notifications"
+    }
+    // Delivers notifications via:
+    // - Push notifications (web push API)
+    // - Email (future)
+    // - In-app notifications (stored in KV Cache)
+  }
+
+  // KV Cache for notification state
+  kv_cache "notification-state" {
+    // Stores pending notifications and read status
+  }
 }

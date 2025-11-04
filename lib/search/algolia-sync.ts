@@ -5,7 +5,10 @@
  * Handles both initial bulk sync and incremental updates
  */
 
-import { algoliaAdmin, BILLS_INDEX, indexSettings, type AlgoliaBill } from './algolia-config';
+import { getAlgoliaAdmin, BILLS_INDEX, indexSettings, type AlgoliaBill } from './algolia-config';
+
+// Get admin client
+const algoliaAdmin = getAlgoliaAdmin();
 import { fetchEnhancedBillsBatch, fetchAllBillsForCongress, type EnhancedBill } from '../api/congress-enhanced';
 import { storeBillInDatabase, storeBillsBatch, markBillSyncedToAlgolia } from '../db/bills';
 

@@ -17,40 +17,12 @@ import { QuickStats } from '@/components/representatives/quick-stats';
 import { LegislationTabs } from '@/components/representatives/legislation-tabs';
 import { AppHeader } from '@/components/shared/app-header';
 import { getSession } from '@/lib/auth/session';
+import { getRepresentativeData } from '@/lib/congress/get-representative-data';
 
 interface PageProps {
   params: Promise<{
     bioguideId: string;
   }>;
-}
-
-async function getRepresentativeData(bioguideId: string) {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-
-  try {
-    const response = await fetch(
-      `${baseUrl}/api/representatives/${bioguideId}`,
-      {
-        // Revalidate every 12 hours (representatives data doesn't change often)
-        next: { revalidate: 43200 },
-        // Add timeout to prevent hanging
-        signal: AbortSignal.timeout(10000), // 10 second timeout
-      }
-    );
-
-    if (!response.ok) {
-      if (response.status === 404) {
-        return null;
-      }
-      throw new Error(`Failed to fetch representative data: ${response.status}`);
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error('Error fetching representative:', error);
-    // Return null instead of throwing to show a better error page
-    return null;
-  }
 }
 
 export default async function RepresentativePage({ params }: PageProps) {
@@ -63,14 +35,17 @@ export default async function RepresentativePage({ params }: PageProps) {
   // Next.js 16: params must be awaited
   const { bioguideId } = await params;
 
-  // Fetch representative data
+  // Fetch representative data directly from database (no self-referential API call)
+  console.log(`[RepPage] Fetching representative data for ${bioguideId}`);
   const data = await getRepresentativeData(bioguideId);
 
   // Handle 404
   if (!data) {
+    console.log(`[RepPage] Representative ${bioguideId} not found`);
     notFound();
   }
 
+  console.log(`[RepPage] Successfully loaded data for ${data.representative?.name || bioguideId}`);
   const { representative, sponsoredBills, cosponsoredBills, stats } = data;
 
   return (
@@ -128,6 +103,7 @@ export async function generateMetadata({ params }: PageProps) {
   const { bioguideId } = await params;
 
   try {
+    // Use the same shared function for consistency
     const data = await getRepresentativeData(bioguideId);
 
     if (!data) {
@@ -152,6 +128,7 @@ export async function generateMetadata({ params }: PageProps) {
       },
     };
   } catch (error) {
+    console.error('[RepPage Metadata] Error generating metadata:', error);
     return {
       title: 'Representative | HakiVo',
     };
