@@ -64,10 +64,32 @@ export async function POST(request: NextRequest) {
       console.log(`✅ Saved ${body.representatives.length} representatives to database`);
     }
 
+    // Trigger first daily brief generation in background (don't await)
+    // User will see it when they land on dashboard or briefs page
+    if (body.audioEnabled && body.audioFrequencies?.includes('daily')) {
+      console.log(`🎙️  Triggering first daily brief generation for user ${user.id}`);
+
+      // Generate brief asynchronously without blocking response
+      fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/briefs/generate-daily`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cookie': `session=${request.cookies.get('session')?.value}`,
+        },
+        body: JSON.stringify({
+          force_regenerate: true, // Generate even if one exists today
+        }),
+      }).catch(error => {
+        // Log error but don't fail onboarding
+        console.error('❌ Background brief generation failed:', error);
+      });
+    }
+
     return NextResponse.json({
       success: true,
       userId: user.id,
       message: 'Onboarding completed successfully',
+      briefGenerating: body.audioEnabled && body.audioFrequencies?.includes('daily'),
     });
 
   } catch (error) {

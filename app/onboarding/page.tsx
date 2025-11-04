@@ -120,10 +120,15 @@ export default function OnboardingPage() {
       } else {
         const result = await response.json();
         console.log('Onboarding saved successfully:', result);
-        // TODO: Store userId in session/cookie
+
+        // Store brief generation status for dashboard to show loading state
+        if (result.briefGenerating) {
+          localStorage.setItem('firstBriefGenerating', 'true');
+          localStorage.setItem('firstBriefStartTime', Date.now().toString());
+        }
       }
 
-      // Store user location in localStorage for dashboard use (until we have auth)
+      // Store user location in localStorage for dashboard use
       if (data.state && data.district !== undefined) {
         localStorage.setItem('userLocation', JSON.stringify({
           state: data.state,
