@@ -32,7 +32,9 @@ async function getRepresentativeData(bioguideId: string) {
       `${baseUrl}/api/representatives/${bioguideId}`,
       {
         // Revalidate every 12 hours (representatives data doesn't change often)
-        next: { revalidate: 43200 }
+        next: { revalidate: 43200 },
+        // Add timeout to prevent hanging
+        signal: AbortSignal.timeout(10000), // 10 second timeout
       }
     );
 
@@ -46,7 +48,8 @@ async function getRepresentativeData(bioguideId: string) {
     return await response.json();
   } catch (error) {
     console.error('Error fetching representative:', error);
-    throw error;
+    // Return null instead of throwing to show a better error page
+    return null;
   }
 }
 
@@ -118,13 +121,8 @@ export default async function RepresentativePage({ params }: PageProps) {
 
 // Generate metadata for SEO
 export async function generateMetadata({ params }: PageProps) {
-  // Check authentication
-  const user = await getSession();
-  if (!user) {
-    return {
-      title: 'Sign In Required | HakiVo',
-    };
-  }
+  // Skip auth check here - metadata generation shouldn't require authentication
+  // The page component already checks authentication
 
   // Next.js 16: params must be awaited
   const { bioguideId } = await params;
