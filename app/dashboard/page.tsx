@@ -30,8 +30,15 @@ export default function DashboardPage() {
   const router = useRouter();
   const { loadBrief } = useAudioPlayer(); // Use global audio player
 
-  // Mock user interests (would come from user preferences in real app)
-  const userInterests = ['healthcare', 'technology', 'defense', 'finance', 'transportation'];
+  // User profile from Phase 1 preferences (triggers migration for existing users)
+  const [userProfile, setUserProfile] = useState<{
+    policyInterests: string[];
+    location?: { state: string; district?: string; city?: string };
+  } | null>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+
+  // User interests from profile (fallback to defaults)
+  const userInterests = userProfile?.policyInterests || ['healthcare', 'technology', 'defense', 'finance', 'transportation'];
 
   // Get default feeds based on interests (Senate + House + policy feeds)
   const defaultFeeds = getFeedsForInterests(userInterests);
@@ -78,6 +85,39 @@ export default function DashboardPage() {
     };
     checkAuth();
   }, [router]);
+
+  // Fetch user profile (triggers migration for existing users!)
+  useEffect(() => {
+    if (authChecking) return; // Wait for auth check to complete
+
+    const fetchProfile = async () => {
+      try {
+        console.log('📝 Fetching user profile from preferences API...');
+        const response = await fetch('/api/preferences/profile');
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.profile) {
+            console.log('✅ User profile loaded:', data.profile);
+            setUserProfile({
+              policyInterests: data.profile.policyInterests || [],
+              location: data.profile.location,
+            });
+          } else {
+            console.log('⚠️  No profile found, using defaults');
+          }
+        } else {
+          console.error('❌ Failed to fetch profile:', response.status);
+        }
+      } catch (error) {
+        console.error('❌ Error fetching profile:', error);
+      } finally {
+        setProfileLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, [authChecking]);
 
   // Fetch news articles when component mounts or when selected feeds change
   useEffect(() => {

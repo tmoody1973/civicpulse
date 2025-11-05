@@ -8,10 +8,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ClientHeader } from '@/components/shared/client-header';
 import { Skeleton } from '@/components/ui/skeleton';
 import { MapPin, Mail, Bell, User, Save, Loader2, Heart, Stethoscope, GraduationCap, Leaf, DollarSign, Shield, Home, Users, Cpu, Briefcase, Calculator, Globe, Truck, Sprout, Scale } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
+import { SUPPORTED_LANGUAGES } from '@/lib/preferences/types';
 
 // Maps to Congress.gov's Policy Areas for bill filtering
 const ISSUE_CATEGORIES = [
@@ -32,7 +34,35 @@ const ISSUE_CATEGORIES = [
   { id: 'civil-rights', label: 'Civil Rights & Justice', icon: Scale, color: 'text-violet-500' },
 ];
 
+// Phase 1 user profile from preferences API
 interface UserProfile {
+  userId: string;
+  firstName?: string;
+  lastName?: string;
+  preferredLanguage: string;
+  policyInterests: string[];
+  location: {
+    state: string;
+    district?: string;
+    city?: string;
+    zipCode?: string;
+  };
+  notificationPreferences: {
+    email: boolean;
+    push: boolean;
+    sms: boolean;
+    billUpdates: boolean;
+    representativeActivity: boolean;
+    podcastReady: boolean;
+  };
+  podcastPreferences: {
+    autoGenerate: boolean;
+    preferredLength: 'quick' | 'standard' | 'in-depth';
+  };
+}
+
+// Legacy profile from /api/user/profile (for backward compatibility)
+interface LegacyProfile {
   id: string;
   email: string;
   name: string | null;
@@ -43,12 +73,12 @@ interface UserProfile {
   interests: string[];
   email_notifications: boolean;
   audio_enabled: boolean;
-  audio_frequencies: string[];
 }
 
 export default function SettingsPage() {
   const router = useRouter();
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [userEmail, setUserEmail] = useState<string>(''); // Store separately for display
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [refreshingReps, setRefreshingReps] = useState(false);
@@ -56,7 +86,9 @@ export default function SettingsPage() {
 
   // Form state
   const [formData, setFormData] = useState({
-    name: '',
+    firstName: '',
+    lastName: '',
+    preferredLanguage: 'en',
     zipCode: '',
     emailNotifications: false,
     audioEnabled: false,
@@ -66,7 +98,19 @@ export default function SettingsPage() {
   useEffect(() => {
     async function loadProfile() {
       try {
-        const response = await fetch('/api/user/profile');
+        // Fetch user email from session
+        const sessionResponse = await fetch('/api/auth/session');
+        if (!sessionResponse.ok) {
+          router.push('/auth/login');
+          return;
+        }
+        const sessionData = await sessionResponse.json();
+        setUserEmail(sessionData.user?.email || '');
+
+        // Fetch preferences from Phase 1 API (triggers migration for existing users!)
+        console.log('📝 Fetching user profile from preferences API...');
+        const response = await fetch('/api/preferences/profile');
+
         if (!response.ok) {
           if (response.status === 401) {
             router.push('/auth/login');
@@ -74,17 +118,36 @@ export default function SettingsPage() {
           }
           throw new Error('Failed to load profile');
         }
-        const data = await response.json();
-        setProfile(data);
 
-        // Initialize form with current values
-        setFormData({
-          name: data.name || '',
-          zipCode: data.zip_code || '',
-          emailNotifications: data.email_notifications || false,
-          audioEnabled: data.audio_enabled || false,
-          interests: data.interests || [],
-        });
+        const data = await response.json();
+
+        if (data.success && data.profile) {
+          console.log('✅ Profile loaded from preferences API:', data.profile);
+          setProfile(data.profile);
+
+          // Initialize form with Phase 1 profile values
+          setFormData({
+            firstName: data.profile.firstName || '',
+            lastName: data.profile.lastName || '',
+            preferredLanguage: data.profile.preferredLanguage || 'en',
+            zipCode: data.profile.location?.zipCode || '',
+            emailNotifications: data.profile.notificationPreferences?.email || false,
+            audioEnabled: data.profile.podcastPreferences?.autoGenerate || false,
+            interests: data.profile.policyInterests || [],
+          });
+        } else {
+          console.log('⚠️  No profile found, using defaults');
+          // Set defaults if no profile exists yet
+          setFormData({
+            firstName: '',
+            lastName: '',
+            preferredLanguage: 'en',
+            zipCode: '',
+            emailNotifications: false,
+            audioEnabled: false,
+            interests: [],
+          });
+        }
       } catch (error) {
         console.error('Failed to load profile:', error);
         setMessage({ type: 'error', text: 'Failed to load settings' });
@@ -129,21 +192,21 @@ export default function SettingsPage() {
 
       const lookupData = await lookupResponse.json();
 
-      // Save with new location data
-      const response = await fetch('/api/onboarding', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: formData.name,
-          zipCode: formData.zipCode,
-          emailNotifications: formData.emailNotifications,
-          audioEnabled: formData.audioEnabled,
-          interests: formData.interests,
+      // Update using Phase 1 preferences API
+      const updates = {
+        location: {
           state: lookupData.district.state,
-          district: lookupData.district.number,
-          representatives: lookupData.representatives,
-          audioFrequencies: profile?.audio_frequencies || ['daily', 'weekly'],
-        }),
+          district: lookupData.district.number.toString(),
+          city: profile?.location?.city,
+          zipCode: formData.zipCode,
+        },
+        representatives: lookupData.representatives,
+      };
+
+      const response = await fetch('/api/preferences/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ updates, source: 'settings' }),
       });
 
       if (!response.ok) throw new Error('Failed to update representatives');
@@ -154,10 +217,12 @@ export default function SettingsPage() {
       });
 
       // Reload profile
-      const profileResponse = await fetch('/api/user/profile');
+      const profileResponse = await fetch('/api/preferences/profile');
       if (profileResponse.ok) {
         const data = await profileResponse.json();
-        setProfile(data);
+        if (data.success && data.profile) {
+          setProfile(data.profile);
+        }
       }
     } catch (error) {
       console.error('Failed to refresh representatives:', error);
@@ -173,14 +238,12 @@ export default function SettingsPage() {
     setMessage(null);
 
     try {
-      // If zip code changed, look up new representatives
-      let locationData = {
-        state: profile?.state,
-        district: profile?.district,
-        representatives: undefined as any,
-      };
+      // Build location update object
+      let locationUpdate = profile?.location ? { ...profile.location } : { state: '', district: undefined, city: undefined };
 
-      if (formData.zipCode !== profile?.zip_code) {
+      // If zip code changed, look up new representatives
+      let representatives = undefined;
+      if (formData.zipCode !== profile?.location?.zipCode) {
         console.log('Zip code changed, looking up new representatives...');
 
         const lookupResponse = await fetch('/api/onboarding/lookup-reps', {
@@ -191,32 +254,51 @@ export default function SettingsPage() {
 
         if (lookupResponse.ok) {
           const lookupData = await lookupResponse.json();
-          locationData = {
+          locationUpdate = {
             state: lookupData.district.state,
-            district: lookupData.district.number,
-            representatives: lookupData.representatives,
+            district: lookupData.district.number.toString(),
+            city: profile?.location?.city,
+            zipCode: formData.zipCode,
           };
+          representatives = lookupData.representatives;
           console.log('✅ Found new representatives for', lookupData.district.state, 'district', lookupData.district.number);
-          console.log('✅ Representatives:', locationData.representatives?.length || 0);
         } else {
           throw new Error('Failed to lookup representatives for new zip code');
         }
+      } else {
+        // Just update zip code if it changed
+        locationUpdate.zipCode = formData.zipCode;
       }
 
-      // Save settings with updated location data
-      const response = await fetch('/api/onboarding', {
-        method: 'POST',
+      // Build Phase 1 update payload
+      const updates: any = {
+        firstName: formData.firstName || undefined,
+        lastName: formData.lastName || undefined,
+        preferredLanguage: formData.preferredLanguage,
+        policyInterests: formData.interests,
+        location: locationUpdate,
+        notificationPreferences: {
+          ...profile?.notificationPreferences,
+          email: formData.emailNotifications,
+        },
+        podcastPreferences: {
+          ...profile?.podcastPreferences,
+          autoGenerate: formData.audioEnabled,
+        },
+      };
+
+      // Add representatives if location changed
+      if (representatives) {
+        updates.representatives = representatives;
+      }
+
+      // Save to Phase 1 preferences API
+      const response = await fetch('/api/preferences/profile', {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: formData.name,
-          zipCode: formData.zipCode,
-          emailNotifications: formData.emailNotifications,
-          audioEnabled: formData.audioEnabled,
-          interests: formData.interests,
-          state: locationData.state,
-          district: locationData.district,
-          representatives: locationData.representatives,
-          audioFrequencies: profile?.audio_frequencies || ['daily', 'weekly'],
+          updates,
+          source: 'settings',
         }),
       });
 
@@ -225,10 +307,12 @@ export default function SettingsPage() {
       setMessage({ type: 'success', text: 'Settings saved successfully!' });
 
       // Reload profile to show updated data
-      const profileResponse = await fetch('/api/user/profile');
+      const profileResponse = await fetch('/api/preferences/profile');
       if (profileResponse.ok) {
         const data = await profileResponse.json();
-        setProfile(data);
+        if (data.success && data.profile) {
+          setProfile(data.profile);
+        }
       }
     } catch (error) {
       console.error('Failed to save settings:', error);
@@ -290,7 +374,7 @@ export default function SettingsPage() {
                 <Input
                   id="email"
                   type="email"
-                  value={profile?.email || ''}
+                  value={userEmail}
                   disabled
                   className="bg-muted"
                 />
@@ -299,15 +383,54 @@ export default function SettingsPage() {
                 </p>
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="firstName">First Name</Label>
+                  <Input
+                    id="firstName"
+                    type="text"
+                    value={formData.firstName}
+                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                    placeholder="Enter your first name"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="lastName">Last Name</Label>
+                  <Input
+                    id="lastName"
+                    type="text"
+                    value={formData.lastName}
+                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                    placeholder="Enter your last name"
+                  />
+                </div>
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                Your name is used to personalize newsletters and greetings throughout the app
+              </p>
+
               <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
-                <Input
-                  id="name"
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Enter your name"
-                />
+                <Label htmlFor="language">Preferred Language</Label>
+                <Select
+                  value={formData.preferredLanguage}
+                  onValueChange={(value) => setFormData({ ...formData, preferredLanguage: value })}
+                >
+                  <SelectTrigger id="language" className="w-full">
+                    <SelectValue placeholder="Select a language" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SUPPORTED_LANGUAGES.map((lang) => (
+                      <SelectItem key={lang.code} value={lang.code}>
+                        {lang.nativeName} ({lang.name})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Language for audio podcasts, site interface, and translated legislation
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -336,11 +459,11 @@ export default function SettingsPage() {
                 />
               </div>
 
-              {profile?.state && profile?.district && (
+              {profile?.location?.state && profile?.location?.district && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Badge variant="outline">{profile.state}</Badge>
-                  <span>District {profile.district}</span>
-                  {profile.city && <span>• {profile.city}</span>}
+                  <Badge variant="outline">{profile.location.state}</Badge>
+                  <span>District {profile.location.district}</span>
+                  {profile.location.city && <span>• {profile.location.city}</span>}
                 </div>
               )}
             </CardContent>
