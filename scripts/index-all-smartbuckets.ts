@@ -1,8 +1,8 @@
 #!/usr/bin/env tsx
 /**
- * SmartBuckets Indexing Script for ALL Congresses
+ * SmartBuckets Indexing Script for Congresses 118 and 119
  *
- * Indexes all bills (117, 118, 119) with full text into SmartBuckets for semantic search.
+ * Indexes bills from Congress 118 and 119 with full text into SmartBuckets for semantic search.
  * This enables queries like "bills about renewable energy" or "climate change mitigation"
  * instead of just keyword matching.
  */
@@ -136,7 +136,7 @@ async function getBillsWithFullText(limit: number = 100, offset: number = 0): Pr
         SELECT * FROM bills
         WHERE full_text IS NOT NULL
         AND full_text != ''
-        AND congress IN (117, 118, 119)
+        AND congress IN (118, 119)
         ORDER BY id
         LIMIT ${limit} OFFSET ${offset}
       `
@@ -195,7 +195,7 @@ async function indexBillInSmartBucket(bill: any): Promise<boolean> {
  * Main indexing function
  */
 async function main() {
-  console.log('🚀 SmartBuckets Indexing - ALL Congresses (117, 118, 119)\n');
+  console.log('🚀 SmartBuckets Indexing - Congresses 118 and 119\n');
   console.log('============================================================');
 
   // Load progress

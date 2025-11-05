@@ -13,7 +13,7 @@ import { Representative } from '@/components/dashboard/representative-card';
 import { NewsFeedCard } from '@/components/dashboard/news-feed-card';
 import { FeedSettings } from '@/components/dashboard/feed-settings';
 import { getFeedsForInterests } from '@/lib/rss/the-hill-feeds';
-import { PodcastPlayer, type PodcastEpisode } from '@/components/podcast/player';
+import { useAudioPlayer, type Brief } from '@/contexts/audio-player-context';
 import { EpisodeCard } from '@/components/podcast/episode-card';
 
 interface NewsArticle {
@@ -28,6 +28,7 @@ interface NewsArticle {
 
 export default function DashboardPage() {
   const router = useRouter();
+  const { loadBrief } = useAudioPlayer(); // Use global audio player
 
   // Mock user interests (would come from user preferences in real app)
   const userInterests = ['healthcare', 'technology', 'defense', 'finance', 'transportation'];
@@ -48,9 +49,8 @@ export default function DashboardPage() {
   const [userLocation, setUserLocation] = useState<{ state: string; district: number; city?: string } | null>(null);
   const [authChecking, setAuthChecking] = useState(true);
 
-  // Podcast state
-  const [podcasts, setPodcasts] = useState<PodcastEpisode[]>([]);
-  const [currentPodcast, setCurrentPodcast] = useState<PodcastEpisode | null>(null);
+  // Podcast state (now just for tracking episodes, player is global)
+  const [podcasts, setPodcasts] = useState<Brief[]>([]);
   const [generatingPodcast, setGeneratingPodcast] = useState(false);
   const [podcastError, setPodcastError] = useState<string | null>(null);
 
@@ -221,22 +221,22 @@ export default function DashboardPage() {
         throw new Error(data.error || 'Failed to generate podcast');
       }
 
-      // Create podcast episode from response
-      const newEpisode: PodcastEpisode = {
-        audioUrl: data.audioUrl,
+      // Create brief for audio player
+      const newBrief: Brief = {
+        id: `brief-${Date.now()}`,
         title: `${type === 'daily' ? 'Daily Brief' : 'Weekly Deep Dive'} - ${new Date().toLocaleDateString()}`,
-        type,
+        audio_url: data.audioUrl,
+        featured_image_url: null, // TODO: Add featured image support
         duration: data.duration,
-        billsCovered: data.billsCovered,
-        transcript: data.transcript,
-        generatedAt: new Date(),
+        type,
+        generated_at: new Date().toISOString(),
       };
 
       // Add to podcasts list
-      setPodcasts((prev) => [newEpisode, ...prev]);
+      setPodcasts((prev) => [newBrief, ...prev]);
 
-      // Auto-play the new podcast
-      setCurrentPodcast(newEpisode);
+      // Load into global player (auto-plays)
+      loadBrief(newBrief);
     } catch (error) {
       setPodcastError(error instanceof Error ? error.message : 'An error occurred');
       console.error('Error generating podcast:', error);
@@ -609,11 +609,17 @@ export default function DashboardPage() {
                   {podcasts.length > 0 && (
                     <div className="space-y-2">
                       <p className="text-xs font-semibold text-muted-foreground">Recent Episodes</p>
-                      {podcasts.slice(0, 2).map((episode, index) => (
+                      {podcasts.slice(0, 2).map((brief, index) => (
                         <EpisodeCard
                           key={index}
-                          episode={episode}
-                          onPlay={() => setCurrentPodcast(episode)}
+                          episode={{
+                            audioUrl: brief.audio_url,
+                            title: brief.title,
+                            type: brief.type,
+                            duration: brief.duration,
+                            generatedAt: brief.generated_at,
+                          }}
+                          onPlay={() => loadBrief(brief)}
                           compact
                         />
                       ))}
@@ -668,17 +674,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Spacer when player is visible to prevent content from being hidden */}
-        {currentPodcast && <div className="h-32 sm:h-24" aria-hidden="true" />}
       </main>
-
-      {/* Podcast Player (Fixed Bottom) */}
-      {currentPodcast && (
-        <PodcastPlayer
-          episode={currentPodcast}
-          onClose={() => setCurrentPodcast(null)}
-        />
-      )}
     </div>
   );
 }
