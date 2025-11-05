@@ -19,6 +19,9 @@ import { AppHeader } from '@/components/shared/app-header';
 import { getSession } from '@/lib/auth/session';
 import { getRepresentativeData } from '@/lib/congress/get-representative-data';
 
+// Force dynamic rendering since we need session cookies
+export const dynamic = 'force-dynamic';
+
 interface PageProps {
   params: Promise<{
     bioguideId: string;
