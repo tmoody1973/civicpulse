@@ -6,7 +6,7 @@
   ![Next.js](https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js)
   ![React](https://img.shields.io/badge/React-19-blue?style=flat-square&logo=react)
   ![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue?style=flat-square&logo=typescript)
-  ![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)
+  ![License](https://img.shields.io/badge/license-AGPL--3.0-green?style=flat-square)
 </div>
 
 Built for [The AI Champion Ship Hackathon](https://liquidmetal.devpost.com/) - showcasing AI for Public Good and Voice Agent capabilities.
@@ -257,7 +257,7 @@ This project was built for The AI Champion Ship. While we're not accepting contr
 
 ## 📄 License
 
-MIT License - see [LICENSE](LICENSE) file for details
+AGPL-3.0 License - see [LICENSE](LICENSE) file for details
 
 ## 🏆 Hackathon Categories
 
