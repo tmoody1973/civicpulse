@@ -26,14 +26,14 @@ interface PageProps {
 }
 
 export default async function RepresentativePage({ params }: PageProps) {
-  // Check authentication
+  // Next.js 16: params must be awaited
+  const { bioguideId } = await params;
+
+  // Check authentication - temporarily moved after params await to isolate any auth issues
   const user = await getSession();
   if (!user) {
     redirect('/auth/login');
   }
-
-  // Next.js 16: params must be awaited
-  const { bioguideId } = await params;
 
   // Fetch representative data directly from database (no self-referential API call)
   console.log(`[RepPage] Fetching representative data for ${bioguideId}`);
@@ -102,11 +102,15 @@ export async function generateMetadata({ params }: PageProps) {
   // Next.js 16: params must be awaited
   const { bioguideId } = await params;
 
+  // Temporarily return simple metadata to isolate if metadata generation is causing 500 errors
+  console.log(`[RepPage Metadata] Generating metadata for ${bioguideId}`);
+
   try {
     // Use the same shared function for consistency
     const data = await getRepresentativeData(bioguideId);
 
     if (!data) {
+      console.log(`[RepPage Metadata] No data found for ${bioguideId}`);
       return {
         title: 'Representative Not Found | HakiVo',
       };
@@ -118,6 +122,7 @@ export async function generateMetadata({ params }: PageProps) {
       ? `${representative.state}-${representative.district}`
       : representative.state;
 
+    console.log(`[RepPage Metadata] Successfully generated metadata for ${representative.name}`);
     return {
       title: `${representative.name} - ${chamberText} (${representative.party}) | HakiVo`,
       description: `View legislative activity for ${representative.name}, ${representative.party} ${chamberText} from ${location}. ${stats.totalSponsored} bills sponsored, ${stats.totalCosponsored} co-sponsored, ${stats.lawsPassed} laws passed.`,
