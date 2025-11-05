@@ -1,16 +1,23 @@
 import { requireAdmin } from "@/lib/auth/session";
 import { NextRequest, NextResponse } from 'next/server';
 
-const RAINDROP_SERVICE_URL = process.env.RAINDROP_SERVICE_URL || 'http://localhost:8787';
+const ADMIN_API_URL = process.env.ADMIN_API_URL || process.env.RAINDROP_SERVICE_URL || 'http://localhost:8787';
 
 const VALID_TABLES = [
+  // Phase 1: SmartSQL ANALYTICS tables
+  'user_interactions',
+  'user_profiles',
+  'widget_preferences',
+  // Legacy: CIVIC_DB tables
   'users',
   'bills',
   'representatives',
   'user_bills',
   'podcasts',
+  'briefs',
   'rss_articles',
-  'vote_records'
+  'vote_records',
+  'sync_history'
 ];
 
 /**
@@ -54,7 +61,7 @@ export async function GET(
       });
     }
 
-    const response = await fetch(`${RAINDROP_SERVICE_URL}/api/admin/count`, fetchOptions);
+    const response = await fetch(`${ADMIN_API_URL}/api/admin/count`, fetchOptions);
 
     if (!response.ok) {
       // Return 0 if backend not available

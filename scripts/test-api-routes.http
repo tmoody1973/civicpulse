@@ -1,0 +1,358 @@
+###
+# Phase 1 API Route Tests
+# Use with VS Code REST Client extension or similar
+#
+# Variables
+@baseUrl = http://localhost:3000
+@userId = test-user-12345
+@sessionId = test-session-67890
+
+###########################################################
+# 1. Procedural Memory Initialization
+###########################################################
+
+### Check if procedural memory is initialized
+GET {{baseUrl}}/api/memory/init
+Content-Type: application/json
+
+### Initialize procedural memory (one-time setup)
+POST {{baseUrl}}/api/memory/init
+Content-Type: application/json
+
+###########################################################
+# 2. Interaction Tracking
+###########################################################
+
+### Track a bill view
+POST {{baseUrl}}/api/tracking
+Content-Type: application/json
+
+{
+  "userId": "{{userId}}",
+  "interactionType": "bill_view",
+  "targetId": "hr-3458",
+  "targetType": "bill",
+  "metadata": {
+    "billNumber": "HR-3458",
+    "policyArea": "Climate",
+    "readTime": 45
+  },
+  "sessionId": "{{sessionId}}"
+}
+
+### Track a podcast listen
+POST {{baseUrl}}/api/tracking
+Content-Type: application/json
+
+{
+  "userId": "{{userId}}",
+  "interactionType": "podcast_listen",
+  "targetId": "podcast-123",
+  "targetType": "podcast",
+  "metadata": {
+    "podcastType": "daily",
+    "duration": 420,
+    "completionRate": 0.85
+  }
+}
+
+### Track a search query
+POST {{baseUrl}}/api/tracking
+Content-Type: application/json
+
+{
+  "userId": "{{userId}}",
+  "interactionType": "search",
+  "targetId": "climate change bills",
+  "metadata": {
+    "resultCount": 15
+  }
+}
+
+### Track a chat query (Perplexity AI)
+POST {{baseUrl}}/api/tracking
+Content-Type: application/json
+
+{
+  "userId": "{{userId}}",
+  "interactionType": "chat_query",
+  "targetId": "What bills is Elizabeth Warren sponsoring?",
+  "metadata": {
+    "responseTime": 1200,
+    "satisfied": true
+  }
+}
+
+### Track a news article click
+POST {{baseUrl}}/api/tracking
+Content-Type: application/json
+
+{
+  "userId": "{{userId}}",
+  "interactionType": "news_click",
+  "targetId": "article-456",
+  "targetType": "article",
+  "metadata": {
+    "source": "The Hill",
+    "title": "Senate passes climate bill"
+  }
+}
+
+###########################################################
+# 3. User Profile Management
+###########################################################
+
+### Get user profile (should return 404 if not exists)
+GET {{baseUrl}}/api/preferences/profile?userId={{userId}}
+Content-Type: application/json
+
+### Create/Update user profile
+PATCH {{baseUrl}}/api/preferences/profile
+Content-Type: application/json
+
+{
+  "userId": "{{userId}}",
+  "updates": {
+    "policyInterests": ["climate", "healthcare", "education"],
+    "representatives": [
+      {
+        "bioguideId": "W000817",
+        "name": "Elizabeth Warren",
+        "chamber": "senate",
+        "state": "MA",
+        "party": "Democratic"
+      },
+      {
+        "bioguideId": "P000617",
+        "name": "Ayanna Pressley",
+        "chamber": "house",
+        "state": "MA",
+        "district": "MA-07",
+        "party": "Democratic"
+      }
+    ],
+    "location": {
+      "state": "MA",
+      "district": "MA-07",
+      "city": "Boston",
+      "zipCode": "02108"
+    },
+    "notificationPreferences": {
+      "email": true,
+      "push": true,
+      "sms": false,
+      "billUpdates": true,
+      "representativeActivity": true,
+      "podcastReady": true,
+      "newsAlerts": false,
+      "quietHours": {
+        "enabled": true,
+        "start": "22:00",
+        "end": "07:00"
+      }
+    },
+    "podcastPreferences": {
+      "autoGenerate": true,
+      "generationTime": "07:00",
+      "preferredLength": "standard",
+      "topics": ["climate", "healthcare"],
+      "focus": ["my-reps", "my-state"],
+      "listeningDays": ["monday", "wednesday", "friday"]
+    },
+    "learningStyle": "audio-focused"
+  },
+  "source": "onboarding"
+}
+
+### Update only policy interests
+PATCH {{baseUrl}}/api/preferences/profile
+Content-Type: application/json
+
+{
+  "userId": "{{userId}}",
+  "updates": {
+    "policyInterests": ["climate", "healthcare", "education", "infrastructure"]
+  },
+  "source": "auto-learn"
+}
+
+### Update notification preferences
+PATCH {{baseUrl}}/api/preferences/profile
+Content-Type: application/json
+
+{
+  "userId": "{{userId}}",
+  "updates": {
+    "notificationPreferences": {
+      "email": true,
+      "push": true,
+      "sms": false,
+      "billUpdates": true,
+      "representativeActivity": true,
+      "podcastReady": true,
+      "newsAlerts": true,
+      "quietHours": {
+        "enabled": true,
+        "start": "23:00",
+        "end": "08:00"
+      }
+    }
+  },
+  "source": "settings"
+}
+
+###########################################################
+# 4. Widget Preferences Management
+###########################################################
+
+### Get widget preferences
+GET {{baseUrl}}/api/preferences/widgets?userId={{userId}}
+Content-Type: application/json
+
+### Update hero widget preferences
+PATCH {{baseUrl}}/api/preferences/widgets
+Content-Type: application/json
+
+{
+  "userId": "{{userId}}",
+  "widgetType": "hero",
+  "updates": {
+    "isVisible": true,
+    "position": 0,
+    "filterSettings": {}
+  }
+}
+
+### Update legislation widget preferences
+PATCH {{baseUrl}}/api/preferences/widgets
+Content-Type: application/json
+
+{
+  "userId": "{{userId}}",
+  "widgetType": "legislation",
+  "updates": {
+    "isVisible": true,
+    "position": 1,
+    "filterSettings": {
+      "category": "climate",
+      "showOnlyMyReps": true
+    }
+  }
+}
+
+### Update Twitter feed widget preferences
+PATCH {{baseUrl}}/api/preferences/widgets
+Content-Type: application/json
+
+{
+  "userId": "{{userId}}",
+  "widgetType": "twitter",
+  "updates": {
+    "isVisible": true,
+    "position": 2,
+    "filterSettings": {
+      "filter": "my-reps"
+    }
+  }
+}
+
+### Update news widget preferences
+PATCH {{baseUrl}}/api/preferences/widgets
+Content-Type: application/json
+
+{
+  "userId": "{{userId}}",
+  "widgetType": "news",
+  "updates": {
+    "isVisible": true,
+    "position": 3,
+    "filterSettings": {
+      "source": "all",
+      "highlightMyReps": true
+    }
+  }
+}
+
+### Update podcast queue widget preferences
+PATCH {{baseUrl}}/api/preferences/widgets
+Content-Type: application/json
+
+{
+  "userId": "{{userId}}",
+  "widgetType": "podcast-queue",
+  "updates": {
+    "isVisible": true,
+    "position": 4,
+    "filterSettings": {}
+  }
+}
+
+### Hide Perplexity chat widget
+PATCH {{baseUrl}}/api/preferences/widgets
+Content-Type: application/json
+
+{
+  "userId": "{{userId}}",
+  "widgetType": "perplexity-chat",
+  "updates": {
+    "isVisible": false,
+    "position": 5,
+    "filterSettings": {}
+  }
+}
+
+### Update civic impact widget preferences
+PATCH {{baseUrl}}/api/preferences/widgets
+Content-Type: application/json
+
+{
+  "userId": "{{userId}}",
+  "widgetType": "civic-impact",
+  "updates": {
+    "isVisible": true,
+    "position": 6,
+    "filterSettings": {
+      "timeRange": "30days"
+    }
+  }
+}
+
+###########################################################
+# 5. Error Testing (Invalid Requests)
+###########################################################
+
+### Track interaction with invalid type
+POST {{baseUrl}}/api/tracking
+Content-Type: application/json
+
+{
+  "userId": "{{userId}}",
+  "interactionType": "invalid_type",
+  "targetId": "test"
+}
+
+### Get profile without userId
+GET {{baseUrl}}/api/preferences/profile
+Content-Type: application/json
+
+### Update profile with missing userId
+PATCH {{baseUrl}}/api/preferences/profile
+Content-Type: application/json
+
+{
+  "updates": {
+    "policyInterests": ["climate"]
+  }
+}
+
+### Update widget with invalid type
+PATCH {{baseUrl}}/api/preferences/widgets
+Content-Type: application/json
+
+{
+  "userId": "{{userId}}",
+  "widgetType": "invalid-widget",
+  "updates": {
+    "isVisible": true
+  }
+}

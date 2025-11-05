@@ -1,0 +1,189 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e5]:
+        - link "HakiVo - Making Congress Accessible" [ref=e6]:
+          - /url: /
+          - img "HakiVo - Making Congress Accessible" [ref=e7]
+        - navigation [ref=e8]:
+          - link "Features" [ref=e9]:
+            - /url: "#features"
+          - link "How It Works" [ref=e10]:
+            - /url: "#how-it-works"
+          - link "Pricing" [ref=e11]:
+            - /url: "#pricing"
+        - generic [ref=e12]:
+          - link "Sign In" [ref=e13]:
+            - /url: /auth/login
+            - button "Sign In" [ref=e14] [cursor=pointer]
+          - link "Get Started" [ref=e15]:
+            - /url: /auth/signup
+            - button "Get Started" [ref=e16] [cursor=pointer]
+    - main [ref=e17]:
+      - generic [ref=e19]:
+        - generic [ref=e20]:
+          - img "HakiVo - Making Congress Accessible" [ref=e22]
+          - heading "Know What Congress Is Doing" [level=1] [ref=e23]
+          - paragraph [ref=e24]: Track bills, understand legislation, follow your representatives' votes, and stay informed—all in plain English
+          - generic [ref=e25]:
+            - link "Start Free" [ref=e26]:
+              - /url: /onboarding
+              - button "Start Free" [ref=e27] [cursor=pointer]
+            - button "Explore Features" [ref=e28] [cursor=pointer]
+          - paragraph [ref=e29]: Join 10,000+ informed citizens
+        - generic [ref=e30]:
+          - generic [ref=e31]:
+            - img [ref=e33]
+            - heading "Track Bills" [level=3] [ref=e36]
+            - paragraph [ref=e37]: Follow legislation that matters to you
+          - generic [ref=e38]:
+            - img [ref=e40]
+            - heading "Plain English Summaries" [level=3] [ref=e42]
+            - paragraph [ref=e43]: AI transforms complex bills into clear explanations
+          - generic [ref=e44]:
+            - img [ref=e46]
+            - heading "Know Your Reps" [level=3] [ref=e51]
+            - paragraph [ref=e52]: See how your representatives vote and what they sponsor
+          - generic [ref=e53]:
+            - img [ref=e55]
+            - heading "Audio Briefings" [level=3] [ref=e57]
+            - paragraph [ref=e58]: Listen to summaries on your commute (optional)
+      - generic [ref=e60]:
+        - generic [ref=e61]:
+          - heading "How It Works" [level=2] [ref=e62]
+          - paragraph [ref=e63]: Get started in three simple steps
+        - generic [ref=e64]:
+          - generic [ref=e65]:
+            - generic [ref=e66]: "1"
+            - img [ref=e68]
+            - heading "Enter Your Location" [level=3] [ref=e71]
+            - paragraph [ref=e72]: We find your representatives automatically
+          - generic [ref=e73]:
+            - generic [ref=e74]: "2"
+            - img [ref=e76]
+            - heading "Pick Your Issues" [level=3] [ref=e79]
+            - paragraph [ref=e80]: Healthcare, climate, economy, education, etc.
+          - generic [ref=e81]:
+            - generic [ref=e82]: "3"
+            - img [ref=e84]
+            - heading "Stay Informed" [level=3] [ref=e87]
+            - paragraph [ref=e88]: Get bill updates, voting records, and plain-English analysis
+      - generic [ref=e91]:
+        - generic [ref=e92]:
+          - generic [ref=e93]:
+            - img [ref=e94]
+            - text: Generate Your HakiVo Podcast
+          - generic [ref=e100]: AI-powered audio briefings on the latest legislation
+        - generic [ref=e101]:
+          - generic [ref=e102]:
+            - button "Generate Daily Brief (3-4 min)" [ref=e103] [cursor=pointer]:
+              - img
+              - text: Generate Daily Brief (3-4 min)
+            - button "Generate Weekly Deep Dive (10-12 min)" [ref=e104] [cursor=pointer]:
+              - img
+              - text: Generate Weekly Deep Dive (10-12 min)
+          - generic [ref=e105]:
+            - paragraph [ref=e106]:
+              - strong [ref=e107]: "Status:"
+              - text: Using real APIs! ✅
+            - list [ref=e108]:
+              - listitem [ref=e109]: ✅ Congress.gov - Fetching real legislation
+              - listitem [ref=e110]: ✅ Claude Haiku 4.5 - Generating natural dialogue
+              - listitem [ref=e111]: ✅ ElevenLabs - Creating voice audio
+              - listitem [ref=e112]: ✅ Vultr Storage - Configured for audio hosting
+      - generic [ref=e114]:
+        - generic [ref=e115]:
+          - heading "See It In Action" [level=2] [ref=e116]
+          - paragraph [ref=e117]: Here's what tracking a bill looks like
+        - generic [ref=e119]:
+          - generic [ref=e120]:
+            - generic [ref=e121]:
+              - generic [ref=e122]:
+                - generic [ref=e123]:
+                  - generic [ref=e124]: H.R. 1234
+                  - generic [ref=e125]: Passed House
+                - heading "Healthcare Reform Act of 2025" [level=3] [ref=e126]
+              - button [ref=e127] [cursor=pointer]:
+                - img
+            - generic [ref=e128]:
+              - generic [ref=e129]: Healthcare
+              - generic [ref=e130]: Economy
+          - generic [ref=e131]:
+            - generic [ref=e132]:
+              - paragraph [ref=e133]: AI Plain English Summary
+              - paragraph [ref=e134]: This bill expands Medicare coverage to include dental, vision, and hearing services. It also caps prescription drug costs at $2,000 per year for seniors and allows Medicare to negotiate drug prices with pharmaceutical companies.
+            - generic [ref=e135]:
+              - paragraph [ref=e136]: Your Representatives
+              - generic [ref=e137]:
+                - generic [ref=e138]:
+                  - generic [ref=e141]:
+                    - paragraph [ref=e142]: Rep. Jane Smith
+                    - paragraph [ref=e143]: CA-12
+                  - generic [ref=e144]:
+                    - img [ref=e145]
+                    - generic [ref=e148]: Yea
+                - generic [ref=e149]:
+                  - generic [ref=e152]:
+                    - paragraph [ref=e153]: Sen. John Doe
+                    - paragraph [ref=e154]: California
+                  - generic [ref=e156]: Pending
+            - generic [ref=e157]:
+              - button "Track This Bill" [ref=e158] [cursor=pointer]
+              - button "Read Full Summary" [ref=e159] [cursor=pointer]
+              - button [ref=e160] [cursor=pointer]:
+                - img
+            - paragraph [ref=e161]:
+              - img [ref=e162]
+              - text: Listen to 4-min audio summary
+    - contentinfo [ref=e166]:
+      - generic [ref=e167]:
+        - generic [ref=e168]:
+          - generic [ref=e169]:
+            - heading "HakiVo" [level=3] [ref=e170]
+            - paragraph [ref=e171]: Making Congress accessible to everyone through AI-powered civic engagement.
+          - generic [ref=e172]:
+            - heading "Product" [level=4] [ref=e173]
+            - list [ref=e174]:
+              - listitem [ref=e175]:
+                - link "Features" [ref=e176]:
+                  - /url: "#"
+              - listitem [ref=e177]:
+                - link "Pricing" [ref=e178]:
+                  - /url: "#"
+              - listitem [ref=e179]:
+                - link "FAQ" [ref=e180]:
+                  - /url: "#"
+          - generic [ref=e181]:
+            - heading "Company" [level=4] [ref=e182]
+            - list [ref=e183]:
+              - listitem [ref=e184]:
+                - link "About" [ref=e185]:
+                  - /url: "#"
+              - listitem [ref=e186]:
+                - link "Blog" [ref=e187]:
+                  - /url: "#"
+              - listitem [ref=e188]:
+                - link "Contact" [ref=e189]:
+                  - /url: "#"
+          - generic [ref=e190]:
+            - heading "Legal" [level=4] [ref=e191]
+            - list [ref=e192]:
+              - listitem [ref=e193]:
+                - link "Privacy" [ref=e194]:
+                  - /url: "#"
+              - listitem [ref=e195]:
+                - link "Terms" [ref=e196]:
+                  - /url: "#"
+              - listitem [ref=e197]:
+                - link "Data Sources" [ref=e198]:
+                  - /url: "#"
+        - generic [ref=e199]:
+          - paragraph [ref=e200]: © 2025 HakiVo. Built for the Liquid Metal Hackathon.
+          - paragraph [ref=e201]: Data from Congress.gov • Non-partisan civic engagement tool
+  - button "Open Next.js Dev Tools" [ref=e207] [cursor=pointer]:
+    - img [ref=e208]
+  - alert [ref=e213]
+```

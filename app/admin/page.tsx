@@ -16,11 +16,31 @@ interface TableInfo {
 }
 
 const TABLES: TableInfo[] = [
+  // Phase 1: Personalization & Tracking (SmartSQL ANALYTICS)
+  {
+    name: 'user_interactions',
+    icon: <Database className="h-5 w-5" />,
+    description: '🆕 Phase 1: User interaction tracking',
+    color: 'bg-cyan-500'
+  },
+  {
+    name: 'user_profiles',
+    icon: <Users className="h-5 w-5" />,
+    description: '🆕 Phase 1: User preferences & settings',
+    color: 'bg-blue-500'
+  },
+  {
+    name: 'widget_preferences',
+    icon: <Settings className="h-5 w-5" />,
+    description: '🆕 Phase 1: Dashboard widget config',
+    color: 'bg-violet-500'
+  },
+  // Legacy Tables (CIVIC_DB)
   {
     name: 'users',
     icon: <Users className="h-5 w-5" />,
-    description: 'User profiles and preferences',
-    color: 'bg-blue-500'
+    description: 'Legacy: User accounts',
+    color: 'bg-slate-500'
   },
   {
     name: 'bills',

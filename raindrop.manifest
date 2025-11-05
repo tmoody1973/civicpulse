@@ -6,6 +6,41 @@ application "civic-pulse" {
     // Automatic URL assignment for external access
   }
 
+  // ============================================================================
+  // PHASE 1: PERSONALIZATION API SERVICES
+  // ============================================================================
+
+  // Tracking Service - User interaction tracking
+  service "tracking" {
+    visibility = "public"
+    // POST /api/tracking
+    // Tracks user interactions in SmartMemory and SmartSQL
+    // Accessed from Next.js frontend
+  }
+
+  // Preferences Service - User profile and widget preferences
+  service "preferences" {
+    visibility = "public"
+    // GET/PATCH /api/preferences/profile
+    // GET/PATCH /api/preferences/widgets
+    // Manages user preferences and dashboard widgets
+  }
+
+  // Memory Init Service - Procedural memory initialization
+  service "memory-init" {
+    visibility = "public"
+    // POST /api/memory/init
+    // Initializes procedural memory with platform guidelines
+  }
+
+  // Admin API Service - Admin dashboard queries
+  service "admin-api" {
+    visibility = "public"
+    // POST /api/admin/query - Execute SQL on CIVIC_DB or ANALYTICS
+    // POST /api/admin/count - Get table row counts
+    // Provides admin dashboard access to both databases
+  }
+
   // SQL database - SQLite for persistent data storage
   sql_database "civic-db" {
     // Database initialized via service startup
@@ -25,8 +60,46 @@ application "civic-pulse" {
     // Accessed as this.env.BILLS_SMARTBUCKET
   }
 
-  // Optional: SmartMemory for AI agent context (future enhancement)
-  // smartmemory "civic_memory" {}
+  // ============================================================================
+  // PERSONALIZATION & AI SYSTEM (Phase 1: Foundation)
+  // ============================================================================
+
+  // SmartMemory: User behavior tracking and learning
+  smartmemory "user_memory" {
+    // Multi-layered memory for personalization:
+    // - Working Memory: Active session interactions
+    // - Episodic Memory: Historical user behavior patterns
+    // - Semantic Memory: User preferences and interests
+    // - Procedural Memory: System prompts and templates
+    // Accessed as this.env.USER_MEMORY
+  }
+
+  // SmartSQL: Analytics database with natural language queries
+  smartsql "analytics" {
+    // Stores user interactions, preferences, and analytics
+    // Supports natural language queries for insights
+    // Tables: user_interactions, user_profiles, widget_preferences
+    // Accessed as this.env.ANALYTICS
+  }
+
+  // Queue: Recommendation engine updates
+  queue "recommendation-updates" {
+    // Processes background recommendation calculations
+    // Triggered when user behavior changes
+    // Updates user recommendations based on new data
+  }
+
+  // Observer: User behavior tracker
+  observer "user-behavior-tracker" {
+    source {
+      queue = "recommendation-updates"
+    }
+    // Watches user interactions and updates:
+    // 1. SmartMemory with behavior patterns
+    // 2. User preference profiles
+    // 3. Recommendation weights
+    // 4. Engagement metrics
+  }
 
   // ============================================================================
   // PODCAST GENERATION QUEUE SYSTEM (Actor/Observer Pattern)
