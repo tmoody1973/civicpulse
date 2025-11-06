@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Radio, Loader2, Phone, MapPin, Twitter, Facebook, Youtube, Instagram } from 'lucide-react';
+import { Radio, Loader2, Phone, MapPin, Twitter, Facebook, Youtube, Instagram, Settings } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,11 +10,15 @@ import { Badge } from '@/components/ui/badge';
 import { BillCard } from '@/components/dashboard/bill-card';
 import type { Bill } from '@/components/dashboard/bill-card';
 import { Representative } from '@/components/dashboard/representative-card';
-import { NewsFeedCard } from '@/components/dashboard/news-feed-card';
-import { FeedSettings } from '@/components/dashboard/feed-settings';
+import { PersonalizedNewsWidget } from '@/components/dashboard/personalized-news-widget';
+import { BillFilters, type BillFilterOptions } from '@/components/dashboard/bill-filters';
+import { filterBills, getUniqueBillCategories } from '@/lib/utils/filter-bills';
 import { getFeedsForInterests } from '@/lib/rss/the-hill-feeds';
 import { useAudioPlayer, type Brief } from '@/contexts/audio-player-context';
 import { EpisodeCard } from '@/components/podcast/episode-card';
+import { DashboardWidget } from '@/components/dashboard/dashboard-widget';
+import { CustomizeDashboardModal } from '@/components/dashboard/customize-dashboard-modal';
+import { useWidgetPreferences } from '@/hooks/use-widget-preferences';
 
 interface NewsArticle {
   title: string;
@@ -29,6 +33,8 @@ interface NewsArticle {
 export default function DashboardPage() {
   const router = useRouter();
   const { loadBrief } = useAudioPlayer(); // Use global audio player
+  const { visibleWidgets, toggleWidget } = useWidgetPreferences();
+  const [customizeModalOpen, setCustomizeModalOpen] = useState(false);
 
   // User profile from Phase 1 preferences (triggers migration for existing users)
   const [userProfile, setUserProfile] = useState<{
@@ -60,6 +66,19 @@ export default function DashboardPage() {
   const [podcasts, setPodcasts] = useState<Brief[]>([]);
   const [generatingPodcast, setGeneratingPodcast] = useState(false);
   const [podcastError, setPodcastError] = useState<string | null>(null);
+
+  // Bill filtering state
+  const [billFilters, setBillFilters] = useState<BillFilterOptions>({
+    searchQuery: '',
+    status: [],
+    categories: [],
+    impactLevel: 'all',
+    party: [],
+  });
+
+  // Get filtered bills and available categories
+  const filteredBills = filterBills(bills, billFilters);
+  const availableCategories = getUniqueBillCategories(bills);
 
   // Check authentication and onboarding status on mount
   useEffect(() => {
@@ -234,12 +253,6 @@ export default function DashboardPage() {
     fetchData();
   }, []);
 
-  const handleFeedSettingsSave = (feedIds: string[]) => {
-    setSelectedFeedIds(feedIds);
-    // In real app: save to user preferences via API
-    console.log('Saved feed preferences:', feedIds);
-  };
-
   const handleGeneratePodcast = async (type: 'daily' | 'weekly') => {
     setGeneratingPodcast(true);
     setPodcastError(null);
@@ -305,35 +318,40 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-background">
       {/* Main content */}
       <main className="container mx-auto px-4 py-6 sm:py-8 max-w-7xl">
-        {/* Feed settings - moved to top right */}
-        <div className="flex justify-end mb-4">
-          <FeedSettings
-            selectedFeedIds={selectedFeedIds}
-            onSave={handleFeedSettingsSave}
-          />
-        </div>
         {/* Welcome Banner */}
         <div className="mb-6">
-          <h1 className="text-3xl sm:text-4xl font-serif font-bold mb-2">Welcome to HakiVo</h1>
-          <p className="text-muted-foreground">
-            Your personalized source for congressional updates and legislative news
-          </p>
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <h1 className="text-3xl sm:text-4xl font-serif font-bold mb-2">Welcome to HakiVo</h1>
+              <p className="text-muted-foreground">
+                Your personalized source for congressional updates and legislative news
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCustomizeModalOpen(true)}
+              className="shrink-0"
+              data-testid="customize-dashboard-button"
+            >
+              <Settings className="w-4 h-4 mr-2" />
+              Customize Dashboard
+            </Button>
+          </div>
         </div>
 
         {/* Your Representatives - Horizontal Cards */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-serif font-bold">Your Representatives</h2>
-            {userLocation && (
-              <span className="text-sm text-muted-foreground">
-                {userLocation.state} • District {userLocation.district}
-              </span>
-            )}
-          </div>
-
-          {loading ? (
-            <div className="text-center py-8 text-muted-foreground">Loading representatives...</div>
-          ) : representatives.length > 0 ? (
+        {visibleWidgets.find(w => w.id === 'representatives') && (
+          <DashboardWidget
+            widgetId="representatives"
+            title="Your Representatives"
+            description={userLocation ? `${userLocation.state} • District ${userLocation.district}` : undefined}
+            canHide={false}
+            className="mb-8"
+          >
+            {loading ? (
+              <div className="text-center py-8 text-muted-foreground">Loading representatives...</div>
+            ) : representatives.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {senators.map((senator) => (
                 <Link key={senator.id} href={`/representatives/${senator.id}`}>
@@ -516,105 +534,61 @@ export default function DashboardPage() {
                 </Link>
               )}
             </div>
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">No representatives found</div>
-          )}
-        </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">No representatives found</div>
+            )}
+          </DashboardWidget>
+        )}
+
+        {/* Twitter Feed */}
+        {visibleWidgets.find(w => w.id === 'twitter') && (
+          <DashboardWidget
+            widgetId="twitter"
+            title="Social Media Updates"
+            description="Latest posts from your representatives"
+            onHide={() => toggleWidget('twitter')}
+            canHide={true}
+            className="mb-8"
+          >
+            <Card className="bg-muted/30">
+              <CardContent className="p-4">
+                <p className="text-sm text-muted-foreground text-center py-8">
+                  Twitter feed integration coming soon. Follow your representatives on social media to stay updated.
+                </p>
+              </CardContent>
+            </Card>
+          </DashboardWidget>
+        )}
 
         {/* Two-Column Newspaper Layout */}
-        <div className="grid lg:grid-cols-2 gap-6 lg:gap-8">
-          {/* LEFT COLUMN - News & Updates (50%) */}
-          <div className="space-y-6">
-            {/* Hero News Story */}
-            {!newsLoading && newsArticles.length > 0 && (
-              <section>
-                <div className="border-b-2 border-primary mb-4 pb-2">
-                  <h2 className="text-2xl font-serif font-bold">Today's Headlines</h2>
-                </div>
-                <NewsFeedCard article={newsArticles[0]} featured />
-              </section>
-            )}
-
-            {/* Top Stories Grid */}
-            {!newsLoading && newsArticles.length > 1 && (
-              <section>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {newsArticles.slice(1, 5).map((article, index) => (
-                    <NewsFeedCard key={index} article={article} />
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* Congressional News Section */}
-            {congressionalNews.length > 0 && (
-              <section>
-                <div className="border-b-2 border-blue-500 mb-4 pb-2">
-                  <h2 className="text-xl font-serif font-bold">Congressional Updates</h2>
-                  <p className="text-sm text-muted-foreground">Latest from the Senate and House</p>
-                </div>
-                <div className="space-y-3">
-                  {congressionalNews.slice(0, 5).map((article, index) => (
-                    <a
-                      key={index}
-                      href={article.link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block border-b pb-3 last:border-0 hover:bg-muted/50 -mx-2 px-2 py-2 rounded transition-colors"
-                    >
-                      <h3 className="font-semibold text-sm mb-1 hover:text-primary">{article.title}</h3>
-                      <p className="text-xs text-muted-foreground line-clamp-2">{article.description}</p>
-                      <div className="flex items-center gap-2 mt-2">
-                        <span className="text-xs text-muted-foreground">{article.source}</span>
-                        <span className="text-xs text-muted-foreground">•</span>
-                        <span className="text-xs text-muted-foreground">{new Date(article.pubDate).toLocaleDateString()}</span>
-                      </div>
-                    </a>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* Policy News Section */}
-            {policyNews.length > 0 && (
-              <section>
-                <div className="border-b-2 border-green-500 mb-4 pb-2">
-                  <h2 className="text-xl font-serif font-bold">Policy & Issues</h2>
-                  <p className="text-sm text-muted-foreground">Healthcare, Environment, Economy & More</p>
-                </div>
-                <div className="space-y-3">
-                  {policyNews.slice(0, 5).map((article, index) => (
-                    <a
-                      key={index}
-                      href={article.link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block border-b pb-3 last:border-0 hover:bg-muted/50 -mx-2 px-2 py-2 rounded transition-colors"
-                    >
-                      <div className="flex items-start gap-2">
-                        <Badge variant="outline" className="flex-shrink-0 text-xs">
-                          {article.source}
-                        </Badge>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-sm mb-1 hover:text-primary">{article.title}</h3>
-                          <p className="text-xs text-muted-foreground line-clamp-2">{article.description}</p>
-                        </div>
-                      </div>
-                    </a>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {newsLoading && (
-              <div className="text-center py-12 text-muted-foreground">Loading news...</div>
+        <div className="grid lg:grid-cols-5 gap-6 lg:gap-8">
+          {/* LEFT COLUMN - News & Updates (60%) */}
+          <div className="lg:col-span-3 space-y-6">
+            {visibleWidgets.find(w => w.id === 'news') && (
+              <DashboardWidget
+                widgetId="news"
+                title="Personalized News"
+                description="Legislative news tailored to your interests"
+                onHide={() => toggleWidget('news')}
+                canHide={true}
+              >
+                <PersonalizedNewsWidget limit={10} />
+              </DashboardWidget>
             )}
           </div>
 
-          {/* RIGHT COLUMN - Bills & Podcasts (50%) */}
-          <div className="space-y-6">
+          {/* RIGHT COLUMN - Bills & Podcasts (40%) */}
+          <div className="lg:col-span-2 space-y-6">
             {/* Generate Podcast Section */}
-            <section>
+            {visibleWidgets.find(w => w.id === 'podcast-queue') && (
+              <DashboardWidget
+                widgetId="podcast-queue"
+                title="Podcast Queue"
+                description="AI-generated audio briefs"
+                onHide={() => toggleWidget('podcast-queue')}
+                canHide={true}
+              >
+              <section>
               <Card className="bg-gradient-to-br from-primary/5 to-purple-500/5 border-primary/20">
                 <CardHeader className="pb-3">
                   <div className="flex items-center gap-2">
@@ -667,54 +641,98 @@ export default function DashboardPage() {
                   )}
                 </CardContent>
               </Card>
-            </section>
+              </section>
+            </DashboardWidget>
+          )}
 
             {/* Active Legislation */}
-            <section>
-              <div className="border-b-2 border-orange-500 mb-4 pb-2">
-                <h2 className="text-xl font-serif font-bold">Active Legislation</h2>
-                <p className="text-sm text-muted-foreground">New bills in Congress</p>
-              </div>
+            {visibleWidgets.find(w => w.id === 'legislation') && (
+              <DashboardWidget
+                widgetId="legislation"
+                title="Active Legislation"
+                description="Filter and search bills in Congress"
+                canHide={false}
+              >
+                {loading ? (
+                  <div className="text-center py-8 text-muted-foreground">Loading...</div>
+                ) : bills.length > 0 ? (
+                  <div className="space-y-4">
+                    {/* Bill Filters */}
+                    <BillFilters
+                      filters={billFilters}
+                      onFilterChange={setBillFilters}
+                      availableCategories={availableCategories}
+                    />
 
-              {loading ? (
-                <div className="text-center py-8 text-muted-foreground">Loading...</div>
-              ) : bills.length > 0 ? (
-                <div className="space-y-4">
-                  {bills.slice(0, 6).map((bill) => (
-                    <BillCard key={bill.id} bill={bill} compact />
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">No bills found</div>
-              )}
-            </section>
+                    {/* Filtered Bills */}
+                    {filteredBills.length > 0 ? (
+                      <div className="space-y-4">
+                        {filteredBills.slice(0, 20).map((bill) => (
+                          <BillCard
+                            key={bill.id}
+                            bill={bill}
+                            compact
+                            searchQuery={billFilters.searchQuery}
+                          />
+                        ))}
+                        {filteredBills.length > 20 && (
+                          <p className="text-sm text-muted-foreground text-center pt-4">
+                            Showing 20 of {filteredBills.length} bills
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-muted-foreground">
+                        No bills match your filters. Try adjusting your search.
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">No bills found</div>
+                )}
+              </DashboardWidget>
+            )}
 
             {/* Quick Facts */}
-            <section>
-              <Card className="bg-muted/30">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg">This Week in Congress</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">New Bills</span>
-                    <span className="font-semibold">{bills.length}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">News Articles</span>
-                    <span className="font-semibold">{newsArticles.length}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Your Podcasts</span>
-                    <span className="font-semibold">{podcasts.length}</span>
-                  </div>
-                </CardContent>
-              </Card>
-            </section>
+            {visibleWidgets.find(w => w.id === 'civic-impact') && (
+              <DashboardWidget
+                widgetId="civic-impact"
+                title="Your Civic Impact"
+                description="Track your engagement this week"
+                onHide={() => toggleWidget('civic-impact')}
+                canHide={true}
+              >
+                <Card className="bg-muted/30">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg">This Week in Congress</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">New Bills</span>
+                      <span className="font-semibold">{bills.length}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">News Articles</span>
+                      <span className="font-semibold">{newsArticles.length}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Your Podcasts</span>
+                      <span className="font-semibold">{podcasts.length}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </DashboardWidget>
+            )}
           </div>
         </div>
 
       </main>
+
+      {/* Customize Dashboard Modal */}
+      <CustomizeDashboardModal
+        open={customizeModalOpen}
+        onOpenChange={setCustomizeModalOpen}
+      />
     </div>
   );
 }
