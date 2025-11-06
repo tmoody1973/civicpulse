@@ -141,12 +141,25 @@ export function PersonalizedNewsWidget({
         url.searchParams.set('refresh', 'true');
       }
 
-      const response = await fetch(url.toString());
-      const data = await response.json();
+      const response = await fetch(url.toString(), {
+        credentials: 'include', // Send cookies for authentication
+      });
 
+      // Check response status first before trying to parse JSON
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to fetch personalized news');
+        let errorMessage = 'Failed to fetch personalized news';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          // If JSON parsing fails, use status text
+          errorMessage = response.statusText || errorMessage;
+        }
+        throw new Error(errorMessage);
       }
+
+      // Safe to parse JSON for successful responses
+      const data = await response.json();
 
       if (data.success && data.data) {
         const sections = organizeByTopics(data.data);
