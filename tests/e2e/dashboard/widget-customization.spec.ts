@@ -21,8 +21,10 @@ test.describe('Dashboard Widget Customization', () => {
     await AuthHelper.mockLogin(page, testUser.email);
 
     // Navigate to dashboard
-    await page.goto('/dashboard');
-    await page.waitForLoadState('networkidle');
+    await page.goto('/dashboard', { waitUntil: 'load' });
+
+    // Wait for dashboard to be interactive (instead of networkidle which times out due to ongoing API calls)
+    await page.waitForSelector('button:has-text("Customize Dashboard")', { timeout: 15000 });
   });
 
   test.afterEach(async () => {
@@ -31,31 +33,31 @@ test.describe('Dashboard Widget Customization', () => {
   });
 
   test('can hide and show widgets', async ({ page }) => {
-    // Verify legislation widget is visible
-    const legislationWidget = page.locator('[data-widget="legislation"]');
-    await expect(legislationWidget).toBeVisible();
+    // Verify news widget is visible (news has canHide: true)
+    const newsWidget = page.locator('[data-widget="news"]');
+    await expect(newsWidget).toBeVisible();
 
     // Click hide button
-    await legislationWidget
+    await newsWidget
       .locator('button[aria-label*="Hide"]')
       .click();
 
     // Widget should disappear
-    await expect(legislationWidget).not.toBeVisible({ timeout: 2000 });
+    await expect(newsWidget).not.toBeVisible({ timeout: 2000 });
 
     // Reload page
-    await page.reload();
-    await page.waitForLoadState('networkidle');
+    await page.goto('/dashboard', { waitUntil: 'load' });
+    await page.waitForSelector('button:has-text("Customize Dashboard")', { timeout: 15000 });
 
     // Widget should still be hidden
-    await expect(legislationWidget).not.toBeVisible();
+    await expect(newsWidget).not.toBeVisible();
 
     // Show widget again
     await page.click('button:has-text("Customize Dashboard")');
-    await page.check('input[data-widget="legislation"]');
+    await page.check('input[data-widget="news"]');
 
     // Widget should reappear
-    await expect(legislationWidget).toBeVisible({ timeout: 2000 });
+    await expect(newsWidget).toBeVisible({ timeout: 2000 });
   });
 
   test('widget visibility persists across sessions', async ({ page, context }) => {

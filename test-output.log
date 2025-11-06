@@ -1,0 +1,88 @@
+
+> hakivo@0.1.0 test
+> playwright test tests/e2e/dashboard/widget-customization.spec.ts
+
+[dotenv@17.2.3] injecting env (3) from .env.local -- tip: ⚙️  enable debug logging with { debug: true }
+
+Running 55 tests using 4 workers
+
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: 🔄 add secrets lifecycle management: https://dotenvx.com/ops
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: 🔑 add access controls to secrets: https://dotenvx.com/ops
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: ⚙️  override existing env vars with { override: true }
+  ✘   3 [chromium] › tests/e2e/dashboard/widget-customization.spec.ts:132:7 › Dashboard Widget Customization › customize dashboard modal works correctly (14.5s)
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+  ✘   2 [chromium] › tests/e2e/dashboard/widget-customization.spec.ts:85:7 › Dashboard Widget Customization › can reorder widgets via drag and drop (15.3s)
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: ⚙️  suppress all logs with { quiet: true }
+  ✘   1 [chromium] › tests/e2e/dashboard/widget-customization.spec.ts:33:7 › Dashboard Widget Customization › can hide and show widgets (27.8s)
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: 🔄 add secrets lifecycle management: https://dotenvx.com/ops
+  ✘   4 [chromium] › tests/e2e/dashboard/widget-customization.spec.ts:61:7 › Dashboard Widget Customization › widget visibility persists across sessions (32.1s)
+  ✘   6 [chromium] › tests/e2e/dashboard/widget-customization.spec.ts:178:7 › Dashboard Widget Customization › can reset widgets to default layout (18.7s)
+  ✘   5 [chromium] › tests/e2e/dashboard/widget-customization.spec.ts:165:7 › Dashboard Widget Customization › widget preferences save via API (19.4s)
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: ⚙️  enable debug logging with { debug: true }
+  ✘   7 [chromium] › tests/e2e/dashboard/widget-customization.spec.ts:206:7 › Dashboard Widget Customization › widget filter settings persist (20.8s)
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: 🔑 add access controls to secrets: https://dotenvx.com/ops
+  ✘  10 [chromium] › tests/e2e/dashboard/widget-customization.spec.ts:309:7 › Dashboard Widget Customization › widget loading states display correctly (18.6s)
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: 👥 sync secrets across teammates & machines: https://dotenvx.com/ops
+  ✘   9 [chromium] › tests/e2e/dashboard/widget-customization.spec.ts:279:7 › Dashboard Widget Customization › widget empty states display correctly (26.2s)
+  ✘   8 [chromium] › tests/e2e/dashboard/widget-customization.spec.ts:244:7 › Dashboard Widget Customization › mobile: widget customization works on small screens (28.1s)
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: ⚙️  enable debug logging with { debug: true }
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: ✅ audit secrets and track compliance: https://dotenvx.com/ops
+  ✘  12 [firefox] › tests/e2e/dashboard/widget-customization.spec.ts:33:7 › Dashboard Widget Customization › can hide and show widgets (25.2s)
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+  ✘  11 [chromium] › tests/e2e/dashboard/widget-customization.spec.ts:332:7 › Dashboard Widget Customization › widget error states display correctly (28.7s)
+  ✓  14 [firefox] › tests/e2e/dashboard/widget-customization.spec.ts:85:7 › Dashboard Widget Customization › can reorder widgets via drag and drop (31.8s)
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: 🔑 add access controls to secrets: https://dotenvx.com/ops
+  ✘  13 [firefox] › tests/e2e/dashboard/widget-customization.spec.ts:61:7 › Dashboard Widget Customization › widget visibility persists across sessions (40.3s)
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: ⚙️  override existing env vars with { override: true }
+  ✘  15 [firefox] › tests/e2e/dashboard/widget-customization.spec.ts:132:7 › Dashboard Widget Customization › customize dashboard modal works correctly (26.5s)
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: 🔑 add access controls to secrets: https://dotenvx.com/ops
+  ✘  16 [firefox] › tests/e2e/dashboard/widget-customization.spec.ts:178:7 › Dashboard Widget Customization › can reset widgets to default layout (32.7s)
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: 👥 sync secrets across teammates & machines: https://dotenvx.com/ops
+  ✘  17 [firefox] › tests/e2e/dashboard/widget-customization.spec.ts:165:7 › Dashboard Widget Customization › widget preferences save via API (28.8s)
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+  ✘  18 [firefox] › tests/e2e/dashboard/widget-customization.spec.ts:206:7 › Dashboard Widget Customization › widget filter settings persist (28.4s)
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: 📡 add observability to secrets: https://dotenvx.com/ops
+  ✘  19 [firefox] › tests/e2e/dashboard/widget-customization.spec.ts:244:7 › Dashboard Widget Customization › mobile: widget customization works on small screens (31.7s)
+  ✘  20 [firefox] › tests/e2e/dashboard/widget-customization.spec.ts:279:7 › Dashboard Widget Customization › widget empty states display correctly (21.9s)
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: 🔄 add secrets lifecycle management: https://dotenvx.com/ops
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: ⚙️  suppress all logs with { quiet: true }
+  ✘  21 [firefox] › tests/e2e/dashboard/widget-customization.spec.ts:309:7 › Dashboard Widget Customization › widget loading states display correctly (21.2s)
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: ✅ audit secrets and track compliance: https://dotenvx.com/ops
+  ✘  25 [webkit] › tests/e2e/dashboard/widget-customization.spec.ts:85:7 › Dashboard Widget Customization › can reorder widgets via drag and drop (18.3s)
+  ✘  22 [firefox] › tests/e2e/dashboard/widget-customization.spec.ts:332:7 › Dashboard Widget Customization › widget error states display correctly (37.8s)
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+  ✘  23 [webkit] › tests/e2e/dashboard/widget-customization.spec.ts:33:7 › Dashboard Widget Customization › can hide and show widgets (29.1s)
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: ⚙️  enable debug logging with { debug: true }
+  ✘  24 [webkit] › tests/e2e/dashboard/widget-customization.spec.ts:61:7 › Dashboard Widget Customization › widget visibility persists across sessions (41.6s)
+  ✘  27 [webkit] › tests/e2e/dashboard/widget-customization.spec.ts:132:7 › Dashboard Widget Customization › customize dashboard modal works correctly (13.2s)
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: 🗂️ backup and recover secrets: https://dotenvx.com/ops
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: ⚙️  override existing env vars with { override: true }
+  ✘  26 [webkit] › tests/e2e/dashboard/widget-customization.spec.ts:165:7 › Dashboard Widget Customization › widget preferences save via API (27.9s)
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: 🗂️ backup and recover secrets: https://dotenvx.com/ops
+  ✘  28 [webkit] › tests/e2e/dashboard/widget-customization.spec.ts:178:7 › Dashboard Widget Customization › can reset widgets to default layout (37.6s)
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+  ✘  29 [webkit] › tests/e2e/dashboard/widget-customization.spec.ts:206:7 › Dashboard Widget Customization › widget filter settings persist (30.9s)
+  ✘  30 [webkit] › tests/e2e/dashboard/widget-customization.spec.ts:244:7 › Dashboard Widget Customization › mobile: widget customization works on small screens (27.3s)
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: ⚙️  override existing env vars with { override: true }
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: 🔄 add secrets lifecycle management: https://dotenvx.com/ops
+  ✘  32 [webkit] › tests/e2e/dashboard/widget-customization.spec.ts:309:7 › Dashboard Widget Customization › widget loading states display correctly (18.4s)
+  ✘  31 [webkit] › tests/e2e/dashboard/widget-customization.spec.ts:279:7 › Dashboard Widget Customization › widget empty states display correctly (25.2s)
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: ⚙️  suppress all logs with { quiet: true }
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: 🗂️ backup and recover secrets: https://dotenvx.com/ops
+  ✘  33 [Mobile Chrome] › tests/e2e/dashboard/widget-customization.spec.ts:33:7 › Dashboard Widget Customization › can hide and show widgets (20.6s)
+  ✘  36 [Mobile Chrome] › tests/e2e/dashboard/widget-customization.spec.ts:85:7 › Dashboard Widget Customization › can reorder widgets via drag and drop (10.8s)
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: ⚙️  override existing env vars with { override: true }
+  ✘  34 [webkit] › tests/e2e/dashboard/widget-customization.spec.ts:332:7 › Dashboard Widget Customization › widget error states display correctly (27.1s)
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+  ✘  38 [Mobile Chrome] › tests/e2e/dashboard/widget-customization.spec.ts:132:7 › Dashboard Widget Customization › customize dashboard modal works correctly (8.4s)
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+  ✘  35 [Mobile Chrome] › tests/e2e/dashboard/widget-customization.spec.ts:61:7 › Dashboard Widget Customization › widget visibility persists across sessions (28.8s)
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: 👥 sync secrets across teammates & machines: https://dotenvx.com/ops
+  ✘  37 [Mobile Chrome] › tests/e2e/dashboard/widget-customization.spec.ts:165:7 › Dashboard Widget Customization › widget preferences save via API (21.7s)
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: 🔄 add secrets lifecycle management: https://dotenvx.com/ops
+  ✘  39 [Mobile Chrome] › tests/e2e/dashboard/widget-customization.spec.ts:178:7 › Dashboard Widget Customization › can reset widgets to default layout (19.2s)

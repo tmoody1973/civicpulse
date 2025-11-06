@@ -27,10 +27,10 @@ export class AuthHelper {
     // Create test session token via API
     const sessionToken = await this.createTestSession(email);
 
-    // Set session cookie
+    // Set session cookie (must match lib/auth/session.ts)
     await page.context().addCookies([
       {
-        name: 'session',
+        name: 'civic_pulse_session',
         value: sessionToken,
         domain: 'localhost',
         path: '/',
@@ -128,9 +128,9 @@ export class AuthHelper {
    * expect(isAuth).toBe(true);
    */
   static async isAuthenticated(page: Page): Promise<boolean> {
-    // Check for session cookie
+    // Check for session cookie (must match lib/auth/session.ts)
     const cookies = await page.context().cookies();
-    const sessionCookie = cookies.find((c) => c.name === 'session');
+    const sessionCookie = cookies.find((c) => c.name === 'civic_pulse_session');
 
     if (!sessionCookie) {
       return false;
@@ -141,7 +141,7 @@ export class AuthHelper {
 
     const response = await fetch(`${baseUrl}/api/auth/session`, {
       headers: {
-        Cookie: `session=${sessionCookie.value}`,
+        Cookie: `civic_pulse_session=${sessionCookie.value}`,
       },
     });
 
@@ -177,7 +177,7 @@ export class AuthHelper {
    */
   static async getCurrentUser(page: Page): Promise<any | null> {
     const cookies = await page.context().cookies();
-    const sessionCookie = cookies.find((c) => c.name === 'session');
+    const sessionCookie = cookies.find((c) => c.name === 'civic_pulse_session');
 
     if (!sessionCookie) {
       return null;
@@ -187,7 +187,7 @@ export class AuthHelper {
 
     const response = await fetch(`${baseUrl}/api/auth/session`, {
       headers: {
-        Cookie: `session=${sessionCookie.value}`,
+        Cookie: `civic_pulse_session=${sessionCookie.value}`,
       },
     });
 
