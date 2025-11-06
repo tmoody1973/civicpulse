@@ -90,11 +90,5 @@
     "tailwindcss-animate": "^1.0.7",
     "typescript": "^5",
     "zx": "^8.5.2"
-  },
-  "optionalDependencies": {
-    "@playwright/test": "^1.56.1",
-    "@types/better-sqlite3": "^7.6.13",
-    "better-sqlite3": "^11.9.1",
-    "mailslurp-client": "^16.0.0"
   }
 }
