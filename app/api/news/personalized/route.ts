@@ -83,10 +83,23 @@ export async function GET(req: NextRequest) {
     );
 
     if (!profileResponse.ok) {
-      throw new Error('Failed to fetch user profile');
+      console.error(`Profile API failed with status ${profileResponse.status}`);
+      return NextResponse.json(
+        { error: 'Failed to fetch user profile', status: profileResponse.status },
+        { status: profileResponse.status }
+      );
     }
 
-    const profileData = await profileResponse.json();
+    let profileData;
+    try {
+      profileData = await profileResponse.json();
+    } catch (jsonError) {
+      console.error('Failed to parse profile response:', jsonError);
+      return NextResponse.json(
+        { error: 'Invalid profile data received' },
+        { status: 500 }
+      );
+    }
 
     if (!profileData.success || !profileData.profile) {
       return NextResponse.json(
