@@ -11,6 +11,7 @@ import { BillCard } from '@/components/dashboard/bill-card';
 import type { Bill } from '@/components/dashboard/bill-card';
 import { Representative } from '@/components/dashboard/representative-card';
 import { PersonalizedNewsWidget } from '@/components/dashboard/personalized-news-widget';
+import { RepresentativeTweetsWidget } from '@/components/dashboard/representative-tweets-widget';
 import { BillFilters, type BillFilterOptions } from '@/components/dashboard/bill-filters';
 import { filterBills, getUniqueBillCategories } from '@/lib/utils/filter-bills';
 import { getFeedsForInterests } from '@/lib/rss/the-hill-feeds';
@@ -544,19 +545,13 @@ export default function DashboardPage() {
         {visibleWidgets.find(w => w.id === 'twitter') && (
           <DashboardWidget
             widgetId="twitter"
-            title="Social Media Updates"
+            title="Representative Tweets"
             description="Latest posts from your representatives"
             onHide={() => toggleWidget('twitter')}
             canHide={true}
             className="mb-8"
           >
-            <Card className="bg-muted/30">
-              <CardContent className="p-4">
-                <p className="text-sm text-muted-foreground text-center py-8">
-                  Twitter feed integration coming soon. Follow your representatives on social media to stay updated.
-                </p>
-              </CardContent>
-            </Card>
+            <RepresentativeTweetsWidget limit={5} showRefresh={true} />
           </DashboardWidget>
         )}
 
