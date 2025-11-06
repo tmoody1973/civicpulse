@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { fetchTweetsForMultipleUsers, type Tweet } from '@/lib/api/nitter';
+import { executeQuery } from '@/lib/db/client';
 
 interface RepresentativeTweets {
   representative: {
@@ -40,35 +41,20 @@ export async function GET(req: NextRequest) {
 
     console.log(`🐦 Fetching tweets for user: ${user.id}`);
 
-    // 2. Fetch user profile to get representatives
-    const profileResponse = await fetch(
-      `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/preferences/profile`,
-      {
-        headers: {
-          cookie: req.headers.get('cookie') || '',
-        },
-      }
-    );
+    // 2. Get user's representatives from database (via user_representatives join)
+    const sql = `
+      SELECT r.bioguide_id, r.name, r.party, r.chamber, r.state, r.district, r.image_url, r.twitter_handle
+      FROM representatives r
+      INNER JOIN user_representatives ur ON r.bioguide_id = ur.bioguide_id
+      WHERE ur.user_id = ?
+      ORDER BY r.chamber DESC, r.name
+    `;
 
-    if (!profileResponse.ok) {
-      throw new Error('Failed to fetch user profile');
-    }
+    const queryResult = await executeQuery(sql, 'representatives', [user.id]);
+    const allReps = queryResult.rows || [];
 
-    const profileData = await profileResponse.json();
-
-    if (!profileData.success || !profileData.profile) {
-      return NextResponse.json(
-        { error: 'User profile not found' },
-        { status: 404 }
-      );
-    }
-
-    const profile = profileData.profile;
-
-    // 3. Get representatives with Twitter handles
-    const repsWithTwitter = profile.representatives?.filter(
-      (rep: any) => rep.twitterHandle
-    ) || [];
+    // 3. Filter representatives with Twitter handles
+    const repsWithTwitter = allReps.filter((rep: any) => rep.twitter_handle);
 
     if (repsWithTwitter.length === 0) {
       return NextResponse.json({
@@ -81,7 +67,8 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    console.log(`📊 Found ${repsWithTwitter.length} representatives with Twitter`);
+    console.log(`📊 Found ${repsWithTwitter.length} representatives with Twitter:`,
+      repsWithTwitter.map((r: any) => `${r.name} (@${r.twitter_handle})`));
 
     // 4. Check cache first (unless forced refresh)
     const cacheKey = `rep-tweets-${user.id}`;
@@ -98,26 +85,26 @@ export async function GET(req: NextRequest) {
 
     // 5. Fetch tweets for all representatives (parallel)
     const usernames = repsWithTwitter.map((rep: any) =>
-      rep.twitterHandle.replace('@', '')
+      rep.twitter_handle.replace('@', '')
     );
 
     const tweetsMap = await fetchTweetsForMultipleUsers(usernames, limit);
 
     // 6. Format response
-    const result: RepresentativeTweets[] = repsWithTwitter
+    const tweetsResult: RepresentativeTweets[] = repsWithTwitter
       .map((rep: any) => {
-        const username = rep.twitterHandle.replace('@', '');
+        const username = rep.twitter_handle.replace('@', '');
         const tweets = tweetsMap.get(username) || [];
 
         if (tweets.length === 0) return null;
 
         return {
           representative: {
-            id: rep.id,
+            id: rep.bioguide_id,
             name: rep.name,
-            twitterHandle: rep.twitterHandle,
+            twitterHandle: rep.twitter_handle.startsWith('@') ? rep.twitter_handle : `@${rep.twitter_handle}`,
             chamber: rep.chamber,
-            photoUrl: rep.photoUrl
+            photoUrl: rep.image_url
           },
           tweets
         };
@@ -125,14 +112,14 @@ export async function GET(req: NextRequest) {
       .filter((item): item is RepresentativeTweets => item !== null);
 
     const latency = Date.now() - startTime;
-    console.log(`✅ Fetched ${result.length} representative timelines (${latency}ms)`);
+    console.log(`✅ Fetched ${tweetsResult.length} representative timelines (${latency}ms)`);
 
     return NextResponse.json({
       success: true,
-      data: result,
+      data: tweetsResult,
       meta: {
-        total: result.length,
-        totalTweets: result.reduce((sum, r) => sum + r.tweets.length, 0),
+        total: tweetsResult.length,
+        totalTweets: tweetsResult.reduce((sum, r) => sum + r.tweets.length, 0),
         cached: false,
         latency
       }
