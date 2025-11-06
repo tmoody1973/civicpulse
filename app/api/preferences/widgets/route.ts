@@ -1,39 +1,39 @@
 /**
  * Widget Preferences API
  *
- * Handles dashboard widget preferences (show/hide, reorder) using SmartMemory
- * Stores in ANALYTICS database (SmartSQL)
+ * Handles dashboard widget preferences (show/hide, reorder)
+ * Stores in users table widget_preferences column as JSON
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { sql } from '@raindrop-platform/client';
+import { getSession } from '@/lib/auth/session';
+import { executeQuery } from '@/lib/db/client';
 import type { WidgetPreferences } from '@/lib/types/dashboard-widgets';
 import { getDefaultWidgetPreferences } from '@/lib/types/dashboard-widgets';
 
 // GET - Fetch widget preferences
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
-    const session = await getServerSession();
+    const user = await getSession();
 
-    if (!session?.user?.email) {
+    if (!user) {
       return NextResponse.json(
         { success: false, error: 'Not authenticated' },
         { status: 401 }
       );
     }
 
-    const userEmail = session.user.email;
+    console.log(`📊 Fetching widget preferences for user: ${user.id}`);
 
-    // Query ANALYTICS database for widget preferences
-    const result = await sql`
-      SELECT widget_preferences
-      FROM user_profiles
-      WHERE email = ${userEmail}
-    `;
+    // Query users table for widget_preferences column
+    const result = await executeQuery(
+      `SELECT widget_preferences FROM users WHERE id = '${user.id}' LIMIT 1`,
+      'users'
+    );
 
-    if (result.rows.length === 0 || !result.rows[0].widget_preferences) {
-      // Return defaults if no preferences found
+    // If no user found or no preferences set, return defaults
+    if (!result.rows || result.rows.length === 0 || !result.rows[0].widget_preferences) {
+      console.log(`⚠️ No preferences found for user ${user.id}, using defaults`);
       return NextResponse.json({
         success: true,
         preferences: getDefaultWidgetPreferences(),
@@ -41,37 +41,58 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const preferences = JSON.parse(result.rows[0].widget_preferences) as WidgetPreferences;
+    // Parse JSON preferences from database
+    const preferencesJson = result.rows[0].widget_preferences as string;
+    const storedPreferences = JSON.parse(preferencesJson) as WidgetPreferences;
+
+    // Merge with defaults to add any new widgets that were added after user's preferences were saved
+    const defaults = getDefaultWidgetPreferences();
+    const mergedPreferences: WidgetPreferences = {
+      ...storedPreferences,
+      widgets: {
+        ...defaults.widgets, // Start with all defaults
+        ...storedPreferences.widgets, // Override with stored preferences
+      },
+    };
+
+    // Ensure all default widgets are present (for new widgets added to the platform)
+    Object.keys(defaults.widgets).forEach((widgetId) => {
+      if (!mergedPreferences.widgets[widgetId as keyof typeof mergedPreferences.widgets]) {
+        mergedPreferences.widgets[widgetId as keyof typeof mergedPreferences.widgets] =
+          defaults.widgets[widgetId as keyof typeof defaults.widgets];
+      }
+    });
+
+    console.log(`✅ Widget preferences loaded for user ${user.id}`);
 
     return NextResponse.json({
       success: true,
-      preferences,
+      preferences: mergedPreferences,
     });
   } catch (error) {
     console.error('Error fetching widget preferences:', error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to fetch preferences',
-      },
-      { status: 500 }
-    );
+
+    // Return defaults on error
+    return NextResponse.json({
+      success: true,
+      preferences: getDefaultWidgetPreferences(),
+      message: 'Error loading preferences, using defaults',
+    });
   }
 }
 
 // POST - Save widget preferences
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession();
+    const user = await getSession();
 
-    if (!session?.user?.email) {
+    if (!user) {
       return NextResponse.json(
         { success: false, error: 'Not authenticated' },
         { status: 401 }
       );
     }
 
-    const userEmail = session.user.email;
     const preferences: WidgetPreferences = await req.json();
 
     // Validate preferences structure
@@ -82,16 +103,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Update or insert widget preferences
-    await sql`
-      INSERT INTO user_profiles (email, widget_preferences, updated_at)
-      VALUES (${userEmail}, ${JSON.stringify(preferences)}, CURRENT_TIMESTAMP)
-      ON CONFLICT (email) DO UPDATE
-      SET widget_preferences = ${JSON.stringify(preferences)},
-          updated_at = CURRENT_TIMESTAMP
-    `;
+    console.log(`💾 Saving widget preferences for user: ${user.id}`);
 
-    console.log(`✅ Widget preferences saved for ${userEmail}`);
+    // Convert preferences to JSON string for storage
+    const preferencesJson = JSON.stringify(preferences);
+
+    // Update users table widget_preferences column
+    await executeQuery(
+      `UPDATE users
+       SET widget_preferences = '${preferencesJson.replace(/'/g, "''")}'
+       WHERE id = '${user.id}'`,
+      'users'
+    );
+
+    console.log(`✅ Updated widget preferences for ${user.id}`);
 
     return NextResponse.json({
       success: true,

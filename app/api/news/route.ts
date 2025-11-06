@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { THE_HILL_FEEDS, getFeedsForInterests } from '@/lib/rss/the-hill-feeds';
 import { fetchMultipleFeeds } from '@/lib/rss/parser';
+import { getSession } from '@/lib/auth/session';
 import crypto from 'crypto';
 
 export async function GET(req: NextRequest) {
@@ -18,6 +19,44 @@ export async function GET(req: NextRequest) {
     const interests = searchParams.get('interests')?.split(',') || [];
     const limit = parseInt(searchParams.get('limit') || '20', 10);
     const store = searchParams.get('store') === 'true'; // Store in database?
+
+    // Check if this is a test user - return mock data instantly
+    const user = await getSession();
+    if (user && user.id.startsWith('test_')) {
+      console.log(`🧪 Test user detected (${user.id}), returning mock news data`);
+
+      const mockArticles = [
+        {
+          title: 'Test Article 1',
+          description: 'Mock article for E2E testing',
+          link: 'https://example.com/article1',
+          pubDate: new Date().toISOString(),
+          source: 'Test Feed',
+          author: 'Test Author',
+          imageUrl: 'https://via.placeholder.com/400x200',
+        },
+        {
+          title: 'Test Article 2',
+          description: 'Another mock article for testing',
+          link: 'https://example.com/article2',
+          pubDate: new Date().toISOString(),
+          source: 'Test Feed',
+          author: 'Test Author',
+          imageUrl: 'https://via.placeholder.com/400x200',
+        },
+      ];
+
+      return NextResponse.json({
+        success: true,
+        data: mockArticles.slice(0, limit),
+        meta: {
+          total: mockArticles.length,
+          feeds: [{ id: 'test', name: 'Test Feed' }],
+          stored: false,
+          testMode: true,
+        },
+      });
+    }
 
     let feedsToFetch = THE_HILL_FEEDS;
 

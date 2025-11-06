@@ -7,11 +7,15 @@ dotenv.config({ path: '.env.local' });
 /**
  * Playwright Configuration for HakiVo E2E Tests
  *
- * Tests email flows (MailSlurp), SmartMemory persistence, and user interactions.
+ * Tests dashboard widgets, SmartMemory persistence, and user interactions.
  * Runs on multiple browsers (Chrome, Firefox, Safari) and mobile viewports.
+ * Automatically cleans up test users after test runs via globalTeardown.
  */
 export default defineConfig({
   testDir: './tests/e2e',
+
+  // Global teardown - cleanup test users after all tests complete
+  globalTeardown: './tests/global-teardown.ts',
 
   // Run tests in parallel
   fullyParallel: true,

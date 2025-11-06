@@ -4,6 +4,173 @@ A journey building an AI-powered civic engagement platform that makes Congress a
 
 ---
 
+## November 5, 2025 - Personalized News + Bill Search: Making Civic Info Discoverable 🔍
+
+**What I Built:** Two powerful features to help users find what matters to them: (1) AI-powered personalized news that replaces generic RSS feeds with articles tailored to your interests and representatives, and (2) Advanced bill filtering and search with multi-criteria filtering across 1000+ bills.
+
+**The Problem I Solved:**
+
+Users were drowning in information. The dashboard showed generic RSS feeds with hundreds of articles, and finding specific bills among thousands in Congress was like searching for a needle in a haystack. We needed smart, personalized filtering so users could focus on what matters to them.
+
+**Two problems to solve:**
+1. **Generic News:** RSS feeds showed the same articles to everyone, regardless of location or interests
+2. **Bill Overload:** Displaying all bills meant users had to manually scroll through hundreds of items to find healthcare bills or search for specific sponsors
+
+**How I Did It:**
+
+### 1. Personalized News with Perplexity AI
+
+Instead of showing the same RSS feed to everyone, I built a smart news system that generates personalized articles based on:
+- Your policy interests (healthcare, education, climate)
+- Your location (state and district)
+- Your representatives (Warren, Markey, Pressley in MA)
+
+**The Technical Flow:**
+```typescript
+// 1. Build smart prompt from user profile
+const prompt = `Find recent legislative news about ${interests.join(', ')}
+related to ${representatives.join(', ')} in ${state}.
+Return JSON with articles that have:
+- Featured images
+- Summaries
+- Source attribution
+- Why it's relevant to this user`;
+
+// 2. Call Perplexity API (Llama 3.3 70B with search)
+const response = await perplexity.search({
+  query: prompt,
+  model: 'sonar',
+  return_images: true,
+  recency_filter: 'week'
+});
+
+// 3. Cache for 6 hours (minimize API costs)
+// 4. Display articles with featured images + "For You" badges
+```
+
+**What makes this special:**
+- **Perplexity Sonar model** uses Llama 3.3 70B with live web search
+- Articles include **featured images** from original sources
+- **Caching strategy:** 6 hours = fresh news, minimal API costs ($0.001/request)
+- **Personalization indicators:** "For You" badge, relevant topic tags
+
+**Example:** If you're in Massachusetts and care about healthcare, you'll see articles like:
+- "Warren Introduces Medicare Expansion Bill" (Politico)
+- "MA House Passes Healthcare Access Reform" (Boston Globe)
+- "Pressley Co-Sponsors Mental Health Legislation" (The Hill)
+
+### 2. Bill Filtering and Search
+
+Built a comprehensive filtering system so users can find exactly what they're looking for among 1000+ bills:
+
+**Filter by:**
+- **Search Query:** Title, bill number (HR 1234), sponsor name, summary
+- **Status:** Introduced, In Committee, Passed House, Passed Senate, Enacted
+- **Impact Level:** High (70+), Medium (40-69), Low (0-39)
+- **Categories:** Healthcare, Education, Climate, Defense, etc.
+- **Sponsor Party:** Democrat, Republican, Independent
+
+**User Experience:**
+```
+┌─────────────────────────────────────────────────┐
+│ 🔍 Search: "healthcare"                        │
+└─────────────────────────────────────────────────┘
+
+┌─ Advanced Filters (3) ──────────────────────────┐
+│ Status: [Introduced] [In Committee]            │
+│ Impact: High Impact (70+)                      │
+│ Party: [Democrat]                               │
+└─────────────────────────────────────────────────┘
+
+Active Filters:  [Introduced ×]  [In Committee ×]  [High Impact ×]
+
+Showing 12 of 387 bills
+```
+
+**Smart Features:**
+1. **Collapsible Filters:** Hidden by default, expandable on demand
+2. **Active Filter Summary:** Quick view of all active filters with one-click removal
+3. **Search Highlighting:** Matching terms highlighted in yellow in bill titles/summaries
+4. **Real-time Filtering:** Instant results as you type or click filters
+5. **Category Auto-detection:** Available categories extracted from actual bills
+
+**Technical Implementation:**
+```typescript
+// Filter function (lib/utils/filter-bills.ts)
+function filterBills(bills: Bill[], filters: BillFilterOptions) {
+  return bills.filter(bill => {
+    // Search: title, number, summary, sponsor
+    if (filters.searchQuery && !matchesSearch(bill, filters.searchQuery)) {
+      return false;
+    }
+
+    // Status filter
+    if (filters.status.length > 0 && !filters.status.includes(bill.status)) {
+      return false;
+    }
+
+    // Impact level
+    if (filters.impactLevel === 'high' && bill.impactScore < 70) {
+      return false;
+    }
+
+    // Categories (must match at least one)
+    if (filters.categories.length > 0) {
+      const hasMatch = filters.categories.some(cat =>
+        bill.issueCategories.includes(cat)
+      );
+      if (!hasMatch) return false;
+    }
+
+    // Sponsor party
+    if (filters.party.length > 0 && !filters.party.includes(bill.sponsorParty)) {
+      return false;
+    }
+
+    return true;
+  });
+}
+```
+
+**What I Learned:**
+
+1. **Perplexity > Generic RSS:** AI-powered search with personalization creates way more value than static RSS feeds. Users don't want "all the news"—they want "news that matters to me."
+
+2. **Context is Everything:** The same prompt with different user context (MA vs TX, healthcare vs defense) returns completely different articles. This is true personalization.
+
+3. **Featured Images Matter:** News articles without images feel outdated. Perplexity's `return_images: true` makes articles feel modern and engaging.
+
+4. **Progressive Disclosure:** Not all users need advanced filters. Hiding them behind "Advanced Filters" keeps the UI clean while making power features accessible.
+
+5. **Filter Discoverability:** Showing active filters as removable badges helps users understand what's being filtered and provides quick access to clear them.
+
+6. **Search Highlighting:** When users search for "healthcare," seeing the word highlighted in yellow in bill titles makes scan-and-find 10x faster.
+
+**What's Next:**
+
+With personalized news and bill filtering complete, the dashboard now handles both discovery (personalized news) and deep-dive research (bill filtering). Next steps:
+- Add bill tracking (users can "star" bills to get updates)
+- Notification system (email when tracked bills move forward)
+- Podcast personalization (generate briefs based on tracked bills)
+
+**Quick Win 🎉:**
+
+Replaced a static RSS feed showing the same 50 articles to everyone with AI-powered personalized news that adapts to each user's interests and representatives—and added powerful search that lets users find any bill among 1000+ in seconds!
+
+**Social Media Snippet:**
+
+"Just shipped personalized news + bill search for @HakiVo! 🚀
+
+Instead of showing everyone the same RSS feed, we now use Perplexity AI to find articles about YOUR representatives and YOUR interests.
+
+Plus: Search & filter 1000+ bills by keyword, status, impact level, and party.
+
+Making Congress accessible, one feature at a time. 🏛️✨
+
+#CivicTech #AI #OpenGov"
+
+---
+
 ## November 3, 2025 - Enhanced Audio Player: Podcast-Quality Listening Experience 🎧
 
 **What I Built:** A professional-grade audio player with interactive transcripts, keyboard controls, lock screen integration, and playback persistence—bringing Spotify-level UX to civic engagement.

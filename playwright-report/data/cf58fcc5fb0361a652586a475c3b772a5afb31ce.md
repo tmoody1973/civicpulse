@@ -1,0 +1,293 @@
+# Page snapshot
+
+```yaml
+- generic:
+  - generic:
+    - banner:
+      - generic:
+        - generic:
+          - link:
+            - /url: /dashboard
+            - img
+          - navigation:
+            - link:
+              - /url: /dashboard
+              - text: Dashboard
+            - link:
+              - /url: /search
+              - text: Search
+            - link:
+              - /url: /settings
+              - text: Settings
+          - generic:
+            - generic:
+              - img
+              - generic: Brandon_Bailey98@yahoo.com
+            - generic:
+              - button:
+                - img
+                - text: Sign Out
+    - generic:
+      - main:
+        - generic:
+          - button:
+            - img
+            - text: Customize Feeds
+        - generic:
+          - generic:
+            - generic:
+              - heading [level=1]: Welcome to HakiVo
+              - paragraph: Your personalized source for congressional updates and legislative news
+            - button:
+              - img
+              - text: Customize Dashboard
+        - generic:
+          - generic:
+            - generic:
+              - generic:
+                - generic: Your Representatives
+                - generic: CA • District 12
+          - generic:
+            - generic:
+              - link:
+                - /url: /representatives/S001150
+                - generic:
+                  - generic:
+                    - generic:
+                      - img
+                      - generic:
+                        - generic:
+                          - heading [level=3]: Adam Schiff
+                          - generic: D
+                        - paragraph: U.S. Senator
+                    - generic:
+                      - generic:
+                        - img
+                        - generic: 202-224-3841
+              - link:
+                - /url: /representatives/P000145
+                - generic:
+                  - generic:
+                    - generic:
+                      - img
+                      - generic:
+                        - generic:
+                          - heading [level=3]: Alejandro Padilla
+                          - generic: D
+                        - paragraph: U.S. Senator
+                    - generic:
+                      - generic:
+                        - img
+                        - generic: 202-224-3553
+        - generic:
+          - generic:
+            - generic:
+              - generic:
+                - generic: Social Media Updates
+                - generic: Latest posts from your representatives
+              - button:
+                - img
+          - generic:
+            - generic:
+              - generic:
+                - paragraph: Twitter feed integration coming soon. Follow your representatives on social media to stay updated.
+        - generic:
+          - generic:
+            - generic:
+              - generic:
+                - generic:
+                  - generic:
+                    - generic: Podcast Queue
+                    - generic: AI-generated audio briefs
+                  - button:
+                    - img
+              - generic:
+                - generic:
+                  - generic:
+                    - generic:
+                      - generic:
+                        - img
+                        - generic: AI Podcast Briefs
+                      - paragraph: Get the latest legislation in audio format
+                    - generic:
+                      - button:
+                        - img
+                        - text: Generate Daily Brief (3-4 min)
+            - generic:
+              - generic:
+                - generic:
+                  - generic:
+                    - generic: Active Legislation
+                    - generic: New bills in Congress
+              - generic:
+                - generic:
+                  - generic:
+                    - generic:
+                      - generic:
+                        - img
+                      - generic:
+                        - generic:
+                          - paragraph: S. 5319
+                          - generic:
+                            - img
+                            - generic: "0"
+                        - heading [level=3]: DHS Intelligence and Analysis Oversight and Transparency Act
+                        - generic:
+                          - generic: Introduced
+                  - generic:
+                    - generic:
+                      - generic:
+                        - img
+                      - generic:
+                        - generic:
+                          - paragraph: HR. 4984
+                          - generic:
+                            - img
+                            - generic: "0"
+                        - heading [level=3]: D.C. Robert F. Kennedy Memorial Stadium Campus Revitalization Act
+                        - generic:
+                          - generic: Introduced
+                  - generic:
+                    - generic:
+                      - generic:
+                        - img
+                      - generic:
+                        - generic:
+                          - paragraph: HR. 82
+                          - generic:
+                            - img
+                            - generic: "0"
+                        - heading [level=3]: Social Security Fairness Act of 2023
+                        - generic:
+                          - generic: Introduced
+                  - generic:
+                    - generic:
+                      - generic:
+                        - img
+                      - generic:
+                        - generic:
+                          - paragraph: HR. 9775
+                          - generic:
+                            - img
+                            - generic: "0"
+                        - heading [level=3]: To designate the facility of the United States Postal Service located at 119 North Anderson Street in Elwood, Indiana, as the "Officer Noah Jacob Shahnavaz Post Office Building".
+                        - generic:
+                          - generic: Introduced
+                  - generic:
+                    - generic:
+                      - generic:
+                        - img
+                      - generic:
+                        - generic:
+                          - paragraph: HR. 9600
+                          - generic:
+                            - img
+                            - generic: "0"
+                        - heading [level=3]: To designate the facility of the United States Postal Service located at 119 Main Street in Plains, Georgia, as the "Jimmy and Rosalynn Carter Post Office".
+                        - generic:
+                          - generic: Introduced
+                  - generic:
+                    - generic:
+                      - generic:
+                        - img
+                      - generic:
+                        - generic:
+                          - paragraph: HR. 9592
+                          - generic:
+                            - img
+                            - generic: "0"
+                        - heading [level=3]: Federal Register Modernization Act of 2024
+                        - generic:
+                          - generic: Introduced
+            - generic:
+              - generic:
+                - generic:
+                  - generic:
+                    - generic: Your Civic Impact
+                    - generic: Track your engagement this week
+                  - button:
+                    - img
+              - generic:
+                - generic:
+                  - generic:
+                    - generic: This Week in Congress
+                  - generic:
+                    - generic:
+                      - generic: New Bills
+                      - generic: "10"
+                    - generic:
+                      - generic: News Articles
+                      - generic: "2"
+                    - generic:
+                      - generic: Your Podcasts
+                      - generic: "0"
+  - button "Open Next.js Dev Tools" [ref=e6] [cursor=pointer]:
+    - img [ref=e7]
+  - alert
+  - dialog "Customize Your Dashboard" [ref=e11]:
+    - generic [ref=e12]:
+      - heading "Customize Your Dashboard" [level=2] [ref=e13]
+      - paragraph [ref=e14]: Show, hide, and reorder widgets to personalize your dashboard. Drag to reorder, uncheck to hide.
+    - generic [ref=e15]:
+      - generic [ref=e16]:
+        - button [active] [ref=e17]:
+          - img [ref=e18]
+        - checkbox "Legislation Tracker(Required)" [checked] [disabled] [ref=e25]:
+          - generic:
+            - img
+        - generic [ref=e26]:
+          - generic [ref=e27]: Legislation Tracker(Required)
+          - paragraph [ref=e28]: Track bills and legislative activity
+      - generic [ref=e29]:
+        - button [ref=e30]:
+          - img [ref=e31]
+        - checkbox "Your Representatives(Required)" [checked] [disabled] [ref=e38]:
+          - generic:
+            - img
+        - generic [ref=e39]:
+          - generic [ref=e40]: Your Representatives(Required)
+          - paragraph [ref=e41]: See your senators and house representative
+      - generic [ref=e42]:
+        - button [ref=e43]:
+          - img [ref=e44]
+        - checkbox "Podcast Queue" [checked] [ref=e51] [cursor=pointer]:
+          - generic:
+            - img
+        - generic [ref=e52]:
+          - text: Podcast Queue
+          - paragraph [ref=e53]: AI-generated audio briefs
+      - generic [ref=e54]:
+        - button [ref=e55]:
+          - img [ref=e56]
+        - checkbox "News Feed" [ref=e63] [cursor=pointer]
+        - generic [ref=e64]:
+          - text: News Feed
+          - paragraph [ref=e65]: Latest congressional and policy news
+      - generic [ref=e66]:
+        - button [ref=e67]:
+          - img [ref=e68]
+        - checkbox "Twitter Feed" [checked] [ref=e75] [cursor=pointer]:
+          - generic:
+            - img
+        - generic [ref=e76]:
+          - text: Twitter Feed
+          - paragraph [ref=e77]: Social media updates from representatives
+      - generic [ref=e78]:
+        - button [ref=e79]:
+          - img [ref=e80]
+        - checkbox "Your Civic Impact" [checked] [ref=e87] [cursor=pointer]:
+          - generic:
+            - img
+        - generic [ref=e88]:
+          - text: Your Civic Impact
+          - paragraph [ref=e89]: Track your engagement and learning progress
+      - status [ref=e90]
+    - generic [ref=e91]:
+      - button "Reset to Default" [ref=e92] [cursor=pointer]
+      - generic [ref=e93]:
+        - button "Cancel" [ref=e94] [cursor=pointer]
+        - button "Save Changes" [ref=e95] [cursor=pointer]
+    - button "Close" [ref=e96] [cursor=pointer]:
+      - img [ref=e97]
+      - generic [ref=e100]: Close
+```
