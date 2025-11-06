@@ -2,7 +2,7 @@
 # Next.js 16 App Router + Raindrop Platform + Vultr
 
 [build]
-  command = "npm run build"
+  command = "npm install --ignore-optional --legacy-peer-deps && npm run build"
   publish = ".next"
   ignore = "git diff --quiet HEAD^ HEAD -- ':(exclude)*.md'"
 
