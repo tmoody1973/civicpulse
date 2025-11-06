@@ -41,20 +41,65 @@ export async function GET(req: NextRequest) {
 
     console.log(`🐦 Fetching tweets for user: ${user.id}`);
 
-    // 2. Get user's representatives from database (via user_representatives join)
+    // 2. Get user's state from profile to fetch their representatives
+    const profileResponse = await fetch(
+      `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/preferences/profile`,
+      {
+        headers: {
+          cookie: req.headers.get('cookie') || '',
+        },
+      }
+    );
+
+    if (!profileResponse.ok) {
+      throw new Error('Failed to fetch user profile');
+    }
+
+    const profileData = await profileResponse.json();
+
+    if (!profileData.success || !profileData.profile) {
+      return NextResponse.json(
+        { error: 'User profile not found' },
+        { status: 404 }
+      );
+    }
+
+    const { state } = profileData.profile;
+
+    if (!state) {
+      return NextResponse.json({
+        success: true,
+        data: [],
+        meta: {
+          total: 0,
+          message: 'User state not found in profile'
+        }
+      });
+    }
+
+    // 3. Fetch representatives from database for user's state
     const sql = `
-      SELECT r.bioguide_id, r.name, r.party, r.chamber, r.state, r.district, r.image_url, r.twitter_handle
-      FROM representatives r
-      INNER JOIN user_representatives ur ON r.bioguide_id = ur.bioguide_id
-      WHERE ur.user_id = ?
-      ORDER BY r.chamber DESC, r.name
+      SELECT bioguide_id, name, party, chamber, state, district, image_url, twitter_handle
+      FROM representatives
+      WHERE state = ? OR state = ?
+      ORDER BY chamber DESC, name
     `;
 
-    const queryResult = await executeQuery(sql, 'representatives', [user.id]);
+    // Try both state abbreviation and full name
+    const STATE_NAMES: Record<string, string> = {
+      'WI': 'Wisconsin', 'CA': 'California', 'NY': 'New York', 'TX': 'Texas',
+      'FL': 'Florida', 'PA': 'Pennsylvania', 'IL': 'Illinois', 'OH': 'Ohio',
+      // Add more as needed
+    };
+
+    const stateName = STATE_NAMES[state] || state;
+    const queryResult = await executeQuery(sql, 'representatives', [state, stateName]);
     const allReps = queryResult.rows || [];
 
-    // 3. Filter representatives with Twitter handles
-    const repsWithTwitter = allReps.filter((rep: any) => rep.twitter_handle);
+    console.log(`📊 Found ${allReps.length} representatives for state ${state}`);
+
+    // 4. Filter representatives with Twitter handles
+    const repsWithTwitter = allReps.filter((rep: any) => rep.twitter_handle && rep.twitter_handle.trim());
 
     if (repsWithTwitter.length === 0) {
       return NextResponse.json({
@@ -69,19 +114,6 @@ export async function GET(req: NextRequest) {
 
     console.log(`📊 Found ${repsWithTwitter.length} representatives with Twitter:`,
       repsWithTwitter.map((r: any) => `${r.name} (@${r.twitter_handle})`));
-
-    // 4. Check cache first (unless forced refresh)
-    const cacheKey = `rep-tweets-${user.id}`;
-
-    if (!forceRefresh) {
-      try {
-        // Check localStorage or server cache
-        // For now, we'll skip server cache and fetch fresh
-        // TODO: Add SmartMemory caching here
-      } catch (error) {
-        console.warn('Cache check failed:', error);
-      }
-    }
 
     // 5. Fetch tweets for all representatives (parallel)
     const usernames = repsWithTwitter.map((rep: any) =>
