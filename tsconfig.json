@@ -39,6 +39,7 @@
     "node_modules",
     "scripts/**/*.ts",
     "src/common/kysely-d1.ts",
+    "tests/**/*.ts",
     "**/*.test.ts",
     "**/*.test.tsx"
   ]

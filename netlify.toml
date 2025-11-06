@@ -4,6 +4,7 @@
 [build]
   command = "npm run build"
   publish = ".next"
+  ignore = "git diff --quiet HEAD^ HEAD -- ':(exclude)*.md'"
 
 # Next.js Netlify Plugin
 [[plugins]]
@@ -12,7 +13,8 @@
 [build.environment]
   NODE_VERSION = "20"
   NEXT_TELEMETRY_DISABLED = "1"
-  NPM_FLAGS = "--legacy-peer-deps"
+  PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = "1"
+  SKIP_INSTALL_SIMPLE_GIT_HOOKS = "1"
 
 # NOTE: @netlify/plugin-nextjs handles all routes automatically
 # No manual redirects needed for API routes or pages
@@ -22,15 +24,6 @@
   directory = ".netlify/functions"
   # Note: Function timeout is configured per-function in netlify.toml v2
   # Default is 10s (free tier), can be increased in Netlify UI
-
-# Scheduled function: Pre-fetch personalized news
-# Runs at 6 AM and 6 PM daily (UTC)
-[[functions]]
-  name = "prefetch-news"
-  included_files = ["lib/**/*", "app/api/cron/prefetch-news/**/*"]
-
-[functions."prefetch-news"]
-  schedule = "0 6,18 * * *"  # Cron format: minute hour day month weekday
 
 # Headers for security and caching
 [[headers]]

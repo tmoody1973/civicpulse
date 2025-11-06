@@ -23,10 +23,12 @@ export async function GET() {
       'users'
     );
 
-    // Parse policy_areas from JSON string
+    // Parse JSON fields from database
     const briefs = result.rows.map((row: any) => ({
       ...row,
       policy_areas: row.policy_areas ? JSON.parse(row.policy_areas) : [],
+      bills_covered: row.bills_covered ? JSON.parse(row.bills_covered) : [],
+      news_articles: row.news_articles ? JSON.parse(row.news_articles) : [],
     }));
 
     return NextResponse.json({

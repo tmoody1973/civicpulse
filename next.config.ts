@@ -88,6 +88,10 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: '**.ama-assn.org',
       },
+      {
+        protocol: 'https',
+        hostname: 'kubrick.htvapps.com',
+      },
     ],
   },
 

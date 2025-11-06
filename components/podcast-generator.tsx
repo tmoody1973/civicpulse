@@ -30,16 +30,12 @@ export function PodcastGenerator() {
     setPodcast(null);
 
     try {
-      const response = await fetch('/api/generate-podcast', {
+      const response = await fetch('/api/briefs/generate-daily', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          userId: 'demo-user',
-          type,
-          useTestData: false, // Now using real APIs (Congress, Claude, ElevenLabs)
-        }),
+        body: JSON.stringify({}),
       });
 
       const data = await response.json();
@@ -79,7 +75,7 @@ export function PodcastGenerator() {
             ) : (
               <FileAudio className="w-4 h-4 mr-2" />
             )}
-            Generate Daily Brief (3-4 min)
+            Generate Daily Brief (8-12 min)
           </Button>
           <Button
             onClick={() => generatePodcast('weekly')}

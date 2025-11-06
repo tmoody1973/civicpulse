@@ -144,7 +144,7 @@ export async function GET(req: NextRequest) {
     const tweetsMap = await fetchTweetsForMultipleUsers(usernames, limit);
 
     // 6. Format response
-    const tweetsResult: RepresentativeTweets[] = repsWithTwitter
+    const tweetsResult = repsWithTwitter
       .map((rep: any) => {
         const username = rep.twitter_handle.replace('@', '');
         const tweets = tweetsMap.get(username) || [];
@@ -162,7 +162,7 @@ export async function GET(req: NextRequest) {
           tweets
         };
       })
-      .filter((item): item is RepresentativeTweets => item !== null);
+      .filter(Boolean) as RepresentativeTweets[];
 
     const latency = Date.now() - startTime;
     console.log(`✅ Fetched ${tweetsResult.length} representative timelines (${latency}ms)`);

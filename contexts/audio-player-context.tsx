@@ -7,9 +7,11 @@ export interface Brief {
   id: string;
   title: string;
   audio_url: string;
+  written_digest?: string;
   featured_image_url: string | null;
   duration: number;
   type: 'daily' | 'weekly';
+  policy_areas?: string[];
   generated_at: string;
 }
 
@@ -206,17 +208,42 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
     }
   }, [state.currentBrief]);
 
-  // Sync audio element with state
+  // When a new brief is loaded, wait for audio element to be ready, then play
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio) return;
+    if (!audio || !state.currentBrief || !state.isPlaying) return;
 
-    if (state.isPlaying) {
+    // Wait for audio to be ready before playing
+    const handleCanPlay = () => {
+      audio.play().catch((error) => {
+        console.error('Playback failed:', error);
+        dispatch({ type: 'PAUSE' });
+      });
+    };
+
+    // If audio is already ready, play immediately
+    if (audio.readyState >= 2) {
       audio.play().catch((error) => {
         console.error('Playback failed:', error);
         dispatch({ type: 'PAUSE' });
       });
     } else {
+      // Otherwise wait for canplay event
+      audio.addEventListener('canplay', handleCanPlay, { once: true });
+    }
+
+    return () => {
+      audio.removeEventListener('canplay', handleCanPlay);
+    };
+  }, [state.currentBrief, state.isPlaying]);
+
+  // Sync audio element with state (for pause/resume during playback)
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    // Only handle pause here (play is handled by the effect above)
+    if (!state.isPlaying && !audio.paused) {
       audio.pause();
     }
   }, [state.isPlaying]);

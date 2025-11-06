@@ -25,6 +25,7 @@ export interface PerplexityArticle {
   publishedDate: string;
   relevantTopics: string[];
   imageUrl?: string; // Featured image for the article
+  extraSnippets?: string[]; // Additional context snippets from Brave Search for richer dialogue
 }
 
 export interface PerplexityResponse {
@@ -170,10 +171,14 @@ async function fetchOgImage(url: string): Promise<string | null> {
     const { result } = await ogs({ url, timeout: 5000 });
 
     // Try multiple Open Graph image fields
-    const imageUrl =
-      (Array.isArray(result.ogImage) ? result.ogImage[0]?.url : result.ogImage?.url) ||
-      (Array.isArray(result.twitterImage) ? result.twitterImage[0]?.url : result.twitterImage?.url) ||
-      null;
+    const getImageUrl = (imageData: any): string | undefined => {
+      if (Array.isArray(imageData)) {
+        return imageData[0]?.url;
+      }
+      return imageData?.url;
+    };
+
+    const imageUrl = getImageUrl(result.ogImage) || getImageUrl(result.twitterImage) || null;
 
     return imageUrl;
   } catch (error: unknown) {

@@ -153,6 +153,7 @@ interface BraveNewsResult {
   meta_url?: {
     hostname: string;
   };
+  extra_snippets?: string[]; // Additional context snippets from Brave Search
 }
 
 interface BraveSearchResponse {
@@ -225,6 +226,7 @@ async function searchWithBrave(
     content: result.description,
     score: 1.0 - (index * 0.05), // Descending relevance score
     published_date: result.age,
+    raw_content: result.extra_snippets?.join('\n\n') || undefined, // Extra context snippets for richer dialogue
   }));
 
   return results;
@@ -503,7 +505,8 @@ export async function getPersonalizedNewsFast(
           source: extractSourceFromUrl(result.url),
           publishedDate: result.published_date || new Date().toISOString().split('T')[0],
           relevantTopics: [interest], // We know the topic from the search query!
-          imageUrl: undefined // Will be enriched later with OG/Unsplash
+          imageUrl: undefined, // Will be enriched later with OG/Unsplash
+          extraSnippets: result.raw_content ? result.raw_content.split('\n\n') : undefined // Extra context for dialogue script
         }));
     } catch (error) {
       console.error(`  ❌ ${interest}: ${error instanceof Error ? error.message : 'Error'}`);

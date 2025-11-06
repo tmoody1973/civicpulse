@@ -1,36 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db/client';
 import { getSession } from '@/lib/auth/session';
+import { executeQuery } from '@/lib/db/client';
 
+/**
+ * GET /api/briefs/[id]
+ * Fetch a specific brief by ID
+ */
 export async function GET(
-  req: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Get authenticated user (optional for development)
     const user = await getSession();
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
 
     const { id } = await params;
 
-    // For development: if no user, allow viewing any brief
-    // In production, this should require authentication and user ownership check
-    const whereClause = user
-      ? `WHERE id = '${id}' AND user_id = '${user.id}'`
-      : `WHERE id = '${id}'`;
-
     // Fetch brief from database
     const result = await executeQuery(
-      `SELECT
-        id, user_id, type, title, featured_image_url,
-        audio_url, transcript, written_digest, duration,
-        policy_areas, news_articles, bills_covered, generated_at
-      FROM briefs
-      ${whereClause}
-      LIMIT 1`,
+      `SELECT * FROM briefs WHERE id = '${id}' AND user_id = '${user.id}' LIMIT 1`,
       'users'
     );
 
-    if (result.rows.length === 0) {
+    if (!result.rows || result.rows.length === 0) {
       return NextResponse.json(
         { error: 'Brief not found' },
         { status: 404 }
@@ -41,10 +38,18 @@ export async function GET(
 
     // Parse JSON fields
     const parsedBrief = {
-      ...brief,
+      id: brief.id,
+      title: brief.title || 'Daily Legislative Brief',
+      audio_url: brief.audio_url,
+      written_digest: brief.written_digest,
+      featured_image_url: brief.featured_image_url,
+      duration: brief.duration,
+      type: brief.type,
       policy_areas: brief.policy_areas ? JSON.parse(brief.policy_areas) : [],
-      news_articles: brief.news_articles ? JSON.parse(brief.news_articles) : [],
-      bills_covered: brief.bills_covered ? JSON.parse(brief.bills_covered) : [],
+      news_count: brief.news_articles ? JSON.parse(brief.news_articles).length : 0,
+      bill_count: brief.bills_covered ? JSON.parse(brief.bills_covered).length : 0,
+      generated_at: brief.generated_at,
+      transcript: brief.transcript,
     };
 
     return NextResponse.json({

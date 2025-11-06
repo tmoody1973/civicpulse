@@ -9,13 +9,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { BillCard } from '@/components/dashboard/bill-card';
 import type { Bill } from '@/components/dashboard/bill-card';
+import { BriefCard } from '@/components/dashboard/brief-card';
 import { Representative } from '@/components/dashboard/representative-card';
 import { PersonalizedNewsWidget } from '@/components/dashboard/personalized-news-widget';
 import { BillFilters, type BillFilterOptions } from '@/components/dashboard/bill-filters';
 import { filterBills, getUniqueBillCategories } from '@/lib/utils/filter-bills';
 import { getFeedsForInterests } from '@/lib/rss/the-hill-feeds';
 import { useAudioPlayer, type Brief } from '@/contexts/audio-player-context';
-import { EpisodeCard } from '@/components/podcast/episode-card';
 import { DashboardWidget } from '@/components/dashboard/dashboard-widget';
 import { CustomizeDashboardModal } from '@/components/dashboard/customize-dashboard-modal';
 import { useWidgetPreferences } from '@/hooks/use-widget-preferences';
@@ -258,41 +258,48 @@ export default function DashboardPage() {
     setPodcastError(null);
 
     try {
-      const response = await fetch('/api/generate-podcast', {
+      const response = await fetch('/api/briefs/generate-daily', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: 'demo-user',
-          type,
-          useTestData: false,
-        }),
+        body: JSON.stringify({ force_regenerate: true }), // Always regenerate for testing
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to generate podcast');
+        throw new Error(data.error || 'Failed to generate brief');
       }
 
-      // Create brief for audio player
+      // Create brief for audio player from response
       const newBrief: Brief = {
-        id: `brief-${Date.now()}`,
-        title: `${type === 'daily' ? 'Daily Brief' : 'Weekly Deep Dive'} - ${new Date().toLocaleDateString()}`,
-        audio_url: data.audioUrl,
-        featured_image_url: null, // TODO: Add featured image support
-        duration: data.duration,
-        type,
-        generated_at: new Date().toISOString(),
+        id: data.brief.id,
+        title: data.brief.title,
+        audio_url: data.brief.audio_url,
+        written_digest: data.brief.written_digest,
+        featured_image_url: data.brief.featured_image_url || null,
+        duration: data.brief.duration || 0,
+        type: 'daily',
+        policy_areas: data.brief.policy_areas || [],
+        generated_at: data.brief.generated_at,
       };
 
-      // Add to podcasts list
-      setPodcasts((prev) => [newBrief, ...prev]);
+      // Add to podcasts list (only if not already present)
+      setPodcasts((prev) => {
+        // Check if brief already exists in the list
+        const existingIndex = prev.findIndex(b => b.id === newBrief.id);
+        if (existingIndex >= 0) {
+          // Brief already exists, don't add duplicate
+          console.log('Brief already in list, skipping add');
+          return prev;
+        }
+        return [newBrief, ...prev];
+      });
 
       // Load into global player (auto-plays)
       loadBrief(newBrief);
     } catch (error) {
       setPodcastError(error instanceof Error ? error.message : 'An error occurred');
-      console.error('Error generating podcast:', error);
+      console.error('Error generating brief:', error);
     } finally {
       setGeneratingPodcast(false);
     }
@@ -597,26 +604,20 @@ export default function DashboardPage() {
                     ) : (
                       <Radio className="w-4 h-4 mr-2" />
                     )}
-                    Generate Daily Brief (3-4 min)
+                    Generate Daily Brief (8-12 min)
                   </Button>
 
                   {podcasts.length > 0 && (
-                    <div className="space-y-2">
-                      <p className="text-xs font-semibold text-muted-foreground">Recent Episodes</p>
-                      {podcasts.slice(0, 2).map((brief, index) => (
-                        <EpisodeCard
-                          key={index}
-                          episode={{
-                            audioUrl: brief.audio_url,
-                            title: brief.title,
-                            type: brief.type,
-                            duration: brief.duration,
-                            generatedAt: brief.generated_at,
-                          }}
-                          onPlay={() => loadBrief(brief)}
-                          compact
-                        />
-                      ))}
+                    <div className="space-y-4">
+                      <p className="text-sm font-semibold text-muted-foreground">Your Briefs</p>
+                      <div className="grid gap-4">
+                        {podcasts.slice(0, 3).map((brief) => (
+                          <BriefCard
+                            key={brief.id}
+                            brief={brief}
+                          />
+                        ))}
+                      </div>
                     </div>
                   )}
                 </CardContent>

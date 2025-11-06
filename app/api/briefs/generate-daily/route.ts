@@ -51,6 +51,7 @@ interface NewsArticle {
   source_url?: string; // Alias for link (for image resolution compatibility)
   source: string;
   published_date: string;
+  extra_snippets?: string[]; // Additional context snippets from Brave Search for richer dialogue
 }
 
 export async function POST(request: NextRequest) {
@@ -95,19 +96,25 @@ export async function POST(request: NextRequest) {
     console.log(`🎙️  Generating daily brief for user ${user.id}`);
     console.log(`📊 User interests: ${userPreferences.join(', ')}`);
 
-    // 5. Fetch news articles from Perplexity
-    const newsArticles = await fetchNewsArticles(userPreferences);
+    // 5. Fetch news articles from Brave Search (with extra_snippets for richer context)
+    const newsArticles = await fetchNewsArticles(userPreferences, user.id);
     console.log(`📰 Fetched ${newsArticles.length} news articles`);
 
     // 6. Query bills with smart prioritization AND deduplication
     const bills = await fetchPrioritizedBills(userPreferences, user.id);
     console.log(`📜 Found ${bills.length} fresh relevant bills`);
 
-    if (bills.length === 0 && newsArticles.length === 0) {
+    // Allow news-only briefs if no bills are available
+    if (newsArticles.length === 0) {
       return NextResponse.json({
         error: 'No content available',
-        message: 'No relevant bills or news found for your interests today',
+        message: 'No relevant news found for your interests today. Bills database may need syncing.',
       }, { status: 404 });
+    }
+
+    // Warn if no bills but continue with news
+    if (bills.length === 0) {
+      console.log('⚠️  No bills found - generating news-only brief');
     }
 
     // 7. Generate dialogue script with Claude (3-part structure)
@@ -118,8 +125,9 @@ export async function POST(request: NextRequest) {
     const audioBuffer = await generateDialogue(dialogueScript);
     console.log(`🎵 Generated audio: ${audioBuffer.length} bytes`);
 
-    // 9. Calculate duration (rough estimate: 1 byte ≈ 0.001 seconds for MP3 @ 192kbps)
-    const estimatedDuration = Math.round(audioBuffer.length * 0.001);
+    // 9. Calculate duration (MP3 @ 192kbps = 24,000 bytes per second)
+    // Formula: duration (seconds) = bytes / 24000
+    const estimatedDuration = Math.round(audioBuffer.length / 24000);
 
     // 10. Upload audio to Vultr
     const audioUrl = await uploadPodcast(audioBuffer, {
@@ -140,7 +148,28 @@ export async function POST(request: NextRequest) {
       .map(line => `${line.host.toUpperCase()}: ${line.text}`)
       .join('\n\n');
 
-    // 13. Save brief to database
+    // 13. Get featured image (first news article image)
+    let featuredImage: string | null = null;
+    if (newsArticles.length > 0) {
+      const firstArticle = newsArticles[0];
+      if (firstArticle.source_url || firstArticle.link) {
+        const imageMap = await resolveNewsArticleImages([{
+          source_url: firstArticle.source_url || firstArticle.link,
+          policy_area: firstArticle.policy_area,
+        }]);
+        featuredImage = imageMap.get(firstArticle.source_url || firstArticle.link) || null;
+      }
+    }
+    console.log(`🖼️  Featured image: ${featuredImage || 'none'}`);
+
+    // 14. Generate brief title from top story
+    const briefTitle = newsArticles.length > 0
+      ? newsArticles[0].title
+      : bills.length > 0
+      ? bills[0].title
+      : 'Daily Legislative Brief';
+
+    // 15. Save brief to database
     const briefId = `brief_${user.id}_${Date.now()}`;
 
     // Escape single quotes in strings for SQL
@@ -148,15 +177,17 @@ export async function POST(request: NextRequest) {
 
     await executeQuery(
       `INSERT INTO briefs (
-        id, user_id, type, audio_url, transcript, written_digest,
-        news_articles, bills_covered, policy_areas, duration, generated_at
+        id, user_id, type, title, audio_url, transcript, written_digest,
+        featured_image_url, news_articles, bills_covered, policy_areas, duration, generated_at
       ) VALUES (
         '${briefId}',
         '${user.id}',
         'daily',
+        '${escapeSql(briefTitle)}',
         '${escapeSql(audioUrl)}',
         '${escapeSql(transcript)}',
         '${escapeSql(writtenDigest)}',
+        ${featuredImage ? `'${escapeSql(featuredImage)}'` : 'NULL'},
         '${escapeSql(JSON.stringify(newsArticles))}',
         '${escapeSql(JSON.stringify(bills.map(b => b.id)))}',
         '${escapeSql(JSON.stringify(userPreferences))}',
@@ -169,17 +200,21 @@ export async function POST(request: NextRequest) {
     const duration = Date.now() - startTime;
     console.log(`✅ Brief generated in ${Math.round(duration / 1000)}s`);
 
-    // 14. Return success response
+    // 16. Return success response
     return NextResponse.json({
       success: true,
       brief: {
         id: briefId,
+        title: briefTitle,
         audio_url: audioUrl,
+        written_digest: writtenDigest,
+        featured_image_url: featuredImage,
         duration: estimatedDuration,
         news_count: newsArticles.length,
         bill_count: bills.length,
         policy_areas: userPreferences,
         generated_at: new Date().toISOString(),
+        transcript: transcript,
       },
       generation_time_ms: duration,
     });
@@ -218,6 +253,7 @@ export async function POST(request: NextRequest) {
 
 /**
  * Check if user already has a brief generated today
+ * Returns properly parsed brief with JSON fields converted to objects
  */
 async function checkExistingBrief(userId: string): Promise<any | null> {
   const result = await executeQuery(
@@ -229,7 +265,28 @@ async function checkExistingBrief(userId: string): Promise<any | null> {
     'users'
   );
 
-  return result.rows && result.rows.length > 0 ? result.rows[0] : null;
+  if (!result.rows || result.rows.length === 0) {
+    return null;
+  }
+
+  const brief = result.rows[0];
+
+  // Parse JSON fields before returning
+  return {
+    id: brief.id,
+    title: brief.title || 'Daily Legislative Brief',
+    audio_url: brief.audio_url,
+    written_digest: brief.written_digest,
+    featured_image_url: brief.featured_image_url,
+    duration: brief.duration,
+    type: brief.type,
+    policy_areas: brief.policy_areas ? JSON.parse(brief.policy_areas) : [],
+    bills_covered: brief.bills_covered ? JSON.parse(brief.bills_covered) : [],
+    news_articles: brief.news_articles ? JSON.parse(brief.news_articles) : [],
+    generated_at: brief.generated_at,
+    transcript: brief.transcript,
+    user_id: brief.user_id,
+  };
 }
 
 /**
@@ -250,29 +307,42 @@ async function getUserPreferences(userId: string): Promise<string[]> {
 }
 
 /**
- * Fetch news articles from Perplexity API
+ * Fetch news articles from Brave Search API (via direct function call)
+ * Returns articles with extra_snippets for richer dialogue context
  */
-async function fetchNewsArticles(policyAreas: string[]): Promise<NewsArticle[]> {
+async function fetchNewsArticles(policyAreas: string[], _userId: string): Promise<NewsArticle[]> {
   try {
-    // Call our existing Perplexity API route
-    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/news/perplexity`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        policy_areas: policyAreas.slice(0, 5), // Limit to 5 policy areas
-        limit: 2, // 2 articles per policy area = 10 total max
-      }),
-    });
+    // Import the news fetching function directly to avoid HTTP fetch auth issues
+    const { getPersonalizedNewsFast } = await import('@/lib/api/cerebras-tavily');
 
-    if (!response.ok) {
-      console.warn('Perplexity API failed, continuing without news');
+    console.log(`📰 Fetching news for policy areas: ${policyAreas.join(', ')}`);
+
+    // Fetch news directly (returns PerplexityArticle[] directly)
+    const articles = await getPersonalizedNewsFast(policyAreas);
+
+    if (!articles || articles.length === 0) {
+      console.warn('⚠️  No news articles returned from Brave Search');
       return [];
     }
 
-    const data = await response.json();
-    return data.articles || [];
+    // Convert PerplexityArticle to NewsArticle format
+    const newsArticles: NewsArticle[] = articles
+      .slice(0, 10) // Limit to 10 articles max for brief generation
+      .map((article: any) => ({
+        title: article.title,
+        summary: article.summary,
+        policy_area: article.relevantTopics?.[0] || policyAreas[0] || 'general',
+        link: article.url,
+        source_url: article.url,
+        source: article.source,
+        published_date: article.publishedDate,
+        extra_snippets: article.extraSnippets || [] // Include extra context for Claude
+      }));
+
+    console.log(`✅ Fetched ${newsArticles.length} articles with extra_snippets from Brave Search`);
+    return newsArticles;
   } catch (error) {
-    console.error('Error fetching news articles:', error);
+    console.error('❌ Error fetching news articles:', error);
     return [];
   }
 }
@@ -345,51 +415,45 @@ async function fetchPrioritizedBills(policyAreas: string[], userId: string): Pro
 }
 
 /**
- * Generate dialogue script with 3-part structure
- * Part 1: Breaking News (2-3 min, 1 top story)
- * Part 2: Top Stories (5-7 min, 2-3 featured stories)
- * Part 3: Quick Hits (1-2 min, rapid mentions)
+ * Fetch the brief generation prompt from database (or use default)
  */
-async function generateBriefScript(
-  newsArticles: NewsArticle[],
-  bills: Bill[],
-  policyAreas: string[]
-) {
-  // Select breaking news (most important story)
-  const breakingNews = newsArticles.length > 0 ? newsArticles[0] : null;
+async function getBriefPrompt(): Promise<string> {
+  try {
+    const result = await executeQuery(
+      `SELECT prompt_text FROM system_prompts WHERE prompt_key = 'brief_generation'`,
+      'users'
+    );
 
-  // Select top 2-3 bills for deep coverage
-  const topBills = bills.slice(0, 3);
+    if (result.rows.length > 0) {
+      console.log('✅ Using custom prompt from database');
+      return result.rows[0].prompt_text;
+    }
 
-  // Select remaining bills for quick hits
-  const quickHitBills = bills.slice(3, 7);
+    console.log('ℹ️  Using default prompt (no custom prompt found)');
+    return DEFAULT_BRIEF_PROMPT;
+  } catch (error) {
+    console.warn('⚠️  Error fetching prompt from database, using default:', error);
+    return DEFAULT_BRIEF_PROMPT;
+  }
+}
 
-  // Build context for Claude
-  const prompt = `Create a personalized daily congressional brief for a user interested in: ${policyAreas.join(', ')}.
+/**
+ * Default prompt template (fallback)
+ */
+const DEFAULT_BRIEF_PROMPT = `Create a personalized daily congressional brief for a user interested in: {policy_areas}.
 
 **3-PART STRUCTURE (8-12 minutes total):**
 
 **PART 1 - BREAKING NEWS (2-3 min):**
-${breakingNews ? `Top story: "${breakingNews.title}"
-Summary: ${breakingNews.summary}
-Source: ${breakingNews.source}` : 'No breaking news today.'}
+{breaking_news}
 
 **PART 2 - TOP STORIES (5-7 min):**
 Cover these bills in detail:
-${topBills.map((bill, idx) => `
-${idx + 1}. ${bill.bill_type.toUpperCase()} ${bill.bill_number} (Congress ${bill.congress}) - ${bill.title}
-   Sponsor: ${bill.sponsor_name}
-   Status: ${bill.status}
-   Latest Action: ${bill.latest_action_text} (${bill.latest_action_date})
-   Summary: ${bill.summary || 'No summary available'}
-   Impact Score: ${bill.impact_score}/100
-`).join('\n')}
+{top_stories}
 
 **PART 3 - QUICK HITS (1-2 min):**
 Briefly mention these bills:
-${quickHitBills.map((bill, idx) => `
-${idx + 1}. ${bill.bill_type.toUpperCase()} ${bill.bill_number} - ${bill.title}
-`).join('\n')}
+{quick_hits}
 
 **STYLE GUIDELINES:**
 - NPR-quality conversational tone
@@ -410,9 +474,63 @@ Return JSON array of dialogue lines:
 ]
 
 **CRITICAL:**
-- Total character count MUST be under 4000 characters
-- Generate 15-20 dialogue lines total
-- Each line should be 2-3 sentences MAX`;
+- Target 8-12 minutes of audio (approximately 6000-9000 characters total)
+- Generate 25-35 dialogue lines for natural conversation flow
+- Each line should be 2-4 sentences MAX
+- Use the extra context snippets to add specific details, quotes, and facts for richer storytelling`;
+
+/**
+ * Generate dialogue script with 3-part structure
+ * Part 1: Breaking News (2-3 min, 1 top story)
+ * Part 2: Top Stories (5-7 min, 2-3 featured stories)
+ * Part 3: Quick Hits (1-2 min, rapid mentions)
+ */
+async function generateBriefScript(
+  newsArticles: NewsArticle[],
+  bills: Bill[],
+  policyAreas: string[]
+) {
+  // Select breaking news (most important story)
+  const breakingNews = newsArticles.length > 0 ? newsArticles[0] : null;
+
+  // Select top 2-3 bills for deep coverage
+  const topBills = bills.slice(0, 3);
+
+  // Select remaining bills for quick hits
+  const quickHitBills = bills.slice(3, 7);
+
+  // Build breaking news section
+  const breakingNewsSection = breakingNews ? `Top story: "${breakingNews.title}"
+Summary: ${breakingNews.summary}
+Source: ${breakingNews.source}
+${breakingNews.extra_snippets && breakingNews.extra_snippets.length > 0 ? `
+Additional Context (use these snippets to enrich the dialogue with specific details, quotes, and facts):
+${breakingNews.extra_snippets.map((snippet, i) => `${i + 1}. ${snippet}`).join('\n')}` : ''}` : 'No breaking news today.';
+
+  // Build top stories section
+  const topStoriesSection = topBills.map((bill, idx) => `
+${idx + 1}. ${bill.bill_type.toUpperCase()} ${bill.bill_number} (Congress ${bill.congress}) - ${bill.title}
+   Sponsor: ${bill.sponsor_name}
+   Status: ${bill.status}
+   Latest Action: ${bill.latest_action_text} (${bill.latest_action_date})
+   Summary: ${bill.summary || 'No summary available'}
+   Impact Score: ${bill.impact_score}/100
+`).join('\n');
+
+  // Build quick hits section
+  const quickHitsSection = quickHitBills.map((bill, idx) => `
+${idx + 1}. ${bill.bill_type.toUpperCase()} ${bill.bill_number} - ${bill.title}
+`).join('\n');
+
+  // Fetch prompt template from database
+  const promptTemplate = await getBriefPrompt();
+
+  // Replace template variables
+  const prompt = promptTemplate
+    .replace('{policy_areas}', policyAreas.join(', '))
+    .replace('{breaking_news}', breakingNewsSection)
+    .replace('{top_stories}', topStoriesSection)
+    .replace('{quick_hits}', quickHitsSection);
 
   // Generate script with Claude
   const dialogue = await generateDialogueScript([
@@ -522,7 +640,7 @@ async function generateWrittenDigest(
  * GET /api/briefs/generate-daily
  * Check if user has a brief today, or generate a new one
  */
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const user = await getSession();
     if (!user) {

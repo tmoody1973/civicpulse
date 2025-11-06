@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Database, RefreshCw, Users, FileText, UserCheck, Mic, Newspaper, Vote, History, Radio, LogOut, Home, Search, Settings, Shield } from 'lucide-react';
 import { SyncStatusWidget } from '@/components/admin/sync-status-widget';
+import { PromptEditor } from '@/components/admin/prompt-editor';
 import Link from 'next/link';
 
 interface TableInfo {
@@ -272,6 +273,11 @@ export default function AdminDashboard() {
         {/* Sync Status Widget - Shows automated bill sync status */}
         <div className="mb-6">
           <SyncStatusWidget />
+        </div>
+
+        {/* Prompt Editor - Edit Claude brief generation prompt */}
+        <div className="mb-6">
+          <PromptEditor />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -26,12 +26,12 @@ export interface PodcastFormat {
 const PODCAST_FORMATS: Record<string, PodcastFormat> = {
   daily: {
     type: 'daily',
-    targetDuration: 4, // 4-5 minutes (shorter to avoid ElevenLabs timeout)
+    targetDuration: 10, // 8-12 minutes for comprehensive coverage
     billCount: 3,
   },
   weekly: {
     type: 'weekly',
-    targetDuration: 10, // 10-12 minutes (reduced from 15-18)
+    targetDuration: 15, // 15-18 minutes for deep dive
     billCount: 1, // One bill, deep dive
   },
 };
@@ -65,13 +65,18 @@ Natural Expression Guidelines:
 - Express emotion through word choice and punctuation (! ?)
 - Keep it authentic and relatable
 
-Format Requirements:
+Format Requirements - THIS IS CRITICAL:
 - Target duration: ${podcastFormat.targetDuration} minutes (approximately ${podcastFormat.targetDuration * 150} words)
-- ${format === 'daily' ? 'Generate EXACTLY 8-10 dialogue lines total (brief overview of all bills)' : 'Generate 15-20 dialogue lines (focused dive into the bill)'}
-- Each line should be 2-3 sentences MAX (about 50-80 characters per line)
-- Include: brief intro (2 lines), bill discussion (5-6 lines), brief outro (2 lines)
-- Sarah tends to focus on policy details, James on human impact
-- CRITICAL: Total character count MUST stay under 4000 characters (ElevenLabs limit is 5000)
+- ${format === 'daily' ? 'YOU MUST GENERATE AT LEAST 25-35 DIALOGUE LINES (MINIMUM 25, TARGET 30-35)' : 'YOU MUST GENERATE AT LEAST 40-50 DIALOGUE LINES'}
+- This is for 8-12 minutes of audio - DO NOT create short scripts!
+- Each line should be 2-4 sentences (conversational exchanges, not monologues)
+- Structure: engaging intro (3-4 lines) + detailed discussion of EACH topic (20-25 lines total) + strong outro (2-3 lines)
+- Sarah focuses on policy details, James on human impact and real-world connections
+- Alternate speakers frequently (every 1-2 lines) for natural conversation
+- Total output should be 6000-9000 characters for comprehensive coverage
+
+REMEMBER: The listener wants a FULL briefing with detailed analysis, not a quick summary.
+Generate AT LEAST 30 dialogue lines with substantive discussion of each topic.
 
 Return the dialogue as a JSON array of objects with this structure:
 [
@@ -94,7 +99,7 @@ ${bill.summary ? `Summary: ${bill.summary}` : ''}
   try {
     const response = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 4096,
+      max_tokens: format === 'daily' ? 8192 : 12288, // Increased for longer briefs (daily: 8k, weekly: 12k)
       temperature: 0.7,
       system: systemPrompt,
       messages: [
@@ -134,6 +139,15 @@ ${bill.summary ? `Summary: ${bill.summary}` : ''}
       if (line.host !== 'sarah' && line.host !== 'james') {
         throw new Error(`Invalid host name: ${line.host}`);
       }
+    }
+
+    // Validate minimum length requirements
+    const minLines = format === 'daily' ? 25 : 40;
+    if (dialogue.length < minLines) {
+      throw new Error(
+        `Dialogue script too short: ${dialogue.length} lines (minimum ${minLines} required for ${format} brief). ` +
+        `This would produce a ${Math.round(dialogue.length * 0.3)} minute brief instead of the target ${podcastFormat.targetDuration} minutes.`
+      );
     }
 
     return dialogue;
