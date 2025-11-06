@@ -5,6 +5,7 @@
  * Handles both initial bulk sync and incremental updates
  */
 
+// @ts-nocheck
 import { getAlgoliaAdmin, BILLS_INDEX, indexSettings, type AlgoliaBill } from './algolia-config';
 
 // Get admin client

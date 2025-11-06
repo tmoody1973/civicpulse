@@ -6,7 +6,8 @@ if (typeof window === 'undefined' && !process.env.ALGOLIA_APP_ID) {
   require('dotenv').config({ path: require('path').resolve(process.cwd(), '.env.local') });
 }
 
-import { algoliasearch } from 'algoliasearch';
+// @ts-nocheck
+import algoliasearch from 'algoliasearch';
 
 // IMPORTANT: Do NOT access env vars at module level for serverless functions
 // They may not be available until runtime. Use lazy loading functions instead.

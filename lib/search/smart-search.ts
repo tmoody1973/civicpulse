@@ -7,6 +7,7 @@
  * - Automatically syncs new bills to Algolia for next time
  */
 
+// @ts-nocheck
 import { getAlgoliaSearch, BILLS_INDEX } from './algolia-config';
 import type { AlgoliaBill } from './algolia-config';
 

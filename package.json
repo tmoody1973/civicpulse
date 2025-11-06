@@ -51,6 +51,7 @@
     "@radix-ui/react-tabs": "^1.1.13",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@workos-inc/node": "^7.14.0",
+    "algoliasearch": "^4.25.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
@@ -72,7 +73,6 @@
   },
   "devDependencies": {
     "@faker-js/faker": "^10.1.0",
-    "@liquidmetal-ai/in-memory-d1": "^1.0.7",
     "@tailwindcss/typography": "^0.5.19",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^22",
@@ -90,5 +90,12 @@
     "tailwindcss-animate": "^1.0.7",
     "typescript": "^5",
     "zx": "^8.5.2"
+  },
+  "optionalDependencies": {
+    "@liquidmetal-ai/in-memory-d1": "^1.0.7",
+    "@playwright/test": "^1.56.1",
+    "@types/better-sqlite3": "^7.6.13",
+    "better-sqlite3": "^11.9.1",
+    "mailslurp-client": "^16.0.0"
   }
 }
