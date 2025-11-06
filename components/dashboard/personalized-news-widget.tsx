@@ -100,6 +100,33 @@ export function PersonalizedNewsWidget({
     setError(null);
 
     try {
+      // Check client-side cache first (localStorage)
+      const cacheKey = `personalized-news-${limit}`;
+      const cachedData = !forceRefresh && localStorage.getItem(cacheKey);
+
+      if (cachedData) {
+        try {
+          const parsed = JSON.parse(cachedData);
+          const cacheAge = Date.now() - parsed.timestamp;
+
+          // Use cache if less than 5 minutes old
+          if (cacheAge < 5 * 60 * 1000) {
+            console.log(`✅ Using client-side cache (${Math.round(cacheAge / 1000)}s old)`);
+            const sections = organizeByTopics(parsed.articles);
+            setTopicSections(sections);
+            setCacheInfo({
+              cached: true,
+              latency: Math.round(cacheAge / 1000)
+            });
+            setLoading(false);
+            return;
+          }
+        } catch (e) {
+          console.warn('Failed to parse cached news:', e);
+          localStorage.removeItem(cacheKey);
+        }
+      }
+
       const url = new URL('/api/news/personalized', window.location.origin);
       url.searchParams.set('limit', String(limit));
       if (forceRefresh) {
@@ -120,6 +147,17 @@ export function PersonalizedNewsWidget({
           cached: data.meta?.cached || false,
           latency: data.meta?.latency
         });
+
+        // Store in client-side cache (5 minute TTL)
+        try {
+          localStorage.setItem(cacheKey, JSON.stringify({
+            articles: data.data,
+            timestamp: Date.now()
+          }));
+          console.log('💾 Stored in client-side cache (5min TTL)');
+        } catch (e) {
+          console.warn('Failed to cache news:', e);
+        }
       }
     } catch (error) {
       console.error('Error fetching personalized news:', error);
