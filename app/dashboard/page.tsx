@@ -11,7 +11,6 @@ import { BillCard } from '@/components/dashboard/bill-card';
 import type { Bill } from '@/components/dashboard/bill-card';
 import { Representative } from '@/components/dashboard/representative-card';
 import { PersonalizedNewsWidget } from '@/components/dashboard/personalized-news-widget';
-import { RepresentativeTweetsWidget } from '@/components/dashboard/representative-tweets-widget';
 import { BillFilters, type BillFilterOptions } from '@/components/dashboard/bill-filters';
 import { filterBills, getUniqueBillCategories } from '@/lib/utils/filter-bills';
 import { getFeedsForInterests } from '@/lib/rss/the-hill-feeds';
@@ -538,20 +537,6 @@ export default function DashboardPage() {
             ) : (
               <div className="text-center py-8 text-muted-foreground">No representatives found</div>
             )}
-          </DashboardWidget>
-        )}
-
-        {/* Twitter Feed */}
-        {visibleWidgets.find(w => w.id === 'twitter') && (
-          <DashboardWidget
-            widgetId="twitter"
-            title="Representative Tweets"
-            description="Latest posts from your representatives"
-            onHide={() => toggleWidget('twitter')}
-            canHide={true}
-            className="mb-8"
-          >
-            <RepresentativeTweetsWidget limit={5} showRefresh={true} />
           </DashboardWidget>
         )}
 

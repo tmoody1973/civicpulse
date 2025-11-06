@@ -116,7 +116,7 @@ export async function GET(req: NextRequest) {
     if (!forceRefresh) {
       console.log(`🔍 Checking cache for user ${user.id}`);
 
-      const cached = await getCachedNews(user.id, profile.policyInterests, limit);
+      const cached = await getCachedNews(user.id, profile.policyInterests, 100); // Get all cached articles
 
       if (cached) {
         const latency = Date.now() - startTime;
@@ -124,7 +124,7 @@ export async function GET(req: NextRequest) {
 
         return NextResponse.json({
           success: true,
-          data: cached,
+          data: cached, // Return ALL cached articles, widget organizes by topic
           meta: {
             total: cached.length,
             cached: true,
@@ -139,8 +139,8 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // 4. Fetch fresh using Tavily + Cerebras (2-3x faster than Perplexity)
-    console.log(`🔍 Fetching fresh news (Tavily + Cerebras) for: ${profile.policyInterests.join(', ')}`);
+    // 4. Fetch fresh using Brave Search (blazing fast, no LLM needed!)
+    console.log(`🔍 Fetching fresh news (Brave Search) for: ${profile.policyInterests.join(', ')}`);
 
     const rawArticles = await getPersonalizedNewsFast(
       profile.policyInterests,
@@ -160,17 +160,17 @@ export async function GET(req: NextRequest) {
       // Continue - caching failure shouldn't break the request
     }
 
-    // 6. Return fresh articles
+    // 6. Return ALL articles (widget organizes by topic)
     const latency = Date.now() - startTime;
     console.log(`✅ Served ${articles.length} fresh articles (${latency}ms)`);
 
     return NextResponse.json({
       success: true,
-      data: articles.slice(0, limit),
+      data: articles, // Return ALL articles, not sliced - widget organizes by topic
       meta: {
         total: articles.length,
         cached: false,
-        cacheSource: 'Tavily + Cerebras',
+        cacheSource: 'Brave Search',
         personalized: true,
         interests: profile.policyInterests,
         state: profile.location?.state,

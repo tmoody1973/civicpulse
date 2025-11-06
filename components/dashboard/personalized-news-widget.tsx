@@ -5,7 +5,13 @@ import { Loader2, RefreshCw, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { PersonalizedNewsCard, type PersonalizedArticle } from '@/components/dashboard/personalized-news-card';
-import { cn } from '@/lib/utils';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface TopicSection {
   topic: string;
@@ -101,7 +107,9 @@ export function PersonalizedNewsWidget({
 
     try {
       // Check client-side cache first (localStorage)
-      const cacheKey = `personalized-news-${limit}`;
+      // CACHE VERSION: Bump this when architecture changes (e.g., Cerebras -> Brave)
+      const CACHE_VERSION = 'v2-brave';
+      const cacheKey = `personalized-news-${CACHE_VERSION}-${limit}`;
       const cachedData = !forceRefresh && localStorage.getItem(cacheKey);
 
       if (cachedData) {
@@ -169,6 +177,21 @@ export function PersonalizedNewsWidget({
   };
 
   useEffect(() => {
+    // Clear old cache versions on mount (one-time cleanup)
+    const CACHE_VERSION = 'v2-brave';
+    try {
+      // Remove all old cache keys that don't match current version
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key?.startsWith('personalized-news-') && !key.includes(CACHE_VERSION)) {
+          console.log(`🧹 Clearing old cache: ${key}`);
+          localStorage.removeItem(key);
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to clear old cache:', e);
+    }
+
     fetchNews();
   }, [limit]);
 
@@ -240,32 +263,38 @@ export function PersonalizedNewsWidget({
         </div>
       )}
 
-      {/* Topic Pills (Horizontal Scroll) */}
-      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-        {topicSections.map((section, index) => (
-          <button
-            key={section.topic}
-            onClick={() => setActiveTopicIndex(index)}
-            className={cn(
-              "px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all",
-              "flex items-center gap-2 flex-shrink-0",
-              activeTopicIndex === index
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-            )}
-          >
-            {section.displayName}
-            <Badge
-              variant="outline"
-              className={cn(
-                "ml-1 px-1.5 py-0 text-xs",
-                activeTopicIndex === index && "bg-primary-foreground/20 border-primary-foreground/30"
-              )}
-            >
-              {section.articles.length}
-            </Badge>
-          </button>
-        ))}
+      {/* Topic Dropdown Filter */}
+      <div className="flex items-center gap-3">
+        <label htmlFor="topic-filter" className="text-sm font-medium text-muted-foreground">
+          Filter by Topic:
+        </label>
+        <Select
+          value={activeTopicIndex.toString()}
+          onValueChange={(value) => setActiveTopicIndex(parseInt(value))}
+        >
+          <SelectTrigger id="topic-filter" className="w-[280px]">
+            <SelectValue>
+              <div className="flex items-center justify-between w-full">
+                <span>{activeTopic.displayName}</span>
+                <Badge variant="secondary" className="ml-2">
+                  {activeTopic.articles.length} article{activeTopic.articles.length !== 1 ? 's' : ''}
+                </Badge>
+              </div>
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {topicSections.map((section, index) => (
+              <SelectItem key={section.topic} value={index.toString()}>
+                <div className="flex items-center justify-between w-full gap-4">
+                  <span className="font-medium">{section.displayName}</span>
+                  <Badge variant="outline" className="ml-auto">
+                    {section.articles.length}
+                  </Badge>
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Active Topic Articles */}

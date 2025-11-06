@@ -9,7 +9,6 @@ export type WidgetId =
   | 'representatives'
   | 'podcast-queue'
   | 'news'
-  | 'twitter'
   | 'civic-impact';
 
 export interface WidgetConfig {
@@ -50,12 +49,6 @@ export const DEFAULT_WIDGET_CONFIG: Record<WidgetId, Omit<WidgetConfig, 'isVisib
     id: 'news',
     title: 'News Feed',
     description: 'Latest congressional and policy news',
-    canHide: true,
-  },
-  'twitter': {
-    id: 'twitter',
-    title: 'Twitter Feed',
-    description: 'Social media updates from representatives',
     canHide: true,
   },
   'civic-impact': {

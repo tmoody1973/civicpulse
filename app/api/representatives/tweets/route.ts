@@ -23,6 +23,7 @@ interface RepresentativeTweets {
 
 export async function GET(req: NextRequest) {
   const startTime = Date.now();
+  // Force recompile - query database directly for user state
 
   try {
     const { searchParams } = new URL(req.url);
@@ -41,30 +42,32 @@ export async function GET(req: NextRequest) {
 
     console.log(`🐦 Fetching tweets for user: ${user.id}`);
 
-    // 2. Get user's state from profile to fetch their representatives
-    const profileResponse = await fetch(
-      `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/preferences/profile`,
-      {
-        headers: {
-          cookie: req.headers.get('cookie') || '',
-        },
-      }
-    );
+    // 2. Get user's state directly from database
+    const userSql = `
+      SELECT state, district, city
+      FROM users
+      WHERE id = '${user.id.replace(/'/g, "''")}'
+      LIMIT 1
+    `;
 
-    if (!profileResponse.ok) {
-      throw new Error('Failed to fetch user profile');
+    const userResult = await executeQuery(userSql, 'users');
+    const userData = userResult.rows?.[0];
+
+    if (!userData || !userData.state) {
+      console.log(`⚠️  No state found for user ${user.id}`);
+      return NextResponse.json({
+        success: true,
+        data: [],
+        meta: {
+          total: 0,
+          message: 'User state not found in profile'
+        }
+      });
     }
 
-    const profileData = await profileResponse.json();
+    const state = userData.state;
 
-    if (!profileData.success || !profileData.profile) {
-      return NextResponse.json(
-        { error: 'User profile not found' },
-        { status: 404 }
-      );
-    }
-
-    const { state } = profileData.profile;
+    console.log(`🗺️  User state from database: "${state}" | district: ${userData.district || 'N/A'}`);
 
     if (!state) {
       return NextResponse.json({
@@ -78,13 +81,6 @@ export async function GET(req: NextRequest) {
     }
 
     // 3. Fetch representatives from database for user's state
-    const sql = `
-      SELECT bioguide_id, name, party, chamber, state, district, image_url, twitter_handle
-      FROM representatives
-      WHERE state = ? OR state = ?
-      ORDER BY chamber DESC, name
-    `;
-
     // Try both state abbreviation and full name
     const STATE_NAMES: Record<string, string> = {
       'WI': 'Wisconsin', 'CA': 'California', 'NY': 'New York', 'TX': 'Texas',
@@ -93,13 +89,38 @@ export async function GET(req: NextRequest) {
     };
 
     const stateName = STATE_NAMES[state] || state;
-    const queryResult = await executeQuery(sql, 'representatives', [state, stateName]);
+    console.log(`🔍 Querying representatives with state params: "${state}" and "${stateName}"`);
+
+    // Escape single quotes to prevent SQL injection
+    const escapedState = state.replace(/'/g, "''");
+    const escapedStateName = stateName.replace(/'/g, "''");
+
+    const sql = `
+      SELECT bioguide_id, name, party, chamber, state, district, image_url, twitter_handle
+      FROM representatives
+      WHERE state = '${escapedState}' OR state = '${escapedStateName}'
+      ORDER BY chamber DESC, name
+    `;
+
+    const queryResult = await executeQuery(sql, 'representatives');
     const allReps = queryResult.rows || [];
 
     console.log(`📊 Found ${allReps.length} representatives for state ${state}`);
 
+    // Debug: Log all representatives with their Twitter handles
+    if (allReps.length > 0) {
+      console.log('📋 All representatives from database:');
+      allReps.forEach((rep: any) => {
+        console.log(`  - ${rep.name} (${rep.state}): twitter_handle = "${rep.twitter_handle || 'NULL'}"`);
+      });
+    } else {
+      console.log('⚠️  No representatives found in database query!');
+    }
+
     // 4. Filter representatives with Twitter handles
     const repsWithTwitter = allReps.filter((rep: any) => rep.twitter_handle && rep.twitter_handle.trim());
+
+    console.log(`✅ After filtering, ${repsWithTwitter.length} representatives have Twitter handles`);
 
     if (repsWithTwitter.length === 0) {
       return NextResponse.json({

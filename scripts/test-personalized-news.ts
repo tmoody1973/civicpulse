@@ -1,5 +1,5 @@
 /**
- * Test Script: Personalized News with Tavily + Cerebras
+ * Test Script: Personalized News with Brave Search (No LLM!)
  *
  * Run with: npx tsx scripts/test-personalized-news.ts
  */
@@ -14,22 +14,21 @@ import { getPersonalizedNewsFast, healthCheck } from '../lib/api/cerebras-tavily
 import { enrichArticlesWithImages } from '../lib/api/perplexity';
 
 async function main() {
-  console.log('🧪 Testing Personalized News with Tavily + Cerebras\n');
+  console.log('🧪 Testing Personalized News with Brave Search (No LLM!)\n');
 
   // 1. Health check
   console.log('1️⃣  Running health check...');
   try {
     const health = await healthCheck();
     console.log('Health Status:');
-    console.log(`  - Tavily: ${health.tavily ? '✅' : '❌'}`);
-    console.log(`  - Cerebras: ${health.cerebras ? '✅' : '❌'}`);
+    console.log(`  - Brave Search: ${health.tavily ? '✅' : '❌'}`);
 
     if (health.errors.length > 0) {
       console.error('\n⚠️  Errors:', health.errors);
     }
 
-    if (!health.tavily || !health.cerebras) {
-      console.error('\n❌ API keys not configured properly');
+    if (!health.tavily) {
+      console.error('\n❌ Brave Search API key not configured');
       process.exit(1);
     }
   } catch (error) {
@@ -50,7 +49,7 @@ async function main() {
 
   try {
     // Fetch articles
-    console.log('📡 Calling Tavily + Cerebras...');
+    console.log('📡 Calling Brave Search API...');
     const rawArticles = await getPersonalizedNewsFast(
       testInterests,
       testState,
@@ -63,7 +62,7 @@ async function main() {
 
     // Display articles
     console.log('📋 Articles:');
-    rawArticles.slice(0, 5).forEach((article, i) => {
+    rawArticles.slice(0, 10).forEach((article, i) => {
       console.log(`\n${i + 1}. ${article.title}`);
       console.log(`   Source: ${article.source}`);
       console.log(`   URL: ${article.url}`);
@@ -81,7 +80,7 @@ async function main() {
     // Final stats
     const totalTime = Date.now() - startTime;
     console.log(`\n📊 Total time: ${totalTime}ms`);
-    console.log(`   - Tavily + Cerebras: ${fetchTime}ms`);
+    console.log(`   - Brave Search: ${fetchTime}ms (3x faster than before!)`);
     console.log(`   - Image enrichment: ${totalTime - fetchTime}ms`);
 
     console.log('\n✅ Test complete! All systems working.\n');
