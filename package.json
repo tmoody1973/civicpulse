@@ -73,19 +73,15 @@
   "devDependencies": {
     "@faker-js/faker": "^10.1.0",
     "@liquidmetal-ai/in-memory-d1": "^1.0.7",
-    "@playwright/test": "^1.56.1",
     "@tailwindcss/typography": "^0.5.19",
-    "@types/better-sqlite3": "^7.6.13",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "autoprefixer": "^10.4.20",
-    "better-sqlite3": "^11.9.1",
     "dotenv": "^17.2.3",
     "eslint": "^9",
     "eslint-config-next": "^16.0.0",
-    "mailslurp-client": "^16.0.0",
     "postcss": "^8",
     "prisma": "^6.5.0",
     "prisma-kysely": "^1.8.0",
@@ -94,5 +90,11 @@
     "tailwindcss-animate": "^1.0.7",
     "typescript": "^5",
     "zx": "^8.5.2"
+  },
+  "optionalDependencies": {
+    "@playwright/test": "^1.56.1",
+    "@types/better-sqlite3": "^7.6.13",
+    "better-sqlite3": "^11.9.1",
+    "mailslurp-client": "^16.0.0"
   }
 }
