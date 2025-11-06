@@ -1,18 +1,25 @@
 /**
  * Personalized News API Route
  *
- * Fetches news articles tailored to user interests using Perplexity AI
- * Enriches articles with Open Graph images
+ * Multi-tier caching strategy:
+ * - Tier 1: SmartMemory (Redis-backed, ~20ms)
+ * - Tier 2: SmartSQL (SQLite with indexes, ~100ms)
+ * - Tier 3: Perplexity API (fresh fetch, 5-15s)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
-import { getPersonalizedNews } from '@/lib/api/perplexity';
+import { getPersonalizedNewsFast } from '@/lib/api/cerebras-tavily'; // Tavily + Cerebras (faster)
+import { getCachedNews, storeArticlesInCache } from '@/lib/news/cache';
+import { enrichArticlesWithImages } from '@/lib/api/perplexity';
 
 export async function GET(req: NextRequest) {
+  const startTime = Date.now();
+
   try {
     const { searchParams } = new URL(req.url);
-    const limit = parseInt(searchParams.get('limit') || '10', 10);
+    const limit = parseInt(searchParams.get('limit') || '20', 10);
+    const forceRefresh = searchParams.get('refresh') === 'true';
 
     // 1. Get authenticated user
     const user = await getSession();
@@ -90,33 +97,87 @@ export async function GET(req: NextRequest) {
 
     const profile = profileData.profile;
 
-    // If user has no interests, fall back to generic news
+    // If user has no interests, return empty result
     if (!profile.policyInterests || profile.policyInterests.length === 0) {
-      console.log('⚠️  User has no interests set, returning generic news');
-      return NextResponse.redirect(new URL('/api/news', req.url));
+      console.log('⚠️  User has no interests set');
+      return NextResponse.json({
+        success: true,
+        data: [],
+        meta: {
+          total: 0,
+          cached: false,
+          personalized: false,
+          message: 'No interests set. Please update your preferences.'
+        }
+      });
     }
 
-    // 3. Fetch fresh personalized news from Perplexity (caching temporarily disabled)
-    console.log(`🔍 Fetching fresh personalized news for interests:`, profile.policyInterests);
+    // 3. Try cache first (unless forced refresh)
+    if (!forceRefresh) {
+      console.log(`🔍 Checking cache for user ${user.id}`);
 
-    const articles = await getPersonalizedNews(
+      const cached = await getCachedNews(user.id, profile.policyInterests, limit);
+
+      if (cached) {
+        const latency = Date.now() - startTime;
+        console.log(`✅ Serving ${cached.length} articles from cache (${latency}ms)`);
+
+        return NextResponse.json({
+          success: true,
+          data: cached,
+          meta: {
+            total: cached.length,
+            cached: true,
+            cacheSource: latency < 50 ? 'SmartMemory' : 'SmartSQL',
+            personalized: true,
+            interests: profile.policyInterests,
+            state: profile.location?.state,
+            district: profile.location?.district,
+            latency
+          }
+        });
+      }
+    }
+
+    // 4. Fetch fresh using Tavily + Cerebras (2-3x faster than Perplexity)
+    console.log(`🔍 Fetching fresh news (Tavily + Cerebras) for: ${profile.policyInterests.join(', ')}`);
+
+    const rawArticles = await getPersonalizedNewsFast(
       profile.policyInterests,
       profile.location?.state,
       profile.location?.district
     );
 
-    // 4. Return personalized articles with images
+    // 4b. Enrich with images (OG → Unsplash → Placeholder)
+    const articles = await enrichArticlesWithImages(rawArticles);
+
+    // 5. Store in cache for future requests
+    try {
+      await storeArticlesInCache(user.id, articles);
+      console.log(`✅ Cached ${articles.length} articles for future requests`);
+    } catch (cacheError) {
+      console.error('Failed to cache articles (non-fatal):', cacheError);
+      // Continue - caching failure shouldn't break the request
+    }
+
+    // 6. Return fresh articles
+    const latency = Date.now() - startTime;
+    console.log(`✅ Served ${articles.length} fresh articles (${latency}ms)`);
+
     return NextResponse.json({
       success: true,
       data: articles.slice(0, limit),
       meta: {
         total: articles.length,
         cached: false,
+        cacheSource: 'Tavily + Cerebras',
         personalized: true,
         interests: profile.policyInterests,
         state: profile.location?.state,
         district: profile.location?.district,
-      },
+        latency,
+        note: 'Claude Sonnet 4 reserved for bill analysis'
+      }
     });
 
   } catch (error: any) {

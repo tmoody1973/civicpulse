@@ -23,6 +23,15 @@
   # Note: Function timeout is configured per-function in netlify.toml v2
   # Default is 10s (free tier), can be increased in Netlify UI
 
+# Scheduled function: Pre-fetch personalized news
+# Runs at 6 AM and 6 PM daily (UTC)
+[[functions]]
+  name = "prefetch-news"
+  included_files = ["lib/**/*", "app/api/cron/prefetch-news/**/*"]
+
+[functions."prefetch-news"]
+  schedule = "0 6,18 * * *"  # Cron format: minute hour day month weekday
+
 # Headers for security and caching
 [[headers]]
   for = "/*"
