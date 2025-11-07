@@ -270,7 +270,12 @@ export default function DashboardPage() {
         let errorMessage = 'Failed to generate brief';
         try {
           const errorData = await response.json();
-          errorMessage = errorData.error || errorMessage;
+          // Show detailed error message from API
+          if (errorData.message && errorData.error) {
+            errorMessage = `${errorData.error}: ${errorData.message}`;
+          } else {
+            errorMessage = errorData.error || errorData.message || errorMessage;
+          }
         } catch (e) {
           errorMessage = response.statusText || errorMessage;
         }

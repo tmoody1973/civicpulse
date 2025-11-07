@@ -229,30 +229,51 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('❌ Daily brief generation error:', error);
 
-    // Provide specific error messages
+    // Get error message for logging and user feedback
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : '';
+
+    console.error('Error details:', {
+      message: errorMessage,
+      stack: errorStack,
+      type: error instanceof Error ? error.constructor.name : typeof error
+    });
+
+    // Provide specific error messages based on error content
     if (error instanceof Error) {
       if (error.message.includes('ElevenLabs')) {
         return NextResponse.json(
-          { error: 'Audio generation failed', message: 'Please try again in a moment' },
+          { error: 'Audio generation failed', message: error.message, details: 'ElevenLabs API error' },
           { status: 503 }
         );
       }
-      if (error.message.includes('Claude')) {
+      if (error.message.includes('Claude') || error.message.includes('Anthropic')) {
         return NextResponse.json(
-          { error: 'Script generation failed', message: 'Please try again' },
+          { error: 'Script generation failed', message: error.message, details: 'Claude API error' },
           { status: 503 }
         );
       }
-      if (error.message.includes('Perplexity')) {
+      if (error.message.includes('Perplexity') || error.message.includes('Brave') || error.message.includes('news')) {
         return NextResponse.json(
-          { error: 'News fetching failed', message: 'Please try again' },
+          { error: 'News fetching failed', message: error.message, details: 'News API error' },
+          { status: 503 }
+        );
+      }
+      if (error.message.includes('Database') || error.message.includes('SQL')) {
+        return NextResponse.json(
+          { error: 'Database error', message: error.message, details: 'Database connection or query failed' },
           { status: 503 }
         );
       }
     }
 
+    // Generic error with actual error message for debugging
     return NextResponse.json(
-      { error: 'Failed to generate daily brief', message: 'Please try again' },
+      {
+        error: 'Failed to generate daily brief',
+        message: errorMessage,
+        details: 'An unexpected error occurred during brief generation'
+      },
       { status: 500 }
     );
   }
