@@ -141,9 +141,11 @@ export function PersonalizedNewsWidget({
         url.searchParams.set('refresh', 'true');
       }
 
+      console.log('[PersonalizedNews] Fetching from:', url.toString());
       const response = await fetch(url.toString(), {
         credentials: 'include', // Send cookies for authentication
       });
+      console.log('[PersonalizedNews] Response status:', response.status, 'OK:', response.ok);
 
       // Check response status first before trying to parse JSON
       if (!response.ok) {
