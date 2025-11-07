@@ -252,7 +252,7 @@ async function generateNewsAudio(
   const articles = await getPersonalizedNewsFast(
     params.topics,
     params.state,
-    params.district
+    params.district?.toString()
   );
 
   if (!articles || articles.length === 0) {
