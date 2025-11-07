@@ -603,6 +603,19 @@ export default function DashboardPage() {
                     </div>
                   )}
 
+                  {/* Show helpful message if user hasn't set policy interests */}
+                  {(!profileLoading && (!userProfile?.policyInterests || userProfile.policyInterests.length === 0)) && (
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+                      <p className="text-xs text-blue-800">
+                        💡 <strong>Tip:</strong> Set your policy interests in{' '}
+                        <Link href="/settings" className="underline font-semibold">
+                          Settings
+                        </Link>{' '}
+                        for personalized briefs. Using defaults for now.
+                      </p>
+                    </div>
+                  )}
+
                   <Button
                     onClick={() => handleGeneratePodcast('daily')}
                     disabled={generatingPodcast}

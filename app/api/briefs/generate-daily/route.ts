@@ -84,13 +84,20 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 4. Get user's policy area preferences
-    const userPreferences = await getUserPreferences(user.id);
+    // 4. Get user's policy area preferences (with fallback to defaults)
+    let userPreferences = await getUserPreferences(user.id);
+
+    // Fallback to default interests if user hasn't set any yet
+    // This ensures brief generation always works, even before onboarding completion
     if (!userPreferences || userPreferences.length === 0) {
-      return NextResponse.json({
-        error: 'No policy area preferences set',
-        message: 'Please select your interests in settings',
-      }, { status: 400 });
+      console.log(`⚠️  User ${user.id} has no interests set, using defaults`);
+      userPreferences = [
+        'healthcare',
+        'economy',
+        'education',
+        'defense',
+        'environment'
+      ];
     }
 
     console.log(`🎙️  Generating daily brief for user ${user.id}`);
