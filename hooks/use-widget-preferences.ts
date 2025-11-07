@@ -19,17 +19,25 @@ export function useWidgetPreferences() {
   useEffect(() => {
     const loadPreferences = async () => {
       try {
-        const response = await fetch('/api/preferences/widgets');
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.preferences) {
-            setPreferences(data.preferences);
-          } else {
-            // Use defaults if no preferences found
-            setPreferences(getDefaultWidgetPreferences());
-          }
+        const response = await fetch('/api/preferences/widgets', {
+          credentials: 'include', // Send session cookies
+        });
+
+        // Check response.ok BEFORE parsing JSON
+        if (!response.ok) {
+          console.warn('Widget preferences API returned non-OK status:', response.status);
+          // Use defaults if API fails
+          setPreferences(getDefaultWidgetPreferences());
+          setLoading(false);
+          return;
+        }
+
+        const data = await response.json();
+        if (data.success && data.preferences) {
+          setPreferences(data.preferences);
         } else {
-          throw new Error('Failed to load widget preferences');
+          // Use defaults if no preferences found
+          setPreferences(getDefaultWidgetPreferences());
         }
       } catch (err) {
         console.error('Error loading widget preferences:', err);
@@ -51,10 +59,19 @@ export function useWidgetPreferences() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newPreferences),
+        credentials: 'include', // Send session cookies
       });
 
+      // Check response.ok BEFORE parsing JSON
       if (!response.ok) {
-        throw new Error('Failed to save widget preferences');
+        let errorMessage = 'Failed to save widget preferences';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          // Ignore JSON parse errors for error responses
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
