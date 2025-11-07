@@ -262,13 +262,23 @@ export default function DashboardPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ force_regenerate: true }), // Always regenerate for testing
+        credentials: 'include', // Send session cookies
       });
 
-      const data = await response.json();
-
+      // Check response.ok BEFORE parsing JSON
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to generate brief');
+        let errorMessage = 'Failed to generate brief';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          errorMessage = response.statusText || errorMessage;
+        }
+        throw new Error(errorMessage);
       }
+
+      // Safe to parse JSON for successful responses
+      const data = await response.json();
 
       // Create brief for audio player from response
       const newBrief: Brief = {
