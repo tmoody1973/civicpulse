@@ -80,7 +80,7 @@ export async function GET(
     try {
       const { queryOne } = await import('@/lib/db/sqlite');
 
-      const job = queryOne<any>(
+      const job = await queryOne<any>(
         `SELECT * FROM podcast_jobs WHERE job_id = ?`,
         [jobId]
       );

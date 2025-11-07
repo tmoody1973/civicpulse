@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
       const { execute } = await import('@/lib/db/sqlite');
 
       // Insert job record
-      execute(
+      await execute(
         `INSERT INTO podcast_jobs (
           job_id, user_id, type, status, progress, message,
           bill_count, topics, created_at
@@ -142,14 +142,15 @@ export async function POST(request: NextRequest) {
 
       console.log(`✅ Job ${jobId} inserted into database queue`);
 
-      // Trigger background processor (fire-and-forget)
-      fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/process-podcast-queue`, {
+      // Trigger Netlify Background Function (fire-and-forget, runs for up to 15 minutes)
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      fetch(`${baseUrl}/.netlify/functions/process-podcast-background`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-internal-key': process.env.INTERNAL_API_KEY || 'dev-key'
         },
-      }).catch(err => console.error('Processor trigger failed:', err));
+        body: JSON.stringify({ jobId }),
+      }).catch(err => console.error('Background function trigger failed:', err));
 
     } catch (dbError: any) {
       console.error('❌ Failed to insert job into database:', dbError);
