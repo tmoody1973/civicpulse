@@ -246,7 +246,7 @@ async function getUnsplashImage(topics: string[], articleTitle: string): Promise
 /**
  * Generate placeholder image URL based on topics (last resort fallback)
  */
-function getPlaceholderImage(topics: string[]): string {
+export function getPlaceholderImage(topics: string[]): string {
   const topicColors: Record<string, string> = {
     'healthcare': '4A90E2',
     'education': 'F5A623',
