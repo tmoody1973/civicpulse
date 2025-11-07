@@ -74,34 +74,53 @@ export async function GET(
       );
     }
 
-    // Fetch job status from KV cache
-    // TODO: Replace with actual Raindrop KV Cache API
-    // For now, we'll check a mock storage
-    let jobStatus;
-    try {
-      // In production, this would be: env.KV_CACHE.get(`job:${jobId}`)
-      // For now, we'll return a mock status
-      console.log(`🔍 Fetching job status from KV cache: job:${jobId}`);
+    // Query job status from database (fallback due to Raindrop Service binding bug)
+    console.log(`🔍 Querying database for job: ${jobId}`);
 
-      // Mock status for development
-      jobStatus = {
-        jobId,
-        status: 'processing',
-        progress: 40,
-        message: 'Generating dialogue script with AI...',
-      };
-    } catch (error) {
-      console.error('Failed to fetch job status:', error);
+    try {
+      const { queryOne } = await import('@/lib/db/sqlite');
+
+      const job = queryOne<any>(
+        `SELECT * FROM podcast_jobs WHERE job_id = ?`,
+        [jobId]
+      );
+
+      if (!job) {
+        return NextResponse.json(
+          { error: 'Job not found' },
+          { status: 404 }
+        );
+      }
+
+      console.log(`✅ Job status retrieved:`, {
+        status: job.status,
+        progress: job.progress,
+        message: job.message
+      });
+
+      return NextResponse.json({
+        success: true,
+        jobId: job.job_id,
+        status: job.status,
+        progress: job.progress,
+        message: job.message,
+        audioUrl: job.audio_url,
+        duration: job.duration,
+        billsCovered: job.bills_covered ? JSON.parse(job.bills_covered) : null,
+        transcript: job.transcript,
+        error: job.error_message,
+        createdAt: job.created_at,
+        startedAt: job.started_at,
+        completedAt: job.completed_at,
+      });
+
+    } catch (dbError: any) {
+      console.error('❌ Failed to query job from database:', dbError);
       return NextResponse.json(
-        { error: 'Job not found' },
-        { status: 404 }
+        { error: 'Failed to retrieve job status', details: dbError.message },
+        { status: 500 }
       );
     }
-
-    return NextResponse.json({
-      success: true,
-      ...jobStatus,
-    });
 
   } catch (error) {
     console.error('❌ Error fetching job status:', error);

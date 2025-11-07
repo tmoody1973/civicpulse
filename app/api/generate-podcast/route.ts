@@ -116,51 +116,48 @@ export async function POST(request: NextRequest) {
     const profileData = await profileResponse.json();
     const profile = profileData.profile;
 
-    // Create job payload
-    const jobPayload = {
-      jobId,
-      userId: user.id,
-      type: type === 'daily' ? 'podcast_daily' : 'podcast_weekly',
-      params: {
-        billCount: type === 'daily' ? 3 : 1,
-        representatives: profile.representatives || [],
-      },
-      createdAt: new Date().toISOString(),
-      attempt: 1,
-    };
+    // Insert job into database queue (fallback due to Raindrop Service binding bug)
+    console.log(`📤 Inserting job ${jobId} into podcast_jobs table`);
 
-    // Submit job to Raindrop queue
-    // TODO: Replace with actual Raindrop queue submission
-    // For now, store in KV cache to track status
-    const initialStatus = {
-      jobId,
-      status: 'queued',
-      progress: 0,
-      message: 'Job submitted to queue...',
-      createdAt: new Date().toISOString(),
-    };
-
-    // Store initial status in KV cache (simulate Raindrop KV)
-    // In production, this would use env.KV_CACHE from Raindrop
     try {
-      // For now, we'll use a simple file-based mock
-      // TODO: Replace with actual Raindrop KV Cache API
-      console.log(`📝 Storing job status for ${jobId}:`, initialStatus);
-    } catch (error) {
-      console.warn('Failed to store initial job status (non-fatal):', error);
-    }
+      const { execute } = await import('@/lib/db/sqlite');
 
-    // Trigger background worker (fire-and-forget)
-    // In production, this would submit to Raindrop queue
-    // For development, we'll trigger a background endpoint
-    const workerUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/process-podcast-job`;
-    fetch(workerUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(jobPayload),
-    })
-      .then(() => console.log(`✅ Background podcast worker triggered for job ${jobId}`))
-      .catch((err) => console.warn('Failed to trigger background worker (non-fatal):', err.message));
+      // Insert job record
+      execute(
+        `INSERT INTO podcast_jobs (
+          job_id, user_id, type, status, progress, message,
+          bill_count, topics, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+        [
+          jobId,
+          user.id,
+          type,
+          'queued',
+          0,
+          'Job queued for processing...',
+          type === 'daily' ? 3 : 8,
+          JSON.stringify(profile.topics || [])
+        ]
+      );
+
+      console.log(`✅ Job ${jobId} inserted into database queue`);
+
+      // Trigger background processor (fire-and-forget)
+      fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/process-podcast-queue`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-internal-key': process.env.INTERNAL_API_KEY || 'dev-key'
+        },
+      }).catch(err => console.error('Processor trigger failed:', err));
+
+    } catch (dbError: any) {
+      console.error('❌ Failed to insert job into database:', dbError);
+      return NextResponse.json(
+        { error: 'Failed to queue podcast generation job', details: dbError.message },
+        { status: 500 }
+      );
+    }
 
     // Return job ticket immediately (<1s response time)
     return NextResponse.json({

@@ -268,3 +268,185 @@ This pattern works for ANY task that exceeds Netlify timeout:
 ---
 
 **Built for the Liquid Metal Hackathon using Raindrop Platform** 🚀
+
+---
+
+## CRITICAL BUG DISCOVERED: Raindrop Service Binding Issue
+
+**Date:** November 7, 2025
+**Status:** ⚠️ BLOCKING - Prevents use of Actor and Queue APIs from Service classes
+
+### The Problem
+
+When accessing Cloudflare Workers bindings (Queues, Actors) from a Raindrop `Service` class via `this.env`, all method calls fail with:
+
+```
+Illegal invocation: function called with incorrect `this` reference
+```
+
+This error occurs even when following **all** Cloudflare Workers best practices:
+- ✅ No method destructuring
+- ✅ Calling methods directly on owner objects
+- ✅ No intermediate variables
+- ✅ Extracting `env` early
+- ✅ Inlined fetch handler logic
+
+### Attempted Solutions (All Failed)
+
+#### Attempt 1: Queue API
+```typescript
+// FAILED with "Illegal invocation"
+export default class QueueAPIService extends Service<Env> {
+  async fetch(request: Request): Promise<Response> {
+    const env = this.env;
+
+    // ❌ This fails even though it follows CF Workers patterns
+    await env.PODCAST_GENERATION_QUEUE.send(
+      { jobId: '123', userId: 'abc' },
+      { contentType: 'json' }
+    );
+  }
+}
+```
+
+#### Attempt 2: Actor API
+```typescript
+// ALSO FAILED with "Illegal invocation"
+export default class QueueAPIService extends Service<Env> {
+  async fetch(request: Request): Promise<Response> {
+    const env = this.env;
+
+    // ❌ Both methods fail
+    const actorId = env.PODCAST_GENERATOR.idFromName('user123');
+    const actor = env.PODCAST_GENERATOR.get(actorId);
+  }
+}
+```
+
+#### Attempt 3: Method Binding
+```typescript
+// STILL FAILED
+const queue = env.PODCAST_GENERATION_QUEUE;
+const boundSend = queue.send.bind(queue);
+await boundSend({ ...data });
+```
+
+#### Attempt 4: Fully Inlined Logic
+```typescript
+// EVEN THIS FAILED
+async fetch(request: Request): Promise<Response> {
+  const env = this.env; // Extract immediately
+
+  // Inline all logic - no method calls
+  const actorId = env.PODCAST_GENERATOR.idFromName('user');
+  // ❌ Still "Illegal invocation"
+}
+```
+
+### Root Cause Analysis
+
+**The Raindrop `Service` base class improperly wraps Cloudflare Workers bindings when providing them via `this.env`.**
+
+This breaks the required `this` context for Worker API methods, making it impossible to use:
+- ❌ Queue APIs (`queue.send()`, `queue.sendBatch()`)
+- ❌ Actor APIs (`namespace.idFromName()`, `namespace.get()`)
+- ⚠️ Likely affects other CF bindings (R2, KV, D1, etc.)
+
+### What DOES Work
+
+From an **Observer** or **Actor** context, the bindings work correctly:
+
+```typescript
+// ✅ This works in Observer
+export default class PodcastQueueHandler extends Each<Body, Env> {
+  async process(message: Message<Body>): Promise<void> {
+    // This works fine!
+    await this.env.USER_NOTIFICATIONS.send({ userId: '123' });
+  }
+}
+```
+
+### Impact on Project
+
+**Original Architecture (Blocked):**
+```
+Next.js (Netlify) → HTTP → Raindrop Service → Queue → Observer → Actor
+                                    ↑
+                           FAILS HERE with "Illegal invocation"
+```
+
+**Attempted Workaround (Also Blocked):**
+```
+Next.js (Netlify) → HTTP → Raindrop Service → Actor (direct)
+                                    ↑
+                           ALSO FAILS with "Illegal invocation"
+```
+
+### Fallback Solution Implemented
+
+**Option A: Netlify Functions + Database Queue**
+```
+Next.js → Netlify Function → SmartSQL (job queue table)
+                                ↓
+                    Background Poller → Process jobs
+```
+
+This proven pattern works but loses these benefits:
+- ❌ No Raindrop Queue retry logic
+- ❌ No automatic scaling
+- ❌ Requires polling overhead
+- ❌ More complex state management
+
+### For Raindrop Team
+
+**Reproduction Steps:**
+
+1. Create a Service with Actor or Queue binding:
+   ```typescript
+   export default class MyService extends Service<Env> {
+     async fetch(request: Request): Promise<Response> {
+       const env = this.env;
+
+       // This will fail
+       await env.MY_QUEUE.send({ data: 'test' });
+
+       // This will also fail
+       const actorId = env.MY_ACTOR.idFromName('test');
+     }
+   }
+   ```
+
+2. Deploy and call the service endpoint
+3. Observe "Illegal invocation" error
+
+**Expected Behavior:**
+Bindings accessed via `this.env` should maintain correct `this` context for Worker API methods.
+
+**Actual Behavior:**
+All binding methods lose their `this` context and throw "Illegal invocation".
+
+**Suggested Fix:**
+Ensure Raindrop's Service base class properly proxies env bindings without breaking their internal `this` references.
+
+### Workaround for Others
+
+Until this is fixed in the Raindrop framework:
+
+**Don't use Service → Actor/Queue communication**
+
+Instead:
+- Use Observer → Actor communication (works)
+- Use Actor internal methods (works)
+- Use HTTP bridge outside Raindrop for queue submission
+
+---
+
+**Issue reported to Raindrop team via:**
+- [ ] GitHub Issue
+- [ ] Discord Support Channel
+- [ ] Direct team contact
+
+---
+
+**Built for the Liquid Metal Hackathon using Raindrop Platform** 🚀
+*Note: Bug discovered during implementation - fallback to Netlify Functions + database queue*
