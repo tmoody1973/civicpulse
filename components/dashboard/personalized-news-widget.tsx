@@ -13,11 +13,20 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
+interface TopicImage {
+  topic: string;
+  imageUrl: string;
+  imageAlt: string;
+  photographer: string;
+  photographerUrl: string;
+}
+
 interface TopicSection {
   topic: string;
   displayName: string;
   articles: PersonalizedArticle[];
   color: string;
+  image?: TopicImage;
 }
 
 const TOPIC_DISPLAY_NAMES: Record<string, string> = {
@@ -66,13 +75,14 @@ export function PersonalizedNewsWidget({
   showRefresh = true
 }: PersonalizedNewsWidgetProps) {
   const [topicSections, setTopicSections] = useState<TopicSection[]>([]);
+  const [topicImages, setTopicImages] = useState<TopicImage[]>([]);
   const [activeTopicIndex, setActiveTopicIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cacheInfo, setCacheInfo] = useState<{ cached: boolean; latency?: number } | null>(null);
 
-  const organizeByTopics = (articles: PersonalizedArticle[]): TopicSection[] => {
+  const organizeByTopics = (articles: PersonalizedArticle[], images: TopicImage[] = []): TopicSection[] => {
     const sections = new Map<string, PersonalizedArticle[]>();
 
     // Group articles by topic
@@ -91,7 +101,8 @@ export function PersonalizedNewsWidget({
         topic,
         displayName: TOPIC_DISPLAY_NAMES[topic] || topic,
         articles,
-        color: TOPIC_COLORS[topic] || 'blue'
+        color: TOPIC_COLORS[topic] || 'blue',
+        image: images.find(img => img.topic === topic)
       }))
       .sort((a, b) => b.articles.length - a.articles.length);
   };
@@ -120,7 +131,9 @@ export function PersonalizedNewsWidget({
           // Use cache if less than 5 minutes old
           if (cacheAge < 5 * 60 * 1000) {
             console.log(`✅ Using client-side cache (${Math.round(cacheAge / 1000)}s old)`);
-            const sections = organizeByTopics(parsed.articles);
+            const images = parsed.topicImages || [];
+            setTopicImages(images);
+            const sections = organizeByTopics(parsed.articles, images);
             setTopicSections(sections);
             setCacheInfo({
               cached: true,
@@ -175,7 +188,9 @@ export function PersonalizedNewsWidget({
       const data = await response.json();
 
       if (data.success && data.data) {
-        const sections = organizeByTopics(data.data);
+        const images = data.topicImages || [];
+        setTopicImages(images);
+        const sections = organizeByTopics(data.data, images);
         setTopicSections(sections);
         setCacheInfo({
           cached: data.meta?.cached || false,
@@ -186,6 +201,7 @@ export function PersonalizedNewsWidget({
         try {
           localStorage.setItem(cacheKey, JSON.stringify({
             articles: data.data,
+            topicImages: images,
             timestamp: Date.now()
           }));
           console.log('💾 Stored in client-side cache (5min TTL)');
@@ -322,6 +338,32 @@ export function PersonalizedNewsWidget({
           </SelectContent>
         </Select>
       </div>
+
+      {/* Topic Header Image */}
+      {activeTopic.image && (
+        <div className="relative w-full h-48 md:h-64 rounded-lg overflow-hidden">
+          <img
+            src={activeTopic.image.imageUrl}
+            alt={activeTopic.image.imageAlt}
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
+            <h2 className="text-2xl font-bold text-white mb-1">{activeTopic.displayName}</h2>
+            <div className="text-xs text-white/80">
+              Photo by{' '}
+              <a
+                href={activeTopic.image.photographerUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline hover:text-white"
+              >
+                {activeTopic.image.photographer}
+              </a>
+              {' '}on Unsplash
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Active Topic Articles */}
       <div className="space-y-4">

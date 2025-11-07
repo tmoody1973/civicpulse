@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Clock } from 'lucide-react';
 
 export interface PersonalizedArticle {
   title: string;
@@ -37,42 +38,32 @@ const topicDisplayNames: Record<string, string> = {
   'civil-rights': 'Civil Rights',
 };
 
-// Map topics to colors for placeholders
-const topicColors: Record<string, string> = {
-  'healthcare': 'bg-blue-500',
-  'education': 'bg-orange-500',
-  'science': 'bg-green-500',
-  'technology': 'bg-cyan-500',
-  'climate': 'bg-emerald-600',
-  'economy': 'bg-purple-500',
-  'business': 'bg-violet-500',
-  'taxes': 'bg-red-500',
-  'immigration': 'bg-yellow-500',
-  'housing': 'bg-lime-500',
-  'defense': 'bg-amber-600',
-  'transportation': 'bg-slate-500',
-  'agriculture': 'bg-green-600',
-  'social': 'bg-orange-600',
-  'civil-rights': 'bg-red-600',
-};
+function formatTimeAgo(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diff = now.getTime() - date.getTime();
+
+  const minutes = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
+
+  if (minutes < 60) return `${minutes}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  if (days < 7) return `${days}d ago`;
+  return date.toLocaleDateString();
+}
 
 export function PersonalizedNewsCard({ article }: PersonalizedNewsCardProps) {
   const [isFollowing, setIsFollowing] = useState(false);
-  const [imageError, setImageError] = useState(false);
 
   // Get primary category from first topic
   const primaryTopic = article.relevantTopics[0] || 'news';
   const categoryDisplay = topicDisplayNames[primaryTopic] || primaryTopic.charAt(0).toUpperCase() + primaryTopic.slice(1);
-  const colorClass = topicColors[primaryTopic] || 'bg-blue-500';
 
   const handleFollowToggle = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsFollowing(!isFollowing);
-  };
-
-  const handleImageError = () => {
-    setImageError(true);
   };
 
   return (
@@ -81,52 +72,39 @@ export function PersonalizedNewsCard({ article }: PersonalizedNewsCardProps) {
         href={article.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex flex-col sm:flex-row h-full"
+        className="block p-4"
       >
-        {/* Left side: Content */}
-        <div className="flex-1 p-4 flex flex-col justify-between min-w-0">
-          {/* Category and Follow button */}
-          <div className="flex items-center gap-2 mb-2">
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-900">
-              {categoryDisplay}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleFollowToggle}
-              className={`rounded-full px-3 h-6 text-xs ${
-                isFollowing
-                  ? 'bg-gray-900 text-white hover:bg-gray-800'
-                  : 'bg-white text-gray-900 hover:bg-gray-50'
-              }`}
-            >
-              {isFollowing ? 'Following' : 'Follow'}
-            </Button>
-          </div>
-
-          {/* Article headline */}
-          <h3 className="text-base sm:text-lg font-bold text-gray-900 leading-snug group-hover:text-blue-600 transition-colors line-clamp-2">
-            {article.title}
-          </h3>
+        {/* Category and Follow button */}
+        <div className="flex items-center gap-2 mb-3">
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-900">
+            {categoryDisplay}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleFollowToggle}
+            className={`rounded-full px-3 h-6 text-xs ${
+              isFollowing
+                ? 'bg-gray-900 text-white hover:bg-gray-800'
+                : 'bg-white text-gray-900 hover:bg-gray-50'
+            }`}
+          >
+            {isFollowing ? 'Following' : 'Follow'}
+          </Button>
         </div>
 
-        {/* Right side: Image or colored placeholder */}
-        <div className="w-full sm:w-36 md:w-40 h-32 sm:h-auto flex-shrink-0">
-          {article.imageUrl && !imageError && !article.imageUrl.includes('placeholder.com') ? (
-            <img
-              src={article.imageUrl}
-              alt={article.title}
-              className="w-full h-full object-cover"
-              loading="lazy"
-              onError={handleImageError}
-            />
-          ) : (
-            <div className={`w-full h-full flex items-center justify-center ${colorClass}`}>
-              <span className="text-white text-xs font-semibold uppercase tracking-wide px-2 text-center">
-                {categoryDisplay}
-              </span>
-            </div>
-          )}
+        {/* Article headline */}
+        <h3 className="text-base sm:text-lg font-bold text-gray-900 leading-snug group-hover:text-blue-600 transition-colors line-clamp-2 mb-3">
+          {article.title}
+        </h3>
+
+        {/* Source and Date */}
+        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+          <span className="font-medium">{article.source}</span>
+          <div className="flex items-center gap-1">
+            <Clock className="w-3 h-3" />
+            <span>{formatTimeAgo(article.publishedDate)}</span>
+          </div>
         </div>
       </a>
     </Card>

@@ -193,8 +193,8 @@ async function searchWithBrave(
   const params = new URLSearchParams({
     q: query,
     safesearch: 'off',
-    freshness: 'pm', // Past month for congressional news
-    count: String(maxResults)
+    freshness: 'pw', // Past week (we'll filter to 72 hours in code)
+    count: String(maxResults * 2) // Fetch more to ensure we have enough after filtering
   });
 
   const response = await fetch(
@@ -219,17 +219,61 @@ async function searchWithBrave(
 
   console.log(`✅ Brave returned ${data.results.length} results in ${latency}ms`);
 
-  // Convert Brave results to TavilySearchResult format for compatibility
-  const results: TavilySearchResult[] = data.results.map((result, index) => ({
-    title: result.title,
-    url: result.url,
-    content: result.description,
-    score: 1.0 - (index * 0.05), // Descending relevance score
-    published_date: result.age,
-    raw_content: result.extra_snippets?.join('\n\n') || undefined, // Extra context snippets for richer dialogue
-  }));
+  // Excluded domains (non-US government sites)
+  const EXCLUDED_DOMAINS = ['gov.uk', 'GOV.UK'];
 
-  return results;
+  // Convert Brave results to TavilySearchResult format for compatibility
+  const allResults: TavilySearchResult[] = data.results
+    .filter(result => {
+      // Filter out excluded domains (gov.uk, etc.)
+      try {
+        const hostname = new URL(result.url).hostname.toLowerCase();
+        return !EXCLUDED_DOMAINS.some(domain => hostname.includes(domain.toLowerCase()));
+      } catch {
+        return true; // Include if URL parsing fails
+      }
+    })
+    .map((result, index) => ({
+      title: result.title,
+      url: result.url,
+      content: result.description,
+      score: 1.0 - (index * 0.05), // Descending relevance score
+      published_date: result.age,
+      raw_content: result.extra_snippets?.join('\n\n') || undefined, // Extra context snippets for richer dialogue
+    }));
+
+  console.log(`🌍 Filtered to ${allResults.length} U.S. sources (excluded non-US domains)`);
+
+  // Filter to only articles from last 72 hours (3 days)
+  const THREE_DAYS_MS = 72 * 60 * 60 * 1000;
+  const cutoffTime = Date.now() - THREE_DAYS_MS;
+
+  const recentResults = allResults.filter(result => {
+    if (!result.published_date) return true; // Include if no date (assume recent)
+
+    // Parse age string (e.g., "2 hours ago", "1 day ago")
+    const ageMatch = result.published_date.match(/(\d+)\s+(hour|day|minute)/i);
+    if (!ageMatch) return true; // Include if can't parse
+
+    const value = parseInt(ageMatch[1]);
+    const unit = ageMatch[2].toLowerCase();
+
+    let ageMs = 0;
+    if (unit.startsWith('minute')) {
+      ageMs = value * 60 * 1000;
+    } else if (unit.startsWith('hour')) {
+      ageMs = value * 60 * 60 * 1000;
+    } else if (unit.startsWith('day')) {
+      ageMs = value * 24 * 60 * 60 * 1000;
+    }
+
+    // Only include if published within last 72 hours
+    return ageMs <= THREE_DAYS_MS;
+  }).slice(0, maxResults); // Trim to requested count
+
+  console.log(`📅 Filtered to ${recentResults.length} articles from last 72 hours`);
+
+  return recentResults;
 }
 
 /**
@@ -421,7 +465,7 @@ function filterByKeywords(
 
 /**
  * Build search query for Brave Search based on user interests
- * Optimized for congressional legislation news
+ * Broad query strategy captures BOTH legislation AND federal news for ALL topics
  */
 function buildBraveQuery(
   interests: string[],
@@ -452,11 +496,16 @@ function buildBraveQuery(
     .slice(0, 5) // Limit to 5 topics
     .map(interest => topicMap[interest] || interest);
 
-  // Negative keywords to filter out state-level legislation (focus on federal/congress only)
+  // Negative keywords to filter out state-level legislation (focus on U.S. federal only)
   const excludeTerms = '-state -states -legislature -governor -california -florida -utah';
 
-  // Build compact query focusing on congressional legislation, excluding state news
-  const query = `${keywords.join(' ')} U.S. congress legislation ${excludeTerms}`;
+  // Broad query for ALL topics - captures both legislation AND federal agencies/policy/research
+  // Examples:
+  // - Healthcare: Congressional bills + FDA approvals + CDC guidelines
+  // - Education: Congressional bills + Dept of Education policy + school funding
+  // - Defense: Congressional bills + Pentagon announcements + military operations
+  // - Transportation: Congressional bills + DOT regulations + infrastructure projects
+  const query = `${keywords.join(' ')} U.S. federal ${excludeTerms}`;
 
   console.log(`📝 Brave query (${query.length} chars): ${query}`);
   return query;
@@ -485,7 +534,8 @@ export async function getPersonalizedNewsFast(
 
   console.log(`🚀 Fast news fetch for: ${interests.join(', ')}`);
 
-  const articlesPerTopic = 5; // Get 5 articles per topic for better coverage
+  // All topics get 8 articles to capture both legislation + broader federal news
+  const articlesPerTopic = 8;
   console.log(`📊 Searching ${interests.length} topics (${articlesPerTopic} articles each)`);
 
   // Search each interest separately and tag results with the topic
