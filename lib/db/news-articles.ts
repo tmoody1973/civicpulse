@@ -30,11 +30,6 @@ export interface NewsArticleInput {
   source: string;
   publishedDate: string;
   relevantTopics: string[];
-  // Optional image fields for og:image support
-  imageUrl?: string;
-  imageAlt?: string;
-  imagePhotographer?: string | null;
-  imagePhotographerUrl?: string | null;
 }
 
 /**
@@ -72,8 +67,7 @@ export async function saveNewsArticles(
       // Try to insert (will fail if URL already exists)
       const sql = `
         INSERT INTO news_articles (
-          id, title, url, summary, source, published_date, relevant_topics,
-          image_url, image_alt, image_photographer, image_photographer_url
+          id, title, url, summary, source, published_date, relevant_topics
         ) VALUES (
           ${escapeSql(id)},
           ${escapeSql(article.title)},
@@ -81,11 +75,7 @@ export async function saveNewsArticles(
           ${escapeSql(article.summary)},
           ${escapeSql(article.source)},
           ${escapeSql(article.publishedDate)},
-          ${escapeSql(topicsJson)},
-          ${escapeSql(article.imageUrl || null)},
-          ${escapeSql(article.imageAlt || null)},
-          ${escapeSql(article.imagePhotographer || null)},
-          ${escapeSql(article.imagePhotographerUrl || null)}
+          ${escapeSql(topicsJson)}
         )
       `;
 
@@ -162,32 +152,6 @@ export async function getRecentNewsArticles(
   const result = await executeQuery(sql, 'users');
 
   return result.rows.map(parseNewsArticleRow);
-}
-
-/**
- * Update news article with image metadata
- */
-export async function updateNewsArticleImage(
-  articleId: string,
-  imageData: {
-    imageUrl: string;
-    imageAlt: string;
-    imagePhotographer: string;
-    imagePhotographerUrl: string;
-  }
-): Promise<void> {
-  const sql = `
-    UPDATE news_articles
-    SET
-      image_url = ${escapeSql(imageData.imageUrl)},
-      image_alt = ${escapeSql(imageData.imageAlt)},
-      image_photographer = ${escapeSql(imageData.imagePhotographer)},
-      image_photographer_url = ${escapeSql(imageData.imagePhotographerUrl)},
-      updated_at = CURRENT_TIMESTAMP
-    WHERE id = ${escapeSql(articleId)}
-  `;
-
-  await executeQuery(sql, 'users');
 }
 
 /**

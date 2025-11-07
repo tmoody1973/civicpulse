@@ -12,7 +12,6 @@ export interface PersonalizedArticle {
   summary: string;
   source: string;
   relevantTopics: string[];
-  imageUrl?: string;
 }
 
 interface PersonalizedNewsCardProps {
