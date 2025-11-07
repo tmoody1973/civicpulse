@@ -134,7 +134,12 @@ export async function GET(req: NextRequest) {
     if (!forceRefresh) {
       console.log(`🔍 Checking cache for user ${user.id}`);
 
-      const cached = await getCachedNews(user.id, profile.policyInterests, 100); // Get all cached articles
+      let cached = null;
+      try {
+        cached = await getCachedNews(user.id, profile.policyInterests, 100); // Get all cached articles
+      } catch (cacheError) {
+        console.warn('Cache read failed (non-fatal), continuing to fresh fetch:', cacheError);
+      }
 
       if (cached) {
         const latency = Date.now() - startTime;
@@ -178,14 +183,12 @@ export async function GET(req: NextRequest) {
 
     const articles = await fetchNewsWithTimeout;
 
-    // 5. Store in cache for future requests
-    try {
-      await storeArticlesInCache(user.id, articles);
-      console.log(`✅ Cached ${articles.length} articles for future requests`);
-    } catch (cacheError) {
-      console.error('Failed to cache articles (non-fatal):', cacheError);
-      // Continue - caching failure shouldn't break the request
-    }
+    // 5. Store in cache for future requests (completely optional, non-blocking)
+    // NOTE: Cache layer not yet implemented - SmartSQL/SmartMemory not configured
+    // This will fail silently and log warnings, which is expected behavior
+    storeArticlesInCache(user.id, articles)
+      .then(() => console.log(`✅ Cached ${articles.length} articles for future requests`))
+      .catch((cacheError) => console.warn('Failed to cache articles (non-fatal, expected until cache configured):', cacheError?.message || cacheError));
 
     // 6. Return ALL articles (widget organizes by topic)
     const latency = Date.now() - startTime;
