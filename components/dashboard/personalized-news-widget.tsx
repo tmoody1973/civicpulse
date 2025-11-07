@@ -153,11 +153,21 @@ export function PersonalizedNewsWidget({
         try {
           const errorData = await response.json();
           errorMessage = errorData.error || errorMessage;
+          console.error('[PersonalizedNews] API error:', {
+            status: response.status,
+            error: errorMessage,
+            data: errorData
+          });
         } catch (e) {
           // If JSON parsing fails, use status text
           errorMessage = response.statusText || errorMessage;
+          console.error('[PersonalizedNews] Parse error:', {
+            status: response.status,
+            statusText: response.statusText,
+            parseError: e
+          });
         }
-        throw new Error(errorMessage);
+        throw new Error(`${errorMessage} (status: ${response.status})`);
       }
 
       // Safe to parse JSON for successful responses
