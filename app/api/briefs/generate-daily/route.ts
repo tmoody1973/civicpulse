@@ -6,6 +6,7 @@ import { generateDialogueScript } from '@/lib/ai/claude';
 import { generateDialogue } from '@/lib/ai/elevenlabs';
 import { uploadPodcast } from '@/lib/storage/vultr';
 import { resolveNewsArticleImages } from '@/lib/images/feature-image';
+import { addBriefJob } from '@/lib/queue/brief-queue';
 
 /**
  * POST /api/briefs/generate-daily
@@ -84,165 +85,25 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 4. Get user's policy area preferences (with fallback to defaults)
-    let userPreferences = await getUserPreferences(user.id);
+    // 4. Add job to queue for background processing
+    console.log(`🎙️  Queueing daily brief generation for user ${user.id}`);
 
-    // Fallback to default interests if user hasn't set any yet
-    // This ensures brief generation always works, even before onboarding completion
-    if (!userPreferences || userPreferences.length === 0) {
-      console.log(`⚠️  User ${user.id} has no interests set, using defaults`);
-      userPreferences = [
-        'healthcare',
-        'economy',
-        'education',
-        'defense',
-        'environment'
-      ];
-    }
-
-    console.log(`🎙️  Generating daily brief for user ${user.id}`);
-    console.log(`📊 User interests: ${userPreferences.join(', ')}`);
-
-    // 5. Fetch news articles from Brave Search (with extra_snippets for richer context)
-    const newsStart = Date.now();
-    const newsArticles = await fetchNewsArticles(userPreferences, user.id);
-    const newsTime = Date.now() - newsStart;
-    console.log(`📰 Fetched ${newsArticles.length} news articles in ${newsTime}ms`);
-
-    // 6. Query bills with smart prioritization AND deduplication
-    const billsStart = Date.now();
-    const bills = await fetchPrioritizedBills(userPreferences, user.id);
-    const billsTime = Date.now() - billsStart;
-    console.log(`📜 Found ${bills.length} fresh relevant bills in ${billsTime}ms`);
-
-    // Allow news-only briefs if no bills are available
-    if (newsArticles.length === 0) {
-      return NextResponse.json({
-        error: 'No content available',
-        message: 'No relevant news found for your interests today. Bills database may need syncing.',
-      }, { status: 404 });
-    }
-
-    // Warn if no bills but continue with news
-    if (bills.length === 0) {
-      console.log('⚠️  No bills found - generating news-only brief');
-    }
-
-    // 7. Generate dialogue script with Claude (3-part structure)
-    const scriptStart = Date.now();
-    const dialogueScript = await generateBriefScript(newsArticles, bills, userPreferences);
-    const scriptTime = Date.now() - scriptStart;
-    console.log(`✍️  Generated dialogue script: ${dialogueScript.length} lines in ${scriptTime}ms`);
-
-    // 8. Generate audio with ElevenLabs
-    const audioStart = Date.now();
-    const audioBuffer = await generateDialogue(dialogueScript);
-    const audioTime = Date.now() - audioStart;
-    console.log(`🎵 Generated audio: ${audioBuffer.length} bytes in ${audioTime}ms (${Math.round(audioTime / 1000)}s)`);
-
-    // 9. Calculate duration (MP3 @ 192kbps = 24,000 bytes per second)
-    // Formula: duration (seconds) = bytes / 24000
-    const estimatedDuration = Math.round(audioBuffer.length / 24000);
-
-    // 10. Upload audio to Vultr
-    const uploadStart = Date.now();
-    const audioUrl = await uploadPodcast(audioBuffer, {
+    const jobId = await addBriefJob({
       userId: user.id,
-      type: 'daily',
-      duration: estimatedDuration,
-      billsCovered: bills.map(b => b.id),
-      generatedAt: new Date(),
+      userEmail: user.email,
+      forceRegenerate: force_regenerate,
     });
-    const uploadTime = Date.now() - uploadStart;
-    console.log(`☁️  Uploaded to: ${audioUrl} in ${uploadTime}ms`);
-
-    // 11. Generate written digest with feature images
-    const digestStart = Date.now();
-    const writtenDigest = await generateWrittenDigest(newsArticles, bills);
-    const digestTime = Date.now() - digestStart;
-    console.log(`📝 Generated written digest in ${digestTime}ms`);
-
-    // 12. Generate transcript
-    const transcript = dialogueScript
-      .map(line => `${line.host.toUpperCase()}: ${line.text}`)
-      .join('\n\n');
-
-    // 13. Get featured image (first news article image)
-    let featuredImage: string | null = null;
-    if (newsArticles.length > 0) {
-      const firstArticle = newsArticles[0];
-      if (firstArticle.source_url || firstArticle.link) {
-        const imageMap = await resolveNewsArticleImages([{
-          source_url: firstArticle.source_url || firstArticle.link,
-          policy_area: firstArticle.policy_area,
-        }]);
-        featuredImage = imageMap.get(firstArticle.source_url || firstArticle.link) || null;
-      }
-    }
-    console.log(`🖼️  Featured image: ${featuredImage || 'none'}`);
-
-    // 14. Generate brief title from top story
-    const briefTitle = newsArticles.length > 0
-      ? newsArticles[0].title
-      : bills.length > 0
-      ? bills[0].title
-      : 'Daily Legislative Brief';
-
-    // 15. Save brief to database
-    const briefId = `brief_${user.id}_${Date.now()}`;
-
-    // Escape single quotes in strings for SQL
-    const escapeSql = (str: string) => str.replace(/'/g, "''");
-
-    await executeQuery(
-      `INSERT INTO briefs (
-        id, user_id, type, title, audio_url, transcript, written_digest,
-        featured_image_url, news_articles, bills_covered, policy_areas, duration, generated_at
-      ) VALUES (
-        '${briefId}',
-        '${user.id}',
-        'daily',
-        '${escapeSql(briefTitle)}',
-        '${escapeSql(audioUrl)}',
-        '${escapeSql(transcript)}',
-        '${escapeSql(writtenDigest)}',
-        ${featuredImage ? `'${escapeSql(featuredImage)}'` : 'NULL'},
-        '${escapeSql(JSON.stringify(newsArticles))}',
-        '${escapeSql(JSON.stringify(bills.map(b => b.id)))}',
-        '${escapeSql(JSON.stringify(userPreferences))}',
-        ${estimatedDuration},
-        CURRENT_TIMESTAMP
-      )`,
-      'users'
-    );
 
     const duration = Date.now() - startTime;
-    console.log(`✅ Brief generated in ${Math.round(duration / 1000)}s`);
-    console.log(`⏱️  Performance Breakdown:`);
-    console.log(`   News Fetching: ${Math.round(newsTime / 1000)}s`);
-    console.log(`   Bills Query: ${Math.round(billsTime / 1000)}s`);
-    console.log(`   Script Generation (Claude): ${Math.round(scriptTime / 1000)}s`);
-    console.log(`   Audio Generation (ElevenLabs): ${Math.round(audioTime / 1000)}s 🔍`);
-    console.log(`   Upload (Vultr): ${Math.round(uploadTime / 1000)}s`);
-    console.log(`   Written Digest: ${Math.round(digestTime / 1000)}s`);
+    console.log(`✅ Job ${jobId} added to queue in ${duration}ms`);
 
-    // 16. Return success response
+    // 5. Return job ID immediately for status polling
     return NextResponse.json({
       success: true,
-      brief: {
-        id: briefId,
-        title: briefTitle,
-        audio_url: audioUrl,
-        written_digest: writtenDigest,
-        featured_image_url: featuredImage,
-        duration: estimatedDuration,
-        news_count: newsArticles.length,
-        bill_count: bills.length,
-        policy_areas: userPreferences,
-        generated_at: new Date().toISOString(),
-        transcript: transcript,
-      },
-      generation_time_ms: duration,
+      jobId,
+      message: 'Brief generation started in background',
+      statusUrl: `/api/briefs/status/${jobId}`,
+      estimatedDuration: '5-10 minutes',
     });
 
   } catch (error) {
@@ -356,9 +217,17 @@ async function getUserPreferences(userId: string): Promise<string[]> {
 /**
  * Fetch news articles from Brave Search API (via direct function call)
  * Returns articles with extra_snippets for richer dialogue context
+ *
+ * EXPORTED for use by background worker
  */
-async function fetchNewsArticles(policyAreas: string[], _userId: string): Promise<NewsArticle[]> {
+export async function fetchNewsArticles(policyAreas: string[], _userId: string): Promise<NewsArticle[]> {
   try {
+    // If no policy areas, return empty array (can't fetch news without topics)
+    if (!policyAreas || policyAreas.length === 0) {
+      console.log('⚠️  No policy areas provided, skipping news fetch');
+      return [];
+    }
+
     // Import the news fetching function directly to avoid HTTP fetch auth issues
     const { getPersonalizedNewsFast } = await import('@/lib/api/cerebras-tavily');
 
@@ -395,13 +264,75 @@ async function fetchNewsArticles(policyAreas: string[], _userId: string): Promis
 }
 
 /**
+ * Map user interests (simplified, lowercase) to database policy_area values (Title Case, full names)
+ * This ensures user interests like "taxes" match database values like "Taxation"
+ */
+function mapPolicyAreasToDatabase(userInterests: string[]): string[] {
+  const policyMapping: Record<string, string[]> = {
+    'education': ['Education'],
+    'science': ['Science, Technology, Communications'],
+    'technology': ['Science, Technology, Communications'],
+    'business': ['Commerce', 'Finance and Financial Sector'],
+    'taxes': ['Taxation', 'Economics and Public Finance'],
+    'transportation': ['Transportation and Public Works'],
+    'defense': ['Armed Forces and National Security'],
+    'civil-rights': ['Civil Rights and Liberties, Minority Issues', 'Crime and Law Enforcement'],
+    'healthcare': ['Health'],
+    'health': ['Health'],
+    'environment': ['Environmental Protection', 'Public Lands and Natural Resources', 'Water Resources Development'],
+    'energy': ['Energy'],
+    'agriculture': ['Agriculture and Food'],
+    'housing': ['Housing and Community Development'],
+    'labor': ['Labor and Employment'],
+    'immigration': ['Immigration'],
+    'law': ['Law', 'Crime and Law Enforcement'],
+    'foreign-affairs': ['International Affairs', 'Foreign Trade and International Finance'],
+    'trade': ['Foreign Trade and International Finance'],
+    'native-americans': ['Native Americans'],
+  };
+
+  const mappedAreas = new Set<string>();
+
+  for (const interest of userInterests) {
+    const normalizedInterest = interest.toLowerCase().trim();
+    const mappedValues = policyMapping[normalizedInterest];
+
+    if (mappedValues) {
+      mappedValues.forEach(area => mappedAreas.add(area));
+    } else {
+      // If no mapping found, try Title Case version as fallback
+      const titleCase = interest
+        .split('-')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+      mappedAreas.add(titleCase);
+    }
+  }
+
+  const result = Array.from(mappedAreas);
+  console.log(`🗺️  Mapped ${userInterests.length} user interests to ${result.length} database policy areas:`, result);
+  return result;
+}
+
+/**
  * Fetch bills with smart prioritization AND deduplication
  * Priority: Bill status > Impact score > Recency > User engagement
  * Excludes bills covered in the last 30 days for this user
+ *
+ * EXPORTED for use by background worker
  */
-async function fetchPrioritizedBills(policyAreas: string[], userId: string): Promise<Bill[]> {
-  // Build policy area filter
-  const policyFilters = policyAreas.map(area => `policy_area = '${area}' OR ai_policy_area = '${area}'`).join(' OR ');
+export async function fetchPrioritizedBills(policyAreas: string[], userId: string): Promise<Bill[]> {
+  // Map user interests to database policy_area values
+  const mappedPolicyAreas = policyAreas.length > 0 ? mapPolicyAreasToDatabase(policyAreas) : [];
+
+  // Build policy area filter with case-insensitive matching (handle empty array case)
+  const policyFilters = mappedPolicyAreas.length > 0
+    ? mappedPolicyAreas.map(area => {
+        // Escape single quotes in policy area names for SQL safety
+        const escapedArea = area.replace(/'/g, "''");
+        return `(LOWER(policy_area) = LOWER('${escapedArea}') OR LOWER(ai_policy_area) = LOWER('${escapedArea}'))`;
+      }).join(' OR ')
+    : '1=1'; // If no policy areas, match all bills
 
   // Get bills covered in last 30 days for this user
   const recentBriefsResult = await executeQuery(
@@ -429,6 +360,7 @@ async function fetchPrioritizedBills(policyAreas: string[], userId: string): Pro
   console.log(`🚫 Excluding ${previouslyCoveredBills.size} previously covered bills from last 30 days`);
 
   // Smart prioritization query
+  // NOTE: Temporarily expanded date range to handle test data with future dates
   const query = `
     SELECT
       id, congress, bill_type, bill_number, title, summary,
@@ -444,7 +376,7 @@ async function fetchPrioritizedBills(policyAreas: string[], userId: string): Pro
     FROM bills
     WHERE (${policyFilters})
       AND congress IN (118, 119)
-      AND latest_action_date >= DATE('now', '-30 days')
+      AND latest_action_date >= DATE('now', '-365 days')
     ORDER BY priority_score DESC
     LIMIT 50
   `;
@@ -531,8 +463,10 @@ Return JSON array of dialogue lines:
  * Part 1: Breaking News (1-2 min, 1 top story)
  * Part 2: Top Stories (3-4 min, 2-3 featured stories)
  * Part 3: Quick Hits (1 min, rapid mentions)
+ *
+ * EXPORTED for use by background worker
  */
-async function generateBriefScript(
+export async function generateBriefScript(
   newsArticles: NewsArticle[],
   bills: Bill[],
   policyAreas: string[]
@@ -599,8 +533,10 @@ ${idx + 1}. ${bill.bill_type.toUpperCase()} ${bill.bill_number} - ${bill.title}
 
 /**
  * Generate comprehensive written digest with feature images
+ *
+ * EXPORTED for use by background worker
  */
-async function generateWrittenDigest(
+export async function generateWrittenDigest(
   newsArticles: NewsArticle[],
   bills: Bill[]
 ): Promise<string> {

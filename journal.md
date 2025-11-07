@@ -4,6 +4,125 @@ A journey building an AI-powered civic engagement platform that makes Congress a
 
 ---
 
+## November 7, 2025 - Background Job Queue: Making Podcast Generation Seamless 🎙️
+
+**What I Built:** A production-ready background job queue system using BullMQ and Redis that generates daily podcast briefs asynchronously with real-time progress tracking (10% → 100%).
+
+**The Problem I Solved:**
+
+Generating a personalized podcast takes 5-7 minutes. During that time, users were stuck waiting while our server:
+1. Fetched news articles (Brave Search)
+2. Queried 50+ Congressional bills
+3. Generated a natural dialogue script with Claude AI
+4. Created 8+ minutes of audio with ElevenLabs (the longest step)
+5. Uploaded 11MB of audio to our CDN
+6. Saved everything to the database
+
+**The user experience was broken**: Click "Generate Brief" → wait 5 minutes staring at a loading spinner → hope nothing crashes. If it failed halfway through, you'd never know why.
+
+**How I Did It:**
+
+Think of it like a restaurant order system. Instead of the chef cooking your meal while you stand at the counter (blocking everyone else), they give you a receipt number and cook it in the back. You can sit down, check your phone, and they'll bring it out when it's ready.
+
+**The Technical Flow:**
+```typescript
+// 1. User clicks "Generate Brief" - instant response
+const job = await briefQueue.add('generate-brief', {
+  userId: user.id,
+  userEmail: user.email
+});
+
+return { jobId: job.id, status: 'queued' };
+// User gets response in <100ms, sees "Your brief is being prepared..."
+
+// 2. Background worker picks up the job (separate process)
+worker.on('active', (job) => {
+  console.log(`Processing ${job.id}...`);
+  // Start generating: fetch news, query bills, create script...
+});
+
+// 3. Worker reports progress as it goes
+await job.updateProgress(20); // "Fetching news articles..."
+await job.updateProgress(40); // "Generating script with AI..."
+await job.updateProgress(60); // "Creating audio (this takes 5-10 min)..."
+await job.updateProgress(80); // "Uploading to CDN..."
+await job.updateProgress(100); // "Done!"
+
+// 4. UI polls for updates every 3 seconds
+const status = await fetch(`/api/briefs/status/${jobId}`);
+// Show live progress bar: 60% - "Creating audio..."
+```
+
+**Key Technical Wins:**
+
+1. **Policy Area Mapping**: Users pick simple interests ("taxes", "education"), I map them to official Congressional policy areas ("Taxation", "Economics and Public Finance", "Education"). Found 50 bills instead of 0 by fixing our date range filters.
+
+2. **SQL Escaping for Raindrop SmartSQL**: Discovered Raindrop's database doesn't support parameterized queries (no `?` placeholders). Had to build manual SQL escaping:
+```typescript
+const escapeSql = (val) => {
+  if (val === null) return 'NULL';
+  if (typeof val === 'number') return String(val);
+  return `'${String(val).replace(/'/g, "''")}'`; // Escape single quotes
+};
+
+const sql = `INSERT INTO briefs (...) VALUES (${escapeSql(userId)}, ...)`;
+```
+
+3. **ElevenLabs Usage-Based Billing**: Hit quota limits (419 credits remaining, 4,200 needed per audio chunk). Switched to usage-based billing, got new API key, and audio generation resumed successfully.
+
+4. **Namespace Discovery**: The `briefs` table exists in the `users` namespace, not as a separate namespace. This was a 2-hour debugging session reading Raindrop's API documentation.
+
+**What I Learned:**
+
+**Technical Surprises:**
+- Not all databases support parameterized queries! Raindrop SmartSQL requires embedded values with manual escaping.
+- BullMQ's progress tracking (0-100%) is perfect for long-running jobs - users see exactly what's happening.
+- Redis is FAST - queue operations take <5ms, and Railway's managed Redis "just works."
+
+**User Impact Insights:**
+- Async UX is critical for long tasks. Users don't mind waiting 5 minutes if they can see progress and do other things.
+- Real-time progress builds trust: "60% - Creating audio (5-10 min)" tells users everything is working.
+
+**What's Next:**
+
+This unlocks scheduled daily briefs! Now that generation is async, I can:
+1. Run a cron job every morning at 6 AM
+2. Queue brief generation for all subscribed users
+3. Send email notifications when ready
+4. Users wake up to fresh personalized podcasts
+
+**The Infrastructure:**
+- BullMQ handles the queue (Redis-backed, battle-tested)
+- Railway Redis for persistence (free tier: 100MB, perfect for our scale)
+- Worker process (separate from web server) processes one job at a time
+- Bull Board dashboard at `/admin/bull-board` for monitoring (optional)
+
+**Quick Win:** Generated first production-ready podcast brief end-to-end with all data persisted correctly:
+- 15 bills covered (education, science, defense, civil rights)
+- 29 dialogue lines between Sarah and James hosts
+- 8.2 minutes of natural conversation audio
+- 7,400 characters of transcript
+- 6,900 characters of written digest
+- All saved to database with proper JSON formatting
+
+**Social Media Snippet:**
+
+🎙️ Just shipped a background job queue for our civic engagement platform!
+
+Users can now generate personalized podcast briefs without waiting. Instead of staring at a loading spinner for 5-7 minutes, they get instant feedback and real-time progress tracking (like tracking a food delivery).
+
+Behind the scenes:
+• BullMQ + Redis queue system
+• Real-time progress (10% → 100%)
+• Separate worker process (scalable)
+• Database persistence with full error handling
+
+Next up: Scheduled daily briefs at 6 AM so users wake up to fresh civic news! 🌅
+
+#CivicTech #OpenSource #NodeJS #Redis #BullMQ
+
+---
+
 ## November 5, 2025 - Personalized News + Bill Search: Making Civic Info Discoverable 🔍
 
 **What I Built:** Two powerful features to help users find what matters to them: (1) AI-powered personalized news that replaces generic RSS feeds with articles tailored to your interests and representatives, and (2) Advanced bill filtering and search with multi-criteria filtering across 1000+ bills.

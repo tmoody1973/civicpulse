@@ -142,7 +142,7 @@ ${bill.summary ? `Summary: ${bill.summary}` : ''}
     }
 
     // Validate minimum length requirements
-    const minLines = format === 'daily' ? 25 : 40;
+    const minLines = format === 'daily' ? 15 : 30;  // Lower minimums to allow 5-10 min daily, 10-20 min weekly
     if (dialogue.length < minLines) {
       throw new Error(
         `Dialogue script too short: ${dialogue.length} lines (minimum ${minLines} required for ${format} brief). ` +

@@ -33,18 +33,7 @@ function formatTimeAgo(dateString: string): string {
 
 export function NewsFeedCard({ article, featured = false }: NewsFeedCardProps) {
   return (
-    <Card className="hover:shadow-md transition-shadow overflow-hidden">
-      {article.imageUrl && (
-        <div className={`relative w-full bg-muted ${featured ? 'h-64 md:h-80' : 'h-48'}`}>
-          <img
-            src={article.imageUrl}
-            alt={article.title}
-            className="w-full h-full object-cover"
-            loading="lazy"
-          />
-        </div>
-      )}
-
+    <Card className="hover:shadow-md transition-shadow">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-4">
           <CardTitle className={`leading-tight ${featured ? 'text-xl md:text-2xl font-serif' : 'text-base'}`}>

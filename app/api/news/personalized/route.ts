@@ -11,6 +11,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { getPersonalizedNewsFast } from '@/lib/api/cerebras-tavily'; // Tavily + Cerebras (faster)
 import { getCachedNews } from '@/lib/news/cache';
+import {
+  saveNewsArticles,
+  getRecentNewsArticles,
+  type NewsArticleInput,
+} from '@/lib/db/news-articles';
 
 // Set a 20-second timeout for Netlify (26s limit)
 const API_TIMEOUT_MS = 20000;
@@ -33,43 +38,6 @@ export async function GET(req: NextRequest) {
         { error: 'Not authenticated' },
         { status: 401 }
       );
-    }
-
-    // Check if this is a test user - return mock data instantly
-    if (user.id.startsWith('test_')) {
-      console.log(`🧪 Test user detected (${user.id}), returning mock personalized news`);
-
-      const mockArticles = [
-        {
-          title: 'Personalized Test Article 1',
-          url: 'https://example.com/article1',
-          summary: 'Mock article tailored to your interests for E2E testing',
-          source: 'Test News',
-          publishedDate: new Date().toISOString(),
-          relevantTopics: ['healthcare', 'education'],
-          imageUrl: 'https://via.placeholder.com/600x400/4A90E2/FFFFFF?text=Healthcare+%26+Education',
-        },
-        {
-          title: 'Personalized Test Article 2',
-          url: 'https://example.com/article2',
-          summary: 'Another mock article about topics you care about',
-          source: 'Test News',
-          publishedDate: new Date().toISOString(),
-          relevantTopics: ['climate', 'technology'],
-          imageUrl: 'https://via.placeholder.com/600x400/50C878/FFFFFF?text=Climate+%26+Tech',
-        },
-      ];
-
-      return NextResponse.json({
-        success: true,
-        data: mockArticles.slice(0, limit),
-        meta: {
-          total: mockArticles.length,
-          cached: false,
-          testMode: true,
-          personalized: true,
-        },
-      });
     }
 
     // 2. Fetch user profile (interests, location, representatives)
@@ -129,80 +97,171 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // 3. Try cache first (unless forced refresh)
+    // 3. Check database first (articles created in last 1 hour)
     if (!forceRefresh) {
-      console.log(`🔍 Checking cache for user ${user.id}`);
+      console.log(`🔍 Checking database for recent articles`);
 
-      let cached = null;
       try {
-        cached = await getCachedNews(user.id, profile.policyInterests, 100); // Get all cached articles
-      } catch (cacheError) {
-        console.warn('Cache read failed (non-fatal), continuing to fresh fetch:', cacheError);
-      }
+        const cachedArticles = await getRecentNewsArticles(
+          profile.policyInterests,
+          15 * 60 * 1000, // 15 minutes for fresher news
+          limit
+        );
 
-      if (cached) {
-        const latency = Date.now() - startTime;
-        console.log(`✅ Serving ${cached.length} articles from cache (${latency}ms)`);
+        if (cachedArticles.length >= limit) {
+          const latency = Date.now() - startTime;
+          console.log(`✅ Serving ${cachedArticles.length} articles from database (${latency}ms)`);
 
-        return NextResponse.json({
-          success: true,
-          data: cached, // Return ALL cached articles, widget organizes by topic
-          meta: {
-            total: cached.length,
-            cached: true,
-            cacheSource: latency < 50 ? 'SmartMemory' : 'SmartSQL',
-            personalized: true,
-            interests: profile.policyInterests,
-            state: profile.location?.state,
-            district: profile.location?.district,
-            latency
-          }
-        });
+          // Fetch topic images even for cached articles
+          console.log(`📸 Fetching topic header images for ${profile.policyInterests.length} interests...`);
+
+          const { getRandomPhoto } = await import('@/lib/api/unsplash');
+
+          const topicImages = await Promise.all(
+            profile.policyInterests.map(async (interest) => {
+              try {
+                const image = await getRandomPhoto(interest);
+                if (image) {
+                  return {
+                    topic: interest,
+                    imageUrl: image.url,
+                    imageAlt: image.alt_description || `${interest} news`,
+                    photographer: image.photographer,
+                    photographerUrl: image.photographerUrl,
+                  };
+                }
+              } catch (error) {
+                console.log(`  ⚠️  Failed to get image for topic ${interest}`);
+              }
+              return null;
+            })
+          );
+
+          const validTopicImages = topicImages.filter((img): img is NonNullable<typeof img> => img !== null);
+
+          // Convert database format to API format
+          const apiArticles = cachedArticles.map(article => ({
+            title: article.title,
+            url: article.url,
+            summary: article.summary,
+            source: article.source,
+            publishedDate: article.publishedDate,
+            relevantTopics: article.relevantTopics,
+          }));
+
+          return NextResponse.json({
+            success: true,
+            data: apiArticles,
+            topicImages: validTopicImages,
+            meta: {
+              total: apiArticles.length,
+              cached: true,
+              cacheSource: 'Database (news_articles table)',
+              personalized: true,
+              interests: profile.policyInterests,
+              state: profile.location?.state,
+              district: profile.location?.district,
+              latency
+            }
+          });
+        }
+      } catch (dbError: any) {
+        console.warn('Database read failed (non-fatal), continuing to fresh fetch:', dbError.message);
       }
     }
 
     // 4. Fetch fresh using Brave Search (blazing fast, no LLM needed!)
     console.log(`🔍 Fetching fresh news (Brave Search) for: ${profile.policyInterests.join(', ')}`);
 
-    // Fetch news WITHOUT image enrichment (skip OG/Unsplash to avoid 18s timeout)
-    // Images will use CSS-based colored placeholders in the frontend (instant, no API calls)
-    const articles = await getPersonalizedNewsFast(
+    const freshArticles = await getPersonalizedNewsFast(
       profile.policyInterests,
       profile.location?.state,
       profile.location?.district
     );
 
-    // 5. Trigger background image enrichment (fire-and-forget)
-    // This runs asynchronously and updates cache with real images
-    const enrichmentUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/news/enrich-images`;
-    fetch(enrichmentUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userId: user.id,
-        articles,
-      }),
-    })
-      .then(() => console.log('🖼️  Background image enrichment triggered'))
-      .catch((err) => console.warn('Failed to trigger background enrichment (non-fatal):', err.message));
+    // 5. Fetch topic header images (one per interest, max 8 requests)
+    console.log(`📸 Fetching topic header images for ${profile.policyInterests.length} interests...`);
 
-    // 6. Return ALL articles (widget organizes by topic)
+    const { getRandomPhoto } = await import('@/lib/api/unsplash');
+
+    const topicImages = await Promise.all(
+      profile.policyInterests.map(async (interest) => {
+        try {
+          const image = await getRandomPhoto(interest);
+          if (image) {
+            console.log(`  ✅ Topic image for ${interest}: ${image.photographer}`);
+            return {
+              topic: interest,
+              imageUrl: image.url,
+              imageAlt: image.alt_description || `${interest} news`,
+              photographer: image.photographer,
+              photographerUrl: image.photographerUrl,
+            };
+          }
+        } catch (error) {
+          console.log(`  ⚠️  Failed to get image for topic ${interest}`);
+        }
+        return null;
+      })
+    );
+
+    const validTopicImages = topicImages.filter((img): img is NonNullable<typeof img> => img !== null);
+    console.log(`✅ Fetched ${validTopicImages.length}/${profile.policyInterests.length} topic images`);
+
+    // 6. Save articles to database (without individual images)
+    console.log(`💾 Saving ${freshArticles.length} articles to database...`);
+
+    const newsArticleInputs: NewsArticleInput[] = freshArticles.map(article => ({
+      title: article.title,
+      url: article.url,
+      summary: article.summary || '',
+      source: article.source || 'Unknown',
+      publishedDate: article.publishedDate || new Date().toISOString(),
+      relevantTopics: article.relevantTopics || [],
+    }));
+
+    let savedArticles;
+    try {
+      savedArticles = await saveNewsArticles(newsArticleInputs);
+      console.log(`✅ Saved ${savedArticles.length} articles to database`);
+    } catch (saveError: any) {
+      console.error('Failed to save articles to database (non-fatal):', saveError.message);
+      // If save fails, return fresh articles anyway
+      savedArticles = freshArticles.map((article, index) => ({
+        id: `temp-${index}`,
+        ...article,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }));
+    }
+
+    // 7. Return articles with topic header images
     const latency = Date.now() - startTime;
-    console.log(`✅ Served ${articles.length} fresh articles (${latency}ms)`);
+    console.log(`✅ Served ${savedArticles.length} fresh articles with ${validTopicImages.length} topic images (${latency}ms)`);
+
+    // Convert to API format
+    const apiArticles = savedArticles.map(article => ({
+      title: article.title,
+      url: article.url,
+      summary: article.summary,
+      source: article.source,
+      publishedDate: article.publishedDate,
+      relevantTopics: article.relevantTopics,
+    }));
 
     return NextResponse.json({
       success: true,
-      data: articles, // Return ALL articles, not sliced - widget organizes by topic
+      data: apiArticles,
+      topicImages: validTopicImages, // Topic header images for frontend
       meta: {
-        total: articles.length,
+        total: apiArticles.length,
         cached: false,
-        cacheSource: 'Brave Search (fast response)',
+        cacheSource: 'Fresh fetch (saved to database)',
         personalized: true,
         interests: profile.policyInterests,
         state: profile.location?.state,
         district: profile.location?.district,
         latency,
-        note: 'Images enriching in background - refresh in 30s for real images'
       }
     });
 
