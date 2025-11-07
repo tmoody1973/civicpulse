@@ -13,6 +13,9 @@ import { getPersonalizedNewsFast } from '@/lib/api/cerebras-tavily'; // Tavily +
 import { getCachedNews, storeArticlesInCache } from '@/lib/news/cache';
 import { enrichArticlesWithImages } from '@/lib/api/perplexity';
 
+// Set a 20-second timeout for Netlify (26s limit)
+const API_TIMEOUT_MS = 20000;
+
 export async function GET(req: NextRequest) {
   const startTime = Date.now();
 
@@ -20,6 +23,8 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const limit = parseInt(searchParams.get('limit') || '20', 10);
     const forceRefresh = searchParams.get('refresh') === 'true';
+
+    console.log(`[PersonalizedNews API] Starting request at ${new Date().toISOString()}`);
 
     // 1. Get authenticated user
     const user = await getSession();
@@ -155,14 +160,23 @@ export async function GET(req: NextRequest) {
     // 4. Fetch fresh using Brave Search (blazing fast, no LLM needed!)
     console.log(`🔍 Fetching fresh news (Brave Search) for: ${profile.policyInterests.join(', ')}`);
 
-    const rawArticles = await getPersonalizedNewsFast(
-      profile.policyInterests,
-      profile.location?.state,
-      profile.location?.district
-    );
+    // Add timeout protection (20s limit for Netlify)
+    const fetchNewsWithTimeout = Promise.race([
+      (async () => {
+        const rawArticles = await getPersonalizedNewsFast(
+          profile.policyInterests,
+          profile.location?.state,
+          profile.location?.district
+        );
+        // 4b. Enrich with images (OG → Unsplash → Placeholder)
+        return await enrichArticlesWithImages(rawArticles);
+      })(),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('News fetch timed out after 18s')), 18000)
+      ),
+    ]);
 
-    // 4b. Enrich with images (OG → Unsplash → Placeholder)
-    const articles = await enrichArticlesWithImages(rawArticles);
+    const articles = await fetchNewsWithTimeout;
 
     // 5. Store in cache for future requests
     try {
