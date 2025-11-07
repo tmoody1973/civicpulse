@@ -22,7 +22,7 @@ export interface Env {
   QUEUE_API: ServiceStub<import('../queue-api/index.js').default>;
   RECOMMENDATION_UPDATES: Queue<import('../user-behavior-tracker').Body>;
   tracer: Tracer;
-  TRACKING: ServiceStub<import('../tracking/index.js').default>;
   USER_MEMORY: SmartMemory;
+  USER_NOTIFICATIONS: Queue<import('../notification-handler').Body>;
   WEB: ServiceStub<import('../web/index.js').default>;
 }

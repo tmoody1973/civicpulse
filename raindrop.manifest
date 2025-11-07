@@ -105,6 +105,14 @@ application "civic-pulse" {
   // PODCAST GENERATION QUEUE SYSTEM (Actor/Observer Pattern)
   // ============================================================================
 
+  // Queue Submission Service - Endpoint for Next.js to submit jobs
+  service "queue-api" {
+    visibility = "public"
+    // POST /submit-podcast-job
+    // Accepts podcast generation requests from Next.js (Netlify)
+    // and submits them to the podcast-generation-queue
+  }
+
   // Queue for podcast generation jobs
   queue "podcast-generation-queue" {
     // Handles asynchronous podcast generation requests

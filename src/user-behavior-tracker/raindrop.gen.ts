@@ -5,6 +5,7 @@ export interface Env {
   _raindrop: {
     app: App;
   };
+  ADMIN_API: ServiceStub<import('../admin-api/index.js').default>;
   AI: Ai;
   ANALYTICS: SmartSql;
   annotation: Annotation<Omit<MRNObject, 'type' | 'applicationName' | 'versionId'>>;
@@ -12,11 +13,15 @@ export interface Env {
   CIVIC_DB: SqlDatabase;
   logger: Logger;
   mem: KvCache;
+  MEMORY_INIT: ServiceStub<import('../memory-init/index.js').default>;
   NOTIFICATION_STATE: KvCache;
   PODCAST_AUDIO: Bucket;
   PODCAST_GENERATION_QUEUE: Queue<import('../podcast-queue-handler').Body>;
   PODCAST_GENERATOR: ActorNamespace<import('../podcast-generator/index.js').PodcastGenerator>;
+  PREFERENCES: ServiceStub<import('../preferences/index.js').default>;
+  QUEUE_API: ServiceStub<import('../queue-api/index.js').default>;
   tracer: Tracer;
+  TRACKING: ServiceStub<import('../tracking/index.js').default>;
   USER_MEMORY: SmartMemory;
   USER_NOTIFICATIONS: Queue<import('../notification-handler').Body>;
   WEB: ServiceStub<import('../web/index.js').default>;

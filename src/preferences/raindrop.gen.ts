@@ -18,11 +18,11 @@ export interface Env {
   PODCAST_AUDIO: Bucket;
   PODCAST_GENERATION_QUEUE: Queue<import('../podcast-queue-handler').Body>;
   PODCAST_GENERATOR: ActorNamespace<import('../podcast-generator/index.js').PodcastGenerator>;
-  PREFERENCES: ServiceStub<import('../preferences/index.js').default>;
   QUEUE_API: ServiceStub<import('../queue-api/index.js').default>;
   RECOMMENDATION_UPDATES: Queue<import('../user-behavior-tracker').Body>;
   tracer: Tracer;
   TRACKING: ServiceStub<import('../tracking/index.js').default>;
   USER_MEMORY: SmartMemory;
+  USER_NOTIFICATIONS: Queue<import('../notification-handler').Body>;
   WEB: ServiceStub<import('../web/index.js').default>;
 }

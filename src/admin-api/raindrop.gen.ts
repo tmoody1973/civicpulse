@@ -5,7 +5,6 @@ export interface Env {
   _raindrop: {
     app: App;
   };
-  ADMIN_API: ServiceStub<import('../admin-api/index.js').default>;
   AI: Ai;
   ANALYTICS: SmartSql;
   annotation: Annotation<Omit<MRNObject, 'type' | 'applicationName' | 'versionId'>>;
@@ -24,5 +23,6 @@ export interface Env {
   tracer: Tracer;
   TRACKING: ServiceStub<import('../tracking/index.js').default>;
   USER_MEMORY: SmartMemory;
+  USER_NOTIFICATIONS: Queue<import('../notification-handler').Body>;
   WEB: ServiceStub<import('../web/index.js').default>;
 }

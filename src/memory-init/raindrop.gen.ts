@@ -13,7 +13,6 @@ export interface Env {
   CIVIC_DB: SqlDatabase;
   logger: Logger;
   mem: KvCache;
-  MEMORY_INIT: ServiceStub<import('../memory-init/index.js').default>;
   NOTIFICATION_STATE: KvCache;
   PODCAST_AUDIO: Bucket;
   PODCAST_GENERATION_QUEUE: Queue<import('../podcast-queue-handler').Body>;
@@ -24,5 +23,6 @@ export interface Env {
   tracer: Tracer;
   TRACKING: ServiceStub<import('../tracking/index.js').default>;
   USER_MEMORY: SmartMemory;
+  USER_NOTIFICATIONS: Queue<import('../notification-handler').Body>;
   WEB: ServiceStub<import('../web/index.js').default>;
 }
