@@ -156,7 +156,8 @@ export function PersonalizedNewsWidget({
           console.error('[PersonalizedNews] API error:', {
             status: response.status,
             error: errorMessage,
-            data: errorData
+            fullData: errorData,
+            errorString: JSON.stringify(errorData, null, 2)
           });
         } catch (e) {
           // If JSON parsing fails, use status text

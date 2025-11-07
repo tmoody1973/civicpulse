@@ -209,11 +209,14 @@ export async function GET(req: NextRequest) {
 
   } catch (error: any) {
     console.error('Error fetching personalized news:', error);
+    console.error('Error stack:', error.stack);
 
     return NextResponse.json(
       {
         error: 'Failed to fetch personalized news',
         message: error.message || 'Unknown error',
+        details: error.toString(),
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
       },
       { status: 500 }
     );
