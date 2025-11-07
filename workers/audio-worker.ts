@@ -23,7 +23,7 @@
 import { generateDialogueScript } from '@/lib/ai/claude';
 import { generateDialogue } from '@/lib/ai/elevenlabs';
 import { uploadPodcast } from '@/lib/storage/vultr';
-import { fetchBills } from '@/lib/api/congress';
+import { fetchRecentBills } from '@/lib/api/congress';
 import { getPersonalizedNewsFast } from '@/lib/api/cerebras-tavily';
 
 // Job types
@@ -163,7 +163,7 @@ async function generatePodcastAudio(
 
   // Step 1: Fetch bills (20%)
   await context.updateProgress(20, 'Fetching congressional bills...');
-  const bills = await fetchBills({
+  const bills = await fetchRecentBills({
     congress: 119, // Current congress
     limit: params.billCount,
   });
