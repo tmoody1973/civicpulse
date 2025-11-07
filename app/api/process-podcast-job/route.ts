@@ -42,7 +42,7 @@ interface JobPayload {
 
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
-  let job: JobPayload;
+  let job: JobPayload | undefined;
 
   try {
     const body = await request.json();
