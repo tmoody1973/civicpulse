@@ -179,8 +179,8 @@ export async function storeArticlesInCache(
 
     console.log(`✅ Stored ${articles.length} articles in SmartSQL`);
   } catch (error) {
-    console.error('Failed to store in SmartSQL:', error);
-    throw error; // Re-throw to signal storage failure
+    console.error('Failed to store in SmartSQL (non-fatal):', error);
+    // Don't throw - cache storage failure should not break the request
   }
 
   // Store in SmartMemory (fast access)
