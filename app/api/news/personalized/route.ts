@@ -11,7 +11,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { getPersonalizedNewsFast } from '@/lib/api/cerebras-tavily'; // Tavily + Cerebras (faster)
 import { getCachedNews, storeArticlesInCache } from '@/lib/news/cache';
-import { enrichArticlesWithImages } from '@/lib/api/perplexity';
+import { getPlaceholderImage } from '@/lib/api/perplexity';
 
 // Set a 20-second timeout for Netlify (26s limit)
 const API_TIMEOUT_MS = 20000;
@@ -165,48 +165,44 @@ export async function GET(req: NextRequest) {
     // 4. Fetch fresh using Brave Search (blazing fast, no LLM needed!)
     console.log(`🔍 Fetching fresh news (Brave Search) for: ${profile.policyInterests.join(', ')}`);
 
-    // Add timeout protection (20s limit for Netlify)
-    const fetchNewsWithTimeout = Promise.race([
-      (async () => {
-        const rawArticles = await getPersonalizedNewsFast(
-          profile.policyInterests,
-          profile.location?.state,
-          profile.location?.district
-        );
-        // 4b. Enrich with images (OG → Unsplash → Placeholder)
-        return await enrichArticlesWithImages(rawArticles);
-      })(),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('News fetch timed out after 18s')), 18000)
-      ),
-    ]);
+    // Fetch news WITHOUT image enrichment (skip OG/Unsplash to avoid 18s timeout)
+    // Images will use topic-based placeholders directly (instant, no API calls)
+    const articles = await getPersonalizedNewsFast(
+      profile.policyInterests,
+      profile.location?.state,
+      profile.location?.district
+    );
 
-    const articles = await fetchNewsWithTimeout;
+    // Add placeholder images based on topics (instant, no API calls)
+    const articlesWithPlaceholders = articles.map(article => ({
+      ...article,
+      imageUrl: article.imageUrl || getPlaceholderImage(article.relevantTopics)
+    }));
 
     // 5. Store in cache for future requests (completely optional, non-blocking)
     // NOTE: Cache layer not yet implemented - SmartSQL/SmartMemory not configured
     // This will fail silently and log warnings, which is expected behavior
-    storeArticlesInCache(user.id, articles)
-      .then(() => console.log(`✅ Cached ${articles.length} articles for future requests`))
+    storeArticlesInCache(user.id, articlesWithPlaceholders)
+      .then(() => console.log(`✅ Cached ${articlesWithPlaceholders.length} articles for future requests`))
       .catch((cacheError) => console.warn('Failed to cache articles (non-fatal, expected until cache configured):', cacheError?.message || cacheError));
 
     // 6. Return ALL articles (widget organizes by topic)
     const latency = Date.now() - startTime;
-    console.log(`✅ Served ${articles.length} fresh articles (${latency}ms)`);
+    console.log(`✅ Served ${articlesWithPlaceholders.length} fresh articles (${latency}ms)`);
 
     return NextResponse.json({
       success: true,
-      data: articles, // Return ALL articles, not sliced - widget organizes by topic
+      data: articlesWithPlaceholders, // Return ALL articles, not sliced - widget organizes by topic
       meta: {
-        total: articles.length,
+        total: articlesWithPlaceholders.length,
         cached: false,
-        cacheSource: 'Brave Search',
+        cacheSource: 'Brave Search (fast, no image enrichment)',
         personalized: true,
         interests: profile.policyInterests,
         state: profile.location?.state,
         district: profile.location?.district,
         latency,
-        note: 'Claude Sonnet 4 reserved for bill analysis'
+        note: 'Images use topic-based placeholders for speed'
       }
     });
 
