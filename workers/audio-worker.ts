@@ -20,7 +20,7 @@
  * - Log errors with full context
  */
 
-import { generateDialogueScript } from '@/lib/ai/claude';
+import { generateDialogueScript, type DialogueLine } from '@/lib/ai/claude';
 import { generateDialogue } from '@/lib/ai/elevenlabs';
 import { uploadPodcast } from '@/lib/storage/vultr';
 import { fetchRecentBills } from '@/lib/api/congress';
@@ -178,8 +178,7 @@ async function generatePodcastAudio(
   await context.updateProgress(40, 'Generating dialogue script with AI...');
   const dialogue = await generateDialogueScript(
     bills,
-    params.representatives,
-    type
+    type === 'podcast_daily' ? 'daily' : 'weekly'
   );
 
   if (!dialogue || dialogue.length === 0) {
@@ -200,9 +199,11 @@ async function generatePodcastAudio(
 
   // Step 4: Upload to Vultr CDN (80%)
   await context.updateProgress(80, 'Uploading to cloud storage...');
-  const audioUrl = await uploadPodcast(audioBuffer, userId, type, {
+  const audioUrl = await uploadPodcast(audioBuffer, {
+    userId,
+    type: type === 'podcast_daily' ? 'daily' : 'weekly',
     duration: calculateDuration(audioBuffer),
-    billsCovered: bills.map(b => b.id),
+    billsCovered: bills.map(b => `${b.billType}${b.billNumber}`),
     generatedAt: new Date(),
   });
 
@@ -221,7 +222,11 @@ async function generatePodcastAudio(
       type,
       audioUrl,
       transcript,
-      billsCovered: bills.map(b => b.id),
+      billsCovered: bills.map(b => ({
+        id: `${b.billType}${b.billNumber}`,
+        title: b.title,
+        sponsor: b.sponsorName,
+      })),
       duration: calculateDuration(audioBuffer),
       generatedAt: new Date(),
     }),
@@ -278,9 +283,11 @@ async function generateNewsAudio(
 
   // Step 4: Upload to Vultr CDN (80%)
   await context.updateProgress(80, 'Uploading to cloud storage...');
-  const audioUrl = await uploadPodcast(audioBuffer, userId, 'news_audio', {
+  const audioUrl = await uploadPodcast(audioBuffer, {
+    userId,
+    type: 'daily', // Use 'daily' as news audio type
     duration: calculateDuration(audioBuffer),
-    articlesCovered: articles.map(a => a.url),
+    billsCovered: articles.map(a => a.url), // Store article URLs as billsCovered
     generatedAt: new Date(),
   });
 
@@ -316,7 +323,7 @@ async function generateNewsAudio(
 async function generateNewsDialogueScript(
   articles: Array<{ title: string; summary: string; source: string; relevantTopics: string[] }>,
   topics: string[]
-): Promise<Array<{ host: string; text: string }>> {
+): Promise<DialogueLine[]> {
   // Call Claude API to generate news dialogue
   const prompt = `Generate a natural, conversational podcast dialogue between two hosts (Sarah and James) discussing these news articles. Make it engaging, informative, and accessible to everyday citizens.
 
