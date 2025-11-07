@@ -18,7 +18,7 @@ import { resolveNewsArticleImages } from '@/lib/images/feature-image';
  * - Multi-host podcast (Sarah + James)
  * - Detailed written digest with feature images
  *
- * Target: 8-12 minute audio + comprehensive written version
+ * Target: 6 minute audio + comprehensive written digest
  */
 
 const requestSchema = z.object({
@@ -470,16 +470,16 @@ async function getBriefPrompt(): Promise<string> {
  */
 const DEFAULT_BRIEF_PROMPT = `Create a personalized daily congressional brief for a user interested in: {policy_areas}.
 
-**3-PART STRUCTURE (8-12 minutes total):**
+**3-PART STRUCTURE (6 minutes total):**
 
-**PART 1 - BREAKING NEWS (2-3 min):**
+**PART 1 - BREAKING NEWS (1-2 min):**
 {breaking_news}
 
-**PART 2 - TOP STORIES (5-7 min):**
+**PART 2 - TOP STORIES (3-4 min):**
 Cover these bills in detail:
 {top_stories}
 
-**PART 3 - QUICK HITS (1-2 min):**
+**PART 3 - QUICK HITS (1 min):**
 Briefly mention these bills:
 {quick_hits}
 
@@ -502,16 +502,16 @@ Return JSON array of dialogue lines:
 ]
 
 **CRITICAL:**
-- Target 8-12 minutes of audio (approximately 6000-9000 characters total)
-- Generate 25-35 dialogue lines for natural conversation flow
+- Target 6 minutes of audio (approximately 4000-5000 characters total)
+- Generate 20-25 dialogue lines for natural conversation flow
 - Each line should be 2-4 sentences MAX
 - Use the extra context snippets to add specific details, quotes, and facts for richer storytelling`;
 
 /**
  * Generate dialogue script with 3-part structure
- * Part 1: Breaking News (2-3 min, 1 top story)
- * Part 2: Top Stories (5-7 min, 2-3 featured stories)
- * Part 3: Quick Hits (1-2 min, rapid mentions)
+ * Part 1: Breaking News (1-2 min, 1 top story)
+ * Part 2: Top Stories (3-4 min, 2-3 featured stories)
+ * Part 3: Quick Hits (1 min, rapid mentions)
  */
 async function generateBriefScript(
   newsArticles: NewsArticle[],
