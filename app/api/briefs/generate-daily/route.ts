@@ -104,12 +104,16 @@ export async function POST(request: NextRequest) {
     console.log(`📊 User interests: ${userPreferences.join(', ')}`);
 
     // 5. Fetch news articles from Brave Search (with extra_snippets for richer context)
+    const newsStart = Date.now();
     const newsArticles = await fetchNewsArticles(userPreferences, user.id);
-    console.log(`📰 Fetched ${newsArticles.length} news articles`);
+    const newsTime = Date.now() - newsStart;
+    console.log(`📰 Fetched ${newsArticles.length} news articles in ${newsTime}ms`);
 
     // 6. Query bills with smart prioritization AND deduplication
+    const billsStart = Date.now();
     const bills = await fetchPrioritizedBills(userPreferences, user.id);
-    console.log(`📜 Found ${bills.length} fresh relevant bills`);
+    const billsTime = Date.now() - billsStart;
+    console.log(`📜 Found ${bills.length} fresh relevant bills in ${billsTime}ms`);
 
     // Allow news-only briefs if no bills are available
     if (newsArticles.length === 0) {
@@ -125,18 +129,23 @@ export async function POST(request: NextRequest) {
     }
 
     // 7. Generate dialogue script with Claude (3-part structure)
+    const scriptStart = Date.now();
     const dialogueScript = await generateBriefScript(newsArticles, bills, userPreferences);
-    console.log(`✍️  Generated dialogue script: ${dialogueScript.length} lines`);
+    const scriptTime = Date.now() - scriptStart;
+    console.log(`✍️  Generated dialogue script: ${dialogueScript.length} lines in ${scriptTime}ms`);
 
     // 8. Generate audio with ElevenLabs
+    const audioStart = Date.now();
     const audioBuffer = await generateDialogue(dialogueScript);
-    console.log(`🎵 Generated audio: ${audioBuffer.length} bytes`);
+    const audioTime = Date.now() - audioStart;
+    console.log(`🎵 Generated audio: ${audioBuffer.length} bytes in ${audioTime}ms (${Math.round(audioTime / 1000)}s)`);
 
     // 9. Calculate duration (MP3 @ 192kbps = 24,000 bytes per second)
     // Formula: duration (seconds) = bytes / 24000
     const estimatedDuration = Math.round(audioBuffer.length / 24000);
 
     // 10. Upload audio to Vultr
+    const uploadStart = Date.now();
     const audioUrl = await uploadPodcast(audioBuffer, {
       userId: user.id,
       type: 'daily',
@@ -144,11 +153,14 @@ export async function POST(request: NextRequest) {
       billsCovered: bills.map(b => b.id),
       generatedAt: new Date(),
     });
-    console.log(`☁️  Uploaded to: ${audioUrl}`);
+    const uploadTime = Date.now() - uploadStart;
+    console.log(`☁️  Uploaded to: ${audioUrl} in ${uploadTime}ms`);
 
     // 11. Generate written digest with feature images
+    const digestStart = Date.now();
     const writtenDigest = await generateWrittenDigest(newsArticles, bills);
-    console.log(`📝 Generated written digest`);
+    const digestTime = Date.now() - digestStart;
+    console.log(`📝 Generated written digest in ${digestTime}ms`);
 
     // 12. Generate transcript
     const transcript = dialogueScript
@@ -206,6 +218,13 @@ export async function POST(request: NextRequest) {
 
     const duration = Date.now() - startTime;
     console.log(`✅ Brief generated in ${Math.round(duration / 1000)}s`);
+    console.log(`⏱️  Performance Breakdown:`);
+    console.log(`   News Fetching: ${Math.round(newsTime / 1000)}s`);
+    console.log(`   Bills Query: ${Math.round(billsTime / 1000)}s`);
+    console.log(`   Script Generation (Claude): ${Math.round(scriptTime / 1000)}s`);
+    console.log(`   Audio Generation (ElevenLabs): ${Math.round(audioTime / 1000)}s 🔍`);
+    console.log(`   Upload (Vultr): ${Math.round(uploadTime / 1000)}s`);
+    console.log(`   Written Digest: ${Math.round(digestTime / 1000)}s`);
 
     // 16. Return success response
     return NextResponse.json({
