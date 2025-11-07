@@ -10,8 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { getPersonalizedNewsFast } from '@/lib/api/cerebras-tavily'; // Tavily + Cerebras (faster)
-import { getCachedNews, storeArticlesInCache } from '@/lib/news/cache';
-import { getPlaceholderImage } from '@/lib/api/perplexity';
+import { getCachedNews } from '@/lib/news/cache';
 
 // Set a 20-second timeout for Netlify (26s limit)
 const API_TIMEOUT_MS = 20000;
@@ -166,43 +165,44 @@ export async function GET(req: NextRequest) {
     console.log(`🔍 Fetching fresh news (Brave Search) for: ${profile.policyInterests.join(', ')}`);
 
     // Fetch news WITHOUT image enrichment (skip OG/Unsplash to avoid 18s timeout)
-    // Images will use topic-based placeholders directly (instant, no API calls)
+    // Images will use CSS-based colored placeholders in the frontend (instant, no API calls)
     const articles = await getPersonalizedNewsFast(
       profile.policyInterests,
       profile.location?.state,
       profile.location?.district
     );
 
-    // Add placeholder images based on topics (instant, no API calls)
-    const articlesWithPlaceholders = articles.map(article => ({
-      ...article,
-      imageUrl: article.imageUrl || getPlaceholderImage(article.relevantTopics)
-    }));
-
-    // 5. Store in cache for future requests (completely optional, non-blocking)
-    // NOTE: Cache layer not yet implemented - SmartSQL/SmartMemory not configured
-    // This will fail silently and log warnings, which is expected behavior
-    storeArticlesInCache(user.id, articlesWithPlaceholders)
-      .then(() => console.log(`✅ Cached ${articlesWithPlaceholders.length} articles for future requests`))
-      .catch((cacheError) => console.warn('Failed to cache articles (non-fatal, expected until cache configured):', cacheError?.message || cacheError));
+    // 5. Trigger background image enrichment (fire-and-forget)
+    // This runs asynchronously and updates cache with real images
+    const enrichmentUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/news/enrich-images`;
+    fetch(enrichmentUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: user.id,
+        articles,
+      }),
+    })
+      .then(() => console.log('🖼️  Background image enrichment triggered'))
+      .catch((err) => console.warn('Failed to trigger background enrichment (non-fatal):', err.message));
 
     // 6. Return ALL articles (widget organizes by topic)
     const latency = Date.now() - startTime;
-    console.log(`✅ Served ${articlesWithPlaceholders.length} fresh articles (${latency}ms)`);
+    console.log(`✅ Served ${articles.length} fresh articles (${latency}ms)`);
 
     return NextResponse.json({
       success: true,
-      data: articlesWithPlaceholders, // Return ALL articles, not sliced - widget organizes by topic
+      data: articles, // Return ALL articles, not sliced - widget organizes by topic
       meta: {
-        total: articlesWithPlaceholders.length,
+        total: articles.length,
         cached: false,
-        cacheSource: 'Brave Search (fast, no image enrichment)',
+        cacheSource: 'Brave Search (fast response)',
         personalized: true,
         interests: profile.policyInterests,
         state: profile.location?.state,
         district: profile.location?.district,
         latency,
-        note: 'Images use topic-based placeholders for speed'
+        note: 'Images enriching in background - refresh in 30s for real images'
       }
     });
 

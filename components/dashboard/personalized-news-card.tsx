@@ -37,17 +37,42 @@ const topicDisplayNames: Record<string, string> = {
   'civil-rights': 'Civil Rights',
 };
 
+// Map topics to colors for placeholders
+const topicColors: Record<string, string> = {
+  'healthcare': 'bg-blue-500',
+  'education': 'bg-orange-500',
+  'science': 'bg-green-500',
+  'technology': 'bg-cyan-500',
+  'climate': 'bg-emerald-600',
+  'economy': 'bg-purple-500',
+  'business': 'bg-violet-500',
+  'taxes': 'bg-red-500',
+  'immigration': 'bg-yellow-500',
+  'housing': 'bg-lime-500',
+  'defense': 'bg-amber-600',
+  'transportation': 'bg-slate-500',
+  'agriculture': 'bg-green-600',
+  'social': 'bg-orange-600',
+  'civil-rights': 'bg-red-600',
+};
+
 export function PersonalizedNewsCard({ article }: PersonalizedNewsCardProps) {
   const [isFollowing, setIsFollowing] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   // Get primary category from first topic
   const primaryTopic = article.relevantTopics[0] || 'news';
   const categoryDisplay = topicDisplayNames[primaryTopic] || primaryTopic.charAt(0).toUpperCase() + primaryTopic.slice(1);
+  const colorClass = topicColors[primaryTopic] || 'bg-blue-500';
 
   const handleFollowToggle = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsFollowing(!isFollowing);
+  };
+
+  const handleImageError = () => {
+    setImageError(true);
   };
 
   return (
@@ -85,17 +110,24 @@ export function PersonalizedNewsCard({ article }: PersonalizedNewsCardProps) {
           </h3>
         </div>
 
-        {/* Right side: Image */}
-        {article.imageUrl && (
-          <div className="w-full sm:w-36 md:w-40 h-32 sm:h-auto flex-shrink-0 bg-gray-100">
+        {/* Right side: Image or colored placeholder */}
+        <div className="w-full sm:w-36 md:w-40 h-32 sm:h-auto flex-shrink-0">
+          {article.imageUrl && !imageError && !article.imageUrl.includes('placeholder.com') ? (
             <img
               src={article.imageUrl}
               alt={article.title}
               className="w-full h-full object-cover"
               loading="lazy"
+              onError={handleImageError}
             />
-          </div>
-        )}
+          ) : (
+            <div className={`w-full h-full flex items-center justify-center ${colorClass}`}>
+              <span className="text-white text-xs font-semibold uppercase tracking-wide px-2 text-center">
+                {categoryDisplay}
+              </span>
+            </div>
+          )}
+        </div>
       </a>
     </Card>
   );
