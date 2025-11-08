@@ -115,17 +115,17 @@ export async function GET(req: NextRequest) {
           // Fetch topic images even for cached articles
           console.log(`📸 Fetching topic header images for ${profile.policyInterests.length} interests...`);
 
-          const { getRandomPhoto } = await import('@/lib/api/unsplash');
+          const { getRandomPhoto } = await import('@/lib/api/pexels');
 
           const topicImages = await Promise.all(
-            profile.policyInterests.map(async (interest) => {
+            profile.policyInterests.map(async (interest: string) => {
               try {
                 const image = await getRandomPhoto(interest);
                 if (image) {
                   return {
                     topic: interest,
                     imageUrl: image.url,
-                    imageAlt: image.alt_description || `${interest} news`,
+                    imageAlt: image.alt || `${interest} news`,
                     photographer: image.photographer,
                     photographerUrl: image.photographerUrl,
                   };
@@ -182,7 +182,7 @@ export async function GET(req: NextRequest) {
     // 5. Fetch topic header images (one per interest, max 8 requests)
     console.log(`📸 Fetching topic header images for ${profile.policyInterests.length} interests...`);
 
-    const { getRandomPhoto } = await import('@/lib/api/unsplash');
+    const { getRandomPhoto } = await import('@/lib/api/pexels');
 
     const topicImages = await Promise.all(
       profile.policyInterests.map(async (interest) => {
@@ -193,7 +193,7 @@ export async function GET(req: NextRequest) {
             return {
               topic: interest,
               imageUrl: image.url,
-              imageAlt: image.alt_description || `${interest} news`,
+              imageAlt: image.alt || `${interest} news`,
               photographer: image.photographer,
               photographerUrl: image.photographerUrl,
             };
