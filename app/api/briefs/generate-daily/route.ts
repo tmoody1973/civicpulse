@@ -53,6 +53,7 @@ interface NewsArticle {
   source: string;
   published_date: string;
   extra_snippets?: string[]; // Additional context snippets from Brave Search for richer dialogue
+  image_url?: string; // Featured image URL from news article (for brief featured card)
 }
 
 export async function POST(request: NextRequest) {
@@ -617,6 +618,169 @@ export async function generateWrittenDigest(
   digest += `[Manage your preferences](${process.env.NEXT_PUBLIC_APP_URL}/settings) • [View all briefs](${process.env.NEXT_PUBLIC_APP_URL}/briefs)\n`;
 
   return digest;
+}
+
+/**
+ * Generate a unique, catchy title using Claude AI
+ */
+async function generateBriefTitle(
+  newsArticles: NewsArticle[],
+  bills: Bill[],
+  writtenDigest: string
+): Promise<string> {
+  try {
+    console.log('🎯 Generating unique title with Claude AI...');
+
+    // Import Anthropic SDK
+    const Anthropic = (await import('@anthropic-ai/sdk')).default;
+    const client = new Anthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY,
+    });
+
+    // Build context summary for AI
+    const topNews = newsArticles.slice(0, 3).map(a => a.title).join('; ');
+    const topBills = bills.slice(0, 3).map(b => `${b.bill_type.toUpperCase()} ${b.bill_number}: ${b.title}`).join('; ');
+
+    const prompt = `Generate a catchy, descriptive title for today's congressional brief based on this content:
+
+TOP NEWS STORIES:
+${topNews}
+
+TOP BILLS COVERED:
+${topBills}
+
+WRITTEN DIGEST EXCERPT:
+${writtenDigest.substring(0, 500)}...
+
+Create a compelling title that:
+- Summarizes the main themes/topics covered (max 80 characters)
+- Is engaging and informative (NPR/news-style)
+- Captures what makes today's brief unique
+- Avoids generic phrases like "Daily Brief" or "Legislative Update"
+- Examples: "Trump's Education Bill Sparks Debate as Defense Spending Soars" or "Tax Reform and Infrastructure: What Congress Did This Week"
+
+Return ONLY the title text, nothing else.`;
+
+    const response = await client.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 200,
+      messages: [
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+    });
+
+    // Extract title from response
+    const aiTitle = (response.content[0] as any).text?.trim() || '';
+
+    if (aiTitle && aiTitle.length > 0 && aiTitle.length <= 150) {
+      console.log(`✨ Generated AI title: ${aiTitle}`);
+      return aiTitle;
+    } else {
+      console.log('⚠️  AI title invalid, using fallback');
+      throw new Error('Invalid AI response');
+    }
+  } catch (error: any) {
+    console.log('⚠️  AI title generation failed, using fallback:', error.message);
+    // Fallback to basic title
+    const topArticle = newsArticles[0];
+    const topBill = bills[0];
+    return topArticle?.title || topBill?.title || 'Daily Legislative Brief';
+  }
+}
+
+/**
+ * Extract metadata for featured brief card
+ *
+ * EXPORTED for use by background worker
+ * NOW ASYNC - uses Claude AI to generate unique titles
+ */
+export async function extractBriefMetadata(
+  newsArticles: NewsArticle[],
+  bills: Bill[],
+  writtenDigest: string
+): Promise<{
+  title: string;
+  headline: string;
+  excerpt: string;
+  category: string;
+  featured_image_url: string | null;
+}> {
+  // Use top news article for excerpt and featured image
+  const topArticle = newsArticles[0];
+  const topBill = bills[0];
+
+  // Headline: Generate unique title with Claude AI (with fallback)
+  const headline = await generateBriefTitle(newsArticles, bills, writtenDigest);
+
+  // Title: Shorter version for database/API
+  const title = headline.length > 100 ? headline.substring(0, 97) + '...' : headline;
+
+  // Category: Map policy area to readable category (needed for Pexels fallback)
+  const policyArea = topArticle?.policy_area || topBill?.policy_area || topBill?.ai_policy_area || 'General';
+  const categoryMap: Record<string, string> = {
+    'education': 'Education',
+    'science': 'Science & Technology',
+    'technology': 'Technology',
+    'business': 'Business & Economy',
+    'taxes': 'Tax Policy',
+    'transportation': 'Infrastructure',
+    'defense': 'Defense & Security',
+    'civil-rights': 'Civil Rights',
+    'healthcare': 'Healthcare',
+    'Health': 'Healthcare',
+    'Science, Technology, Communications': 'Science & Technology',
+    'Commerce': 'Business & Economy',
+    'Finance and Financial Sector': 'Finance',
+    'Taxation': 'Tax Policy',
+    'Economics and Public Finance': 'Economy',
+    'Transportation and Public Works': 'Infrastructure',
+    'Armed Forces and National Security': 'Defense & Security',
+    'Civil Rights and Liberties, Minority Issues': 'Civil Rights',
+  };
+
+  const category = categoryMap[policyArea] || 'Legislative News';
+
+  // Featured Image: Try news article first, then Pexels fallback
+  let featured_image_url = topArticle?.image_url || null;
+
+  if (!featured_image_url) {
+    // Fallback to Pexels API for category-relevant image
+    const { searchPexelsImage, getCategorySearchQuery } = await import('@/lib/images/pexels');
+    const searchQuery = getCategorySearchQuery(category);
+    featured_image_url = await searchPexelsImage(searchQuery);
+
+    if (featured_image_url) {
+      console.log(`📸 Using Pexels fallback image for category: ${category}`);
+    }
+  }
+
+  // Excerpt: First sentence of top news summary or bill summary
+  let excerpt = '';
+  if (topArticle?.summary) {
+    const sentences = topArticle.summary.split(/[.!?]/);
+    excerpt = sentences[0] ? sentences[0].trim() + '.' : topArticle.summary.substring(0, 150);
+  } else if (topBill?.summary) {
+    const sentences = topBill.summary.split(/[.!?]/);
+    excerpt = sentences[0] ? sentences[0].trim() + '.' : topBill.summary.substring(0, 150);
+  } else {
+    excerpt = 'Your personalized daily brief covering the latest Congressional news and legislative updates.';
+  }
+
+  // Ensure excerpt isn't too long
+  if (excerpt.length > 200) {
+    excerpt = excerpt.substring(0, 197) + '...';
+  }
+
+  return {
+    title,
+    headline,
+    excerpt,
+    category,
+    featured_image_url,
+  };
 }
 
 /**

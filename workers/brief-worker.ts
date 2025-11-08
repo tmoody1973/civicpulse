@@ -103,6 +103,7 @@ async function processBriefJob(job: Job<BriefJobData>) {
       fetchPrioritizedBills,
       generateBriefScript,
       generateWrittenDigest,
+      extractBriefMetadata,
     } = await import('../app/api/briefs/generate-daily/route');
 
     // Step 2: Fetch news articles (20%)
@@ -153,6 +154,11 @@ async function processBriefJob(job: Job<BriefJobData>) {
 
     const writtenDigest = await generateWrittenDigest(newsArticles, bills);
 
+    // Extract metadata for featured brief card (NOW ASYNC - uses Claude AI)
+    console.log('🎯 Extracting metadata with AI-generated title...');
+    const metadata = await extractBriefMetadata(newsArticles, bills, writtenDigest);
+    console.log(`📊 Extracted metadata: ${metadata.headline}`);
+
     // Step 8: Save to database (95%)
     await job.updateProgress(95);
     console.log('💾 Saving to database...');
@@ -184,8 +190,28 @@ async function processBriefJob(job: Job<BriefJobData>) {
     };
 
     const sql = `
-      INSERT INTO briefs (id, user_id, type, audio_url, duration, transcript, bills_covered, written_digest, policy_areas, generated_at)
-      VALUES (${escapeSql(briefId)}, ${escapeSql(user.id)}, ${escapeSql('daily')}, ${escapeSql(audioUrl)}, ${escapeSql(estimatedDuration)}, ${escapeSql(transcript)}, ${escapeSql(billsCoveredJson)}, ${escapeSql(writtenDigest)}, ${escapeSql(policyAreasJson)}, CURRENT_TIMESTAMP)
+      INSERT INTO briefs (
+        id, user_id, type, audio_url, duration, transcript, bills_covered, written_digest, policy_areas,
+        title, headline, excerpt, category, author, featured_image_url, generated_at
+      )
+      VALUES (
+        ${escapeSql(briefId)},
+        ${escapeSql(user.id)},
+        ${escapeSql('daily')},
+        ${escapeSql(audioUrl)},
+        ${escapeSql(estimatedDuration)},
+        ${escapeSql(transcript)},
+        ${escapeSql(billsCoveredJson)},
+        ${escapeSql(writtenDigest)},
+        ${escapeSql(policyAreasJson)},
+        ${escapeSql(metadata.title)},
+        ${escapeSql(metadata.headline)},
+        ${escapeSql(metadata.excerpt)},
+        ${escapeSql(metadata.category)},
+        ${escapeSql('Civic Pulse AI')},
+        ${escapeSql(metadata.featured_image_url)},
+        CURRENT_TIMESTAMP
+      )
     `;
 
     await saveToDb(sql, 'users');
