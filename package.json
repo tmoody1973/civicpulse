@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "worker": "npx tsx workers/brief-worker.ts",
+    "worker:news": "npx tsx workers/news-worker.ts",
     "worker:images": "dotenv -e .env.local -- npx tsx workers/image-worker.ts",
     "build": "next build",
     "start": "next start",

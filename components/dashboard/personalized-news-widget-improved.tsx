@@ -101,6 +101,8 @@ export function PersonalizedNewsWidget({
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<number>(0);
+  const [progressMessage, setProgressMessage] = useState<string>('');
   const [cacheInfo, setCacheInfo] = useState<{
     cached: boolean;
     latency?: number;
@@ -269,50 +271,138 @@ export function PersonalizedNewsWidget({
         }
       }
 
-      // Step 2: Fetch from API
+      // Step 2: Start job via queue
       lastFetchTime.current = now;
 
-      const url = new URL('/api/news/personalized', window.location.origin);
-      url.searchParams.set('limit', String(limit));
-      if (forceRefresh) {
-        url.searchParams.set('refresh', 'true');
-      }
+      console.log(`[PersonalizedNews] Starting job${isBackgroundRevalidate ? ' (background)' : ''}...`);
 
-      console.log(`[PersonalizedNews] Fetching from API${isBackgroundRevalidate ? ' (background)' : ''}:`, url.toString());
-      const response = await fetch(url.toString(), {
+      // Start the job
+      const queueResponse = await fetch('/api/news/queue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
+        body: JSON.stringify({
+          limit,
+          forceRefresh,
+        }),
       });
 
-      if (!response.ok) {
-        let errorMessage = 'Failed to fetch personalized news';
+      if (!queueResponse.ok) {
+        let errorMessage = 'Failed to queue news generation';
         try {
-          const errorData = await response.json();
+          const errorData = await queueResponse.json();
           errorMessage = errorData.error || errorMessage;
         } catch (e) {
-          errorMessage = response.statusText || errorMessage;
+          errorMessage = queueResponse.statusText || errorMessage;
         }
-        throw new Error(`${errorMessage} (status: ${response.status})`);
+        throw new Error(`${errorMessage} (status: ${queueResponse.status})`);
       }
 
-      const data = await response.json();
+      const queueData = await queueResponse.json();
 
-      if (data.success && data.data) {
-        const images = data.topicImages || [];
+      // If cached data is returned immediately, use it
+      if (queueData.cached && queueData.articles) {
+        const images = queueData.topicImages || [];
         setTopicImages(images);
-        const sections = organizeByTopics(data.data, images);
+        const sections = organizeByTopics(queueData.articles, images);
         setTopicSections(sections);
         setCacheInfo({
-          cached: data.meta?.cached || false,
-          latency: data.meta?.latency,
+          cached: true,
+          latency: 0,
           isStale: false
         });
 
         // Store in cache
         setCachedData(cacheKey, {
-          articles: data.data,
+          articles: queueData.articles,
           topicImages: images
         });
+
+        setProgress(100);
+        return;
       }
+
+      // Poll for job status
+      const jobId = queueData.jobId;
+      console.log(`📊 Job ${jobId} started, polling for status...`);
+      setProgress(0);
+      setProgressMessage('Starting news generation...');
+
+      const pollInterval = 2000; // Poll every 2 seconds
+      const maxPolls = 30; // Max 60 seconds (30 polls × 2s)
+      let pollCount = 0;
+
+      while (pollCount < maxPolls) {
+        if (!isMounted.current) {
+          console.log('Component unmounted, stopping poll');
+          return;
+        }
+
+        await new Promise(resolve => setTimeout(resolve, pollInterval));
+        pollCount++;
+
+        const statusResponse = await fetch(`/api/news/status/${jobId}`, {
+          credentials: 'include',
+        });
+
+        if (!statusResponse.ok) {
+          console.error('Status check failed:', statusResponse.status);
+          continue;
+        }
+
+        const statusData = await statusResponse.json();
+        console.log(`📊 Job ${jobId} status:`, statusData.status, `(${statusData.progress}%)`);
+
+        // Update progress
+        if (typeof statusData.progress === 'number') {
+          setProgress(statusData.progress);
+
+          // Update progress message based on progress
+          if (statusData.progress < 25) {
+            setProgressMessage('Fetching user profile...');
+          } else if (statusData.progress < 50) {
+            setProgressMessage('Searching for news...');
+          } else if (statusData.progress < 75) {
+            setProgressMessage('Fetching topic images...');
+          } else if (statusData.progress < 100) {
+            setProgressMessage('Saving results...');
+          }
+        }
+
+        // Check if job is completed
+        if (statusData.status === 'completed' && statusData.result) {
+          console.log('✅ Job completed successfully');
+          setProgress(100);
+          setProgressMessage('Done!');
+
+          const result = statusData.result;
+          const images = result.topicImages || [];
+          setTopicImages(images);
+          const sections = organizeByTopics(result.articles, images);
+          setTopicSections(sections);
+          setCacheInfo({
+            cached: false,
+            latency: result.processingTime,
+            isStale: false
+          });
+
+          // Store in cache
+          setCachedData(cacheKey, {
+            articles: result.articles,
+            topicImages: images
+          });
+
+          return;
+        }
+
+        // Check if job failed
+        if (statusData.status === 'failed') {
+          throw new Error(statusData.failedReason || 'Job failed');
+        }
+      }
+
+      // If we get here, job timed out
+      throw new Error('Job timed out after 60 seconds');
     } catch (error) {
       console.error('Error fetching personalized news:', error);
 
@@ -383,7 +473,22 @@ export function PersonalizedNewsWidget({
     return (
       <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
         <Loader2 className="h-8 w-8 animate-spin mb-3" />
-        <p className="text-sm">Finding news tailored for you...</p>
+        <p className="text-sm mb-2">
+          {progressMessage || 'Finding news tailored for you...'}
+        </p>
+        {progress > 0 && (
+          <div className="w-full max-w-xs space-y-2">
+            <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+              <div
+                className="h-full bg-primary transition-all duration-300 ease-out"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <p className="text-xs text-center text-muted-foreground">
+              {progress}% complete
+            </p>
+          </div>
+        )}
       </div>
     );
   }
