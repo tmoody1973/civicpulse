@@ -34,14 +34,14 @@ export function DashboardWidget({
     <Card
       data-widget={widgetId}
       data-testid={`${widgetId}-widget`}
-      className={`dashboard-widget ${className}`}
+      className={`widget-card ${className}`}
     >
       <CardHeader>
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <CardTitle>{title}</CardTitle>
+            <CardTitle className="text-foreground">{title}</CardTitle>
             {description && (
-              <CardDescription className="mt-1">{description}</CardDescription>
+              <CardDescription className="mt-1 text-subtle">{description}</CardDescription>
             )}
           </div>
           {canHide && onHide && (
@@ -51,7 +51,7 @@ export function DashboardWidget({
               onClick={onHide}
               aria-label={`Hide ${title}`}
               data-testid={`hide-${widgetId}-button`}
-              className="ml-2 shrink-0"
+              className="ml-2 shrink-0 hover:bg-muted"
             >
               <EyeOff className="h-4 w-4" />
             </Button>
