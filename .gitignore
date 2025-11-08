@@ -44,3 +44,4 @@ public/podcasts/
 
 # Local Netlify folder
 .netlify
+.env.local.backup
