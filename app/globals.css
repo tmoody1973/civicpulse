@@ -4,48 +4,53 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
-    --radius: 0.5rem;
-  }
+    /* Quiver-inspired dark theme - always dark mode */
+    /* Deep background like Quiver */
+    --background: 222 47% 4%; /* #0A0A0F - nearly black */
+    --foreground: 210 40% 98%; /* White text */
 
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
+    /* Widget cards - slightly lighter than background */
+    --card: 222 40% 11%; /* #1A1A24 - dark card */
     --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
+
+    /* Popovers and dropdowns */
+    --popover: 222 40% 14%; /* #1F1F2E */
     --popover-foreground: 210 40% 98%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
+
+    /* Primary action color - Blue */
+    --primary: 217 91% 60%; /* #3B82F6 - vibrant blue */
+    --primary-foreground: 210 40% 98%;
+
+    /* Secondary elements */
+    --secondary: 217 33% 18%; /* #1E293B - slate */
     --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
+
+    /* Muted backgrounds and text */
+    --muted: 217 33% 18%; /* #1E293B */
+    --muted-foreground: 215 20% 65%; /* #94A3B8 - light grey text */
+
+    /* Accent colors - Mint green for success/positive */
+    --accent: 160 84% 39%; /* #10B981 - mint green */
     --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
+
+    /* Destructive/error - Coral red */
+    --destructive: 0 85% 60%; /* #EF4444 */
     --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
+
+    /* Borders - subtle grey */
+    --border: 217 33% 22%; /* #2D3748 - subtle border */
+    --input: 217 33% 18%;
+
+    /* Focus ring */
+    --ring: 217 91% 60%;
+
+    /* Border radius */
+    --radius: 0.75rem;
+
+    /* Additional Quiver-inspired colors */
+    --success: 160 84% 39%; /* #10B981 - mint green */
+    --warning: 25 95% 53%; /* #F97316 - orange */
+    --info: 199 89% 48%; /* #0EA5E9 - sky blue */
   }
 }
 
@@ -53,7 +58,82 @@
   * {
     @apply border-border;
   }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    /* Smooth scrolling */
+    scroll-behavior: smooth;
+  }
+
+  /* Ensure proper dark mode rendering */
+  html {
+    @apply bg-background;
+  }
+
+  /* Custom scrollbar for dark theme */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-background;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-muted rounded-lg;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/30;
+  }
+
+  /* Selection color */
+  ::selection {
+    @apply bg-primary/30 text-foreground;
+  }
+}
+
+@layer utilities {
+  /* Widget card style like Quiver */
+  .widget-card {
+    @apply bg-card border border-border rounded-xl p-6 shadow-lg;
+  }
+
+  /* Elevated widget for important content */
+  .widget-card-elevated {
+    @apply widget-card ring-1 ring-border/50;
+  }
+
+  /* Success indicator */
+  .text-success {
+    color: hsl(var(--success));
+  }
+
+  .bg-success {
+    background-color: hsl(var(--success));
+  }
+
+  /* Warning indicator */
+  .text-warning {
+    color: hsl(var(--warning));
+  }
+
+  .bg-warning {
+    background-color: hsl(var(--warning));
+  }
+
+  /* Info indicator */
+  .text-info {
+    color: hsl(var(--info));
+  }
+
+  .bg-info {
+    background-color: hsl(var(--info));
+  }
+
+  /* Muted text utility */
+  .text-subtle {
+    @apply text-muted-foreground;
   }
 }

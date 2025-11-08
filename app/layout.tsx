@@ -10,6 +10,8 @@ const inter = Inter({ subsets: ['latin'] });
 export const metadata: Metadata = {
   title: 'HakiVo - Know What Congress Is Doing',
   description: 'Track bills, understand legislation, follow your representatives\' votes, and stay informed—all in plain English',
+  themeColor: '#0A0A0F',
+  colorScheme: 'dark',
 };
 
 export default function RootLayout({
