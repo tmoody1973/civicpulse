@@ -3,7 +3,8 @@
 
 [build]
   command = "npm run build"
-  publish = ".next"
+  # Note: @netlify/plugin-nextjs automatically handles the publish directory
+  # DO NOT set publish directory manually - it breaks CSS loading
   ignore = "git diff --quiet HEAD^ HEAD -- ':(exclude)*.md'"
 
 # Next.js Netlify Plugin
