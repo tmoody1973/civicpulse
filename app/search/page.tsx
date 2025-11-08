@@ -54,6 +54,7 @@ interface SearchResult {
 
 interface SearchResponse {
   success: boolean;
+  error?: string;
   searchType: string;
   layer: string;
   query: string;
