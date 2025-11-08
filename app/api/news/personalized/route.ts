@@ -104,7 +104,7 @@ export async function GET(req: NextRequest) {
       try {
         const cachedArticles = await getRecentNewsArticles(
           profile.policyInterests,
-          15 * 60 * 1000, // 15 minutes for fresher news
+          60 * 60 * 1000, // 1 hour cache for better performance
           limit
         );
 
@@ -112,32 +112,9 @@ export async function GET(req: NextRequest) {
           const latency = Date.now() - startTime;
           console.log(`✅ Serving ${cachedArticles.length} articles from database (${latency}ms)`);
 
-          // Fetch topic images even for cached articles
-          console.log(`📸 Fetching topic header images for ${profile.policyInterests.length} interests...`);
-
-          const { getRandomPhoto } = await import('@/lib/api/pexels');
-
-          const topicImages = await Promise.all(
-            profile.policyInterests.map(async (interest: string) => {
-              try {
-                const image = await getRandomPhoto(interest);
-                if (image) {
-                  return {
-                    topic: interest,
-                    imageUrl: image.url,
-                    imageAlt: image.alt || `${interest} news`,
-                    photographer: image.photographer,
-                    photographerUrl: image.photographerUrl,
-                  };
-                }
-              } catch (error) {
-                console.log(`  ⚠️  Failed to get image for topic ${interest}`);
-              }
-              return null;
-            })
-          );
-
-          const validTopicImages = topicImages.filter((img): img is NonNullable<typeof img> => img !== null);
+          // Skip topic images for cached data to avoid timeout
+          // Frontend will use cached images or show without images
+          console.log(`⚡ Returning cached articles without topic images (performance optimization)`);
 
           // Convert database format to API format
           const apiArticles = cachedArticles.map(article => ({
@@ -152,7 +129,7 @@ export async function GET(req: NextRequest) {
           return NextResponse.json({
             success: true,
             data: apiArticles,
-            topicImages: validTopicImages,
+            topicImages: [], // Empty for cached data
             meta: {
               total: apiArticles.length,
               cached: true,
