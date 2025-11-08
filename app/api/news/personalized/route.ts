@@ -185,7 +185,7 @@ export async function GET(req: NextRequest) {
     const { getRandomPhoto } = await import('@/lib/api/pexels');
 
     const topicImages = await Promise.all(
-      profile.policyInterests.map(async (interest) => {
+      profile.policyInterests.map(async (interest: string) => {
         try {
           const image = await getRandomPhoto(interest);
           if (image) {
