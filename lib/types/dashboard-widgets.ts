@@ -9,7 +9,8 @@ export type WidgetId =
   | 'representatives'
   | 'podcast-queue'
   | 'news'
-  | 'civic-impact';
+  | 'civic-impact'
+  | 'latest-actions';
 
 export interface WidgetConfig {
   id: WidgetId;
@@ -55,6 +56,12 @@ export const DEFAULT_WIDGET_CONFIG: Record<WidgetId, Omit<WidgetConfig, 'isVisib
     id: 'civic-impact',
     title: 'Your Civic Impact',
     description: 'Track your engagement and learning progress',
+    canHide: true,
+  },
+  'latest-actions': {
+    id: 'latest-actions',
+    title: 'Latest Actions',
+    description: 'Recent bill actions from Congress.gov',
     canHide: true,
   },
 };

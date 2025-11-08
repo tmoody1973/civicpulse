@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { RepresentativeHeader } from '@/components/representatives/representative-header';
 import { QuickStats } from '@/components/representatives/quick-stats';
 import { LegislationTabs } from '@/components/representatives/legislation-tabs';
+import { PressReleases } from '@/components/representative/press-releases';
 import { AppHeader } from '@/components/shared/app-header';
 import { getSession } from '@/lib/auth/session';
 import { getRepresentativeData } from '@/lib/congress/get-representative-data';
@@ -78,18 +79,30 @@ export default async function RepresentativePage({ params }: PageProps) {
 
       {/* Main content */}
       <div className="container mx-auto px-4 py-8 max-w-7xl">
-        <div className="space-y-8">
-          {/* Representative profile header */}
+        {/* Representative profile header (full width) */}
+        <div className="mb-8">
           <RepresentativeHeader representative={representative} />
+        </div>
 
-          {/* Quick statistics */}
-          <QuickStats stats={stats} />
+        {/* Two-column layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left column: Main content (2/3 width on desktop) */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Quick statistics */}
+            <QuickStats stats={stats} />
 
-          {/* Legislation tabs (Sponsored + Co-Sponsored) */}
-          <LegislationTabs
-            sponsoredBills={sponsoredBills}
-            cosponsoredBills={cosponsoredBills || []}
-          />
+            {/* Legislation tabs (Sponsored + Co-Sponsored) */}
+            <LegislationTabs
+              sponsoredBills={sponsoredBills}
+              cosponsoredBills={cosponsoredBills || []}
+            />
+          </div>
+
+          {/* Right column: Sidebar (1/3 width on desktop) */}
+          <div className="space-y-6">
+            {/* Press Releases */}
+            <PressReleases bioguideId={bioguideId} limit={5} />
+          </div>
         </div>
       </div>
     </div>

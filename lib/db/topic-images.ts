@@ -1,14 +1,16 @@
 /**
- * Topic Images Database Operations
+ * Topic Images Storage (Netlify Blobs)
  *
  * Store and retrieve topic header images for personalized news.
- * Images are fetched once from Pexels and cached permanently.
+ * Images are fetched once from Pexels and cached permanently in Netlify Blobs.
+ *
+ * Why Netlify Blobs instead of SQLite:
+ * - SQLite requires writable filesystem (not available in Netlify Functions)
+ * - Netlify Blobs provides persistent key-value storage across serverless invocations
+ * - Designed for Netlify platform (hackathon requirement)
  */
 
-import Database from 'better-sqlite3';
-import path from 'path';
-
-const dbPath = path.join(process.cwd(), 'civic-db.sqlite');
+import { getStore } from '@netlify/blobs';
 
 export interface TopicImage {
   topic: string;
@@ -19,163 +21,123 @@ export interface TopicImage {
   createdAt: Date;
 }
 
-interface TopicImageRow {
+interface TopicImageData {
   topic: string;
-  image_url: string;
-  image_alt: string;
+  imageUrl: string;
+  imageAlt: string;
   photographer: string;
-  photographer_url: string;
-  created_at: string;
+  photographerUrl: string;
+  createdAt: string;
 }
 
 /**
- * Initialize topic_images table
+ * Get Netlify Blobs store for topic images
+ */
+function getTopicImagesStore() {
+  return getStore('topic-images');
+}
+
+/**
+ * No initialization needed for Netlify Blobs
  */
 export function initTopicImagesTable() {
-  const db = new Database(dbPath);
-
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS topic_images (
-      topic TEXT PRIMARY KEY,
-      image_url TEXT NOT NULL,
-      image_alt TEXT NOT NULL,
-      photographer TEXT NOT NULL,
-      photographer_url TEXT NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-
-  db.close();
+  // No-op: Netlify Blobs are created automatically
+  console.log('Using Netlify Blobs for topic images (no initialization needed)');
 }
 
 /**
- * Get topic image from database
+ * Get topic image from Netlify Blobs
  */
-export function getTopicImage(topic: string): TopicImage | null {
-  const db = new Database(dbPath);
-
+export async function getTopicImage(topic: string): Promise<TopicImage | null> {
   try {
-    const row = db.prepare(`
-      SELECT * FROM topic_images WHERE topic = ?
-    `).get(topic) as TopicImageRow | undefined;
+    const store = getTopicImagesStore();
+    const data = await store.get(topic, { type: 'json' }) as TopicImageData | null;
 
-    if (!row) {
+    if (!data) {
       return null;
     }
 
     return {
-      topic: row.topic,
-      imageUrl: row.image_url,
-      imageAlt: row.image_alt,
-      photographer: row.photographer,
-      photographerUrl: row.photographer_url,
-      createdAt: new Date(row.created_at),
+      ...data,
+      createdAt: new Date(data.createdAt),
     };
-  } finally {
-    db.close();
+  } catch (error) {
+    console.error(`Failed to get topic image for "${topic}":`, error);
+    return null;
   }
 }
 
 /**
- * Get multiple topic images from database
+ * Get multiple topic images from Netlify Blobs
  */
-export function getTopicImages(topics: string[]): TopicImage[] {
+export async function getTopicImages(topics: string[]): Promise<TopicImage[]> {
   if (topics.length === 0) return [];
 
-  const db = new Database(dbPath);
-
   try {
-    const placeholders = topics.map(() => '?').join(', ');
-    const rows = db.prepare(`
-      SELECT * FROM topic_images WHERE topic IN (${placeholders})
-    `).all(...topics) as TopicImageRow[];
-
-    return rows.map(row => ({
-      topic: row.topic,
-      imageUrl: row.image_url,
-      imageAlt: row.image_alt,
-      photographer: row.photographer,
-      photographerUrl: row.photographer_url,
-      createdAt: new Date(row.created_at),
-    }));
-  } finally {
-    db.close();
-  }
-}
-
-/**
- * Store topic image in database
- */
-export function saveTopicImage(topicImage: Omit<TopicImage, 'createdAt'>): void {
-  const db = new Database(dbPath);
-
-  try {
-    db.prepare(`
-      INSERT OR REPLACE INTO topic_images (
-        topic, image_url, image_alt, photographer, photographer_url
-      ) VALUES (?, ?, ?, ?, ?)
-    `).run(
-      topicImage.topic,
-      topicImage.imageUrl,
-      topicImage.imageAlt,
-      topicImage.photographer,
-      topicImage.photographerUrl
+    // Fetch all topics in parallel
+    const results = await Promise.all(
+      topics.map(topic => getTopicImage(topic))
     );
-  } finally {
-    db.close();
+
+    // Filter out null results
+    return results.filter((img): img is TopicImage => img !== null);
+  } catch (error) {
+    console.error('Failed to get topic images:', error);
+    return [];
   }
 }
 
 /**
- * Store multiple topic images in database
+ * Store topic image in Netlify Blobs
  */
-export function saveTopicImages(topicImages: Omit<TopicImage, 'createdAt'>[]): void {
+export async function saveTopicImage(topicImage: Omit<TopicImage, 'createdAt'>): Promise<void> {
+  try {
+    const store = getTopicImagesStore();
+
+    const data: TopicImageData = {
+      ...topicImage,
+      createdAt: new Date().toISOString(),
+    };
+
+    await store.setJSON(topicImage.topic, data);
+    console.log(`Saved topic image for "${topicImage.topic}" to Netlify Blobs`);
+  } catch (error) {
+    console.error(`Failed to save topic image for "${topicImage.topic}":`, error);
+    throw error;
+  }
+}
+
+/**
+ * Store multiple topic images in Netlify Blobs
+ */
+export async function saveTopicImages(topicImages: Omit<TopicImage, 'createdAt'>[]): Promise<void> {
   if (topicImages.length === 0) return;
 
-  const db = new Database(dbPath);
-
   try {
-    const stmt = db.prepare(`
-      INSERT OR REPLACE INTO topic_images (
-        topic, image_url, image_alt, photographer, photographer_url
-      ) VALUES (?, ?, ?, ?, ?)
-    `);
-
-    const transaction = db.transaction((images: Omit<TopicImage, 'createdAt'>[]) => {
-      for (const image of images) {
-        stmt.run(
-          image.topic,
-          image.imageUrl,
-          image.imageAlt,
-          image.photographer,
-          image.photographerUrl
-        );
-      }
-    });
-
-    transaction(topicImages);
-  } finally {
-    db.close();
+    // Save all images in parallel
+    await Promise.all(
+      topicImages.map(image => saveTopicImage(image))
+    );
+    console.log(`Saved ${topicImages.length} topic images to Netlify Blobs`);
+  } catch (error) {
+    console.error('Failed to save topic images:', error);
+    throw error;
   }
 }
 
 /**
  * Get all topics that don't have images yet
  */
-export function getMissingTopicImages(topics: string[]): string[] {
+export async function getMissingTopicImages(topics: string[]): Promise<string[]> {
   if (topics.length === 0) return [];
 
-  const db = new Database(dbPath);
-
   try {
-    const placeholders = topics.map(() => '?').join(', ');
-    const existingTopics = db.prepare(`
-      SELECT topic FROM topic_images WHERE topic IN (${placeholders})
-    `).all(...topics) as { topic: string }[];
-
-    const existingSet = new Set(existingTopics.map(row => row.topic));
+    const existingImages = await getTopicImages(topics);
+    const existingSet = new Set(existingImages.map(img => img.topic));
     return topics.filter(topic => !existingSet.has(topic));
-  } finally {
-    db.close();
+  } catch (error) {
+    console.error('Failed to get missing topic images:', error);
+    // Return all topics as missing on error (fallback to fetching all)
+    return topics;
   }
 }

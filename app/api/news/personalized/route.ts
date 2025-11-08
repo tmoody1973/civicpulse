@@ -125,9 +125,9 @@ export async function GET(req: NextRequest) {
           const latency = Date.now() - startTime;
           console.log(`✅ Serving ${cachedArticles.length} articles from database (${latency}ms)`);
 
-          // Get topic images from database (instant, already cached)
-          const topicImagesFromDb = getTopicImages(profile.policyInterests);
-          console.log(`📸 Retrieved ${topicImagesFromDb.length}/${profile.policyInterests.length} topic images from database`);
+          // Get topic images from Netlify Blobs (instant, already cached)
+          const topicImagesFromDb = await getTopicImages(profile.policyInterests);
+          console.log(`📸 Retrieved ${topicImagesFromDb.length}/${profile.policyInterests.length} topic images from Netlify Blobs`);
 
           // Convert to API format
           const topicImages = topicImagesFromDb.map(img => ({
@@ -155,7 +155,7 @@ export async function GET(req: NextRequest) {
             meta: {
               total: apiArticles.length,
               cached: true,
-              cacheSource: 'Database (news_articles + topic_images table)',
+              cacheSource: 'Database (news_articles) + Netlify Blobs (topic_images)',
               personalized: true,
               interests: profile.policyInterests,
               state: profile.location?.state,
@@ -178,15 +178,15 @@ export async function GET(req: NextRequest) {
       profile.location?.district
     );
 
-    // 5. Get existing topic images from database & fetch only missing ones
+    // 5. Get existing topic images from Netlify Blobs & fetch only missing ones
     console.log(`📸 Checking topic images for ${profile.policyInterests.length} interests...`);
 
-    // Get existing images from database
-    const existingImages = getTopicImages(profile.policyInterests);
-    console.log(`  ✅ Found ${existingImages.length} existing images in database`);
+    // Get existing images from Netlify Blobs
+    const existingImages = await getTopicImages(profile.policyInterests);
+    console.log(`  ✅ Found ${existingImages.length} existing images in Netlify Blobs`);
 
     // Find topics that need images
-    const missingTopics = getMissingTopicImages(profile.policyInterests);
+    const missingTopics = await getMissingTopicImages(profile.policyInterests);
     console.log(`  🔍 Need to fetch ${missingTopics.length} missing images`);
 
     // Fetch only missing topic images from Pexels
@@ -224,10 +224,10 @@ export async function GET(req: NextRequest) {
 
       newTopicImages = fetchedImages.filter((img): img is NonNullable<typeof img> => img !== null);
 
-      // Save newly fetched images to database
+      // Save newly fetched images to Netlify Blobs
       if (newTopicImages.length > 0) {
-        saveTopicImages(newTopicImages);
-        console.log(`  💾 Saved ${newTopicImages.length} new topic images to database`);
+        await saveTopicImages(newTopicImages);
+        console.log(`  💾 Saved ${newTopicImages.length} new topic images to Netlify Blobs`);
       }
     }
 

@@ -10,8 +10,10 @@ import { Badge } from '@/components/ui/badge';
 import { BillCard } from '@/components/dashboard/bill-card';
 import type { Bill } from '@/components/dashboard/bill-card';
 import { BriefCard } from '@/components/dashboard/brief-card';
+import { FeaturedBriefCard } from '@/components/dashboard/featured-brief-card';
 import { Representative } from '@/components/dashboard/representative-card';
 import { PersonalizedNewsWidget } from '@/components/dashboard/personalized-news-widget';
+import { LatestActionsWidget } from '@/components/dashboard/latest-actions-widget';
 import { BillFilters, type BillFilterOptions } from '@/components/dashboard/bill-filters';
 import { filterBills, getUniqueBillCategories } from '@/lib/utils/filter-bills';
 import { getFeedsForInterests } from '@/lib/rss/the-hill-feeds';
@@ -66,6 +68,10 @@ export default function DashboardPage() {
   const [podcasts, setPodcasts] = useState<Brief[]>([]);
   const [generatingPodcast, setGeneratingPodcast] = useState(false);
   const [podcastError, setPodcastError] = useState<string | null>(null);
+
+  // Today's featured brief
+  const [todayBrief, setTodayBrief] = useState<Brief | null>(null);
+  const [briefLoading, setBriefLoading] = useState(true);
 
   // Bill filtering state
   const [billFilters, setBillFilters] = useState<BillFilterOptions>({
@@ -252,6 +258,39 @@ export default function DashboardPage() {
 
     fetchData();
   }, []);
+
+  // Fetch today's brief for featured card
+  useEffect(() => {
+    if (authChecking) return; // Wait for auth check
+
+    const fetchTodayBrief = async () => {
+      try {
+        setBriefLoading(true);
+        const response = await fetch('/api/briefs');
+        const data = await response.json();
+
+        if (data.success && data.briefs && data.briefs.length > 0) {
+          // Get the most recent brief (first in the sorted list)
+          const latestBrief = data.briefs[0];
+
+          // Check if it's from today
+          const briefDate = new Date(latestBrief.generated_at);
+          const today = new Date();
+          const isToday = briefDate.toDateString() === today.toDateString();
+
+          if (isToday) {
+            setTodayBrief(latestBrief);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching today\'s brief:', error);
+      } finally {
+        setBriefLoading(false);
+      }
+    };
+
+    fetchTodayBrief();
+  }, [authChecking]);
 
   const handleGeneratePodcast = async (type: 'daily' | 'weekly') => {
     setGeneratingPodcast(true);
@@ -562,6 +601,9 @@ export default function DashboardPage() {
           </DashboardWidget>
         )}
 
+        {/* Today's Featured Brief - Full Width */}
+        {todayBrief && <FeaturedBriefCard brief={todayBrief} />}
+
         {/* Two-Column Newspaper Layout */}
         <div className="grid lg:grid-cols-5 gap-6 lg:gap-8">
           {/* LEFT COLUMN - News & Updates (60%) */}
@@ -574,7 +616,20 @@ export default function DashboardPage() {
                 onHide={() => toggleWidget('news')}
                 canHide={true}
               >
-                <PersonalizedNewsWidget limit={10} />
+                <PersonalizedNewsWidget limit={5} />
+              </DashboardWidget>
+            )}
+
+            {/* Latest Actions from Congress.gov */}
+            {visibleWidgets.find(w => w.id === 'latest-actions') && (
+              <DashboardWidget
+                widgetId="latest-actions"
+                title="Latest Actions"
+                description="Recent bill actions from Congress.gov"
+                onHide={() => toggleWidget('latest-actions')}
+                canHide={true}
+              >
+                <LatestActionsWidget limit={5} />
               </DashboardWidget>
             )}
           </div>

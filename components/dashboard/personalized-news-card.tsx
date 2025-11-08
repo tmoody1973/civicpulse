@@ -38,18 +38,28 @@ const topicDisplayNames: Record<string, string> = {
 };
 
 function formatTimeAgo(dateString: string): string {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diff = now.getTime() - date.getTime();
+  try {
+    const date = new Date(dateString);
 
-  const minutes = Math.floor(diff / 60000);
-  const hours = Math.floor(diff / 3600000);
-  const days = Math.floor(diff / 86400000);
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      return 'Recently'; // Fallback for invalid dates
+    }
 
-  if (minutes < 60) return `${minutes}m ago`;
-  if (hours < 24) return `${hours}h ago`;
-  if (days < 7) return `${days}d ago`;
-  return date.toLocaleDateString();
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+
+    if (minutes < 60) return `${minutes}m ago`;
+    if (hours < 24) return `${hours}h ago`;
+    if (days < 7) return `${days}d ago`;
+    return date.toLocaleDateString();
+  } catch {
+    return 'Recently'; // Fallback for any parsing errors
+  }
 }
 
 export function PersonalizedNewsCard({ article }: PersonalizedNewsCardProps) {
@@ -66,26 +76,26 @@ export function PersonalizedNewsCard({ article }: PersonalizedNewsCardProps) {
   };
 
   return (
-    <Card className="group overflow-hidden hover:shadow-lg transition-all duration-200 border border-gray-200 bg-white">
+    <Card className="group overflow-hidden hover:shadow-md transition-all duration-200">
       <a
         href={article.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="block p-4"
+        className="block p-3"
       >
         {/* Category and Follow button */}
-        <div className="flex items-center gap-2 mb-3">
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-900">
+        <div className="flex items-center gap-2 mb-2">
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-foreground">
             {categoryDisplay}
           </span>
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
             onClick={handleFollowToggle}
-            className={`rounded-full px-3 h-6 text-xs ${
+            className={`rounded-full px-2 h-5 text-xs ${
               isFollowing
-                ? 'bg-gray-900 text-white hover:bg-gray-800'
-                : 'bg-white text-gray-900 hover:bg-gray-50'
+                ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                : 'hover:bg-muted'
             }`}
           >
             {isFollowing ? 'Following' : 'Follow'}
@@ -93,13 +103,14 @@ export function PersonalizedNewsCard({ article }: PersonalizedNewsCardProps) {
         </div>
 
         {/* Article headline */}
-        <h3 className="text-base sm:text-lg font-bold text-gray-900 leading-snug group-hover:text-blue-600 transition-colors line-clamp-2 mb-3">
+        <h3 className="text-sm font-semibold text-foreground leading-snug group-hover:text-primary transition-colors line-clamp-2 mb-2">
           {article.title}
         </h3>
 
         {/* Source and Date */}
-        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-          <span className="font-medium">{article.source}</span>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span className="font-medium truncate">{article.source}</span>
+          <span>•</span>
           <div className="flex items-center gap-1">
             <Clock className="w-3 h-3" />
             <span>{formatTimeAgo(article.publishedDate)}</span>

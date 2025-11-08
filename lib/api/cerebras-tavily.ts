@@ -192,8 +192,8 @@ async function searchWithBrave(
 
   const params = new URLSearchParams({
     q: query,
-    safesearch: 'off',
-    freshness: 'pw', // Past week (we'll filter to 72 hours in code)
+    safesearch: 'moderate',
+    freshness: 'pm', // Past month
     count: String(maxResults * 2) // Fetch more to ensure we have enough after filtering
   });
 
@@ -238,21 +238,21 @@ async function searchWithBrave(
       url: result.url,
       content: result.description,
       score: 1.0 - (index * 0.05), // Descending relevance score
-      published_date: result.age,
+      published_date: result.page_age || result.age, // Use page_age (ISO date) first, fallback to age
       raw_content: result.extra_snippets?.join('\n\n') || undefined, // Extra context snippets for richer dialogue
     }));
 
   console.log(`🌍 Filtered to ${allResults.length} U.S. sources (excluded non-US domains)`);
 
-  // Filter to only articles from last 72 hours (3 days)
-  const THREE_DAYS_MS = 72 * 60 * 60 * 1000;
-  const cutoffTime = Date.now() - THREE_DAYS_MS;
+  // Filter to only articles from last 7 days (1 week)
+  // Using past month (pm) gives us broader results, but we filter to most recent week
+  const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
   const recentResults = allResults.filter(result => {
     if (!result.published_date) return true; // Include if no date (assume recent)
 
     // Parse age string (e.g., "2 hours ago", "1 day ago")
-    const ageMatch = result.published_date.match(/(\d+)\s+(hour|day|minute)/i);
+    const ageMatch = result.published_date.match(/(\d+)\s+(hour|day|minute|week)/i);
     if (!ageMatch) return true; // Include if can't parse
 
     const value = parseInt(ageMatch[1]);
@@ -265,13 +265,15 @@ async function searchWithBrave(
       ageMs = value * 60 * 60 * 1000;
     } else if (unit.startsWith('day')) {
       ageMs = value * 24 * 60 * 60 * 1000;
+    } else if (unit.startsWith('week')) {
+      ageMs = value * 7 * 24 * 60 * 60 * 1000;
     }
 
-    // Only include if published within last 72 hours
-    return ageMs <= THREE_DAYS_MS;
+    // Only include if published within last week
+    return ageMs <= ONE_WEEK_MS;
   }).slice(0, maxResults); // Trim to requested count
 
-  console.log(`📅 Filtered to ${recentResults.length} articles from last 72 hours`);
+  console.log(`📅 Filtered to ${recentResults.length} articles from last 7 days`);
 
   return recentResults;
 }
@@ -496,16 +498,11 @@ function buildBraveQuery(
     .slice(0, 5) // Limit to 5 topics
     .map(interest => topicMap[interest] || interest);
 
-  // Negative keywords to filter out state-level legislation (focus on U.S. federal only)
-  const excludeTerms = '-state -states -legislature -governor -california -florida -utah';
-
-  // Broad query for ALL topics - captures both legislation AND federal agencies/policy/research
-  // Examples:
-  // - Healthcare: Congressional bills + FDA approvals + CDC guidelines
-  // - Education: Congressional bills + Dept of Education policy + school funding
-  // - Defense: Congressional bills + Pentagon announcements + military operations
-  // - Transportation: Congressional bills + DOT regulations + infrastructure projects
-  const query = `${keywords.join(' ')} U.S. federal ${excludeTerms}`;
+  // Natural language query format - more effective for Brave Search
+  // Format: "news stories about U.S. [topic] legislation"
+  // This naturally filters for policy/legislative news without complex exclusions
+  const topic = keywords[0]; // Single topic per query (called separately for each interest)
+  const query = `news stories about U.S. ${topic} legislation`;
 
   console.log(`📝 Brave query (${query.length} chars): ${query}`);
   return query;
@@ -548,16 +545,32 @@ export async function getPersonalizedNewsFast(
       // Convert to PerplexityArticle format with topic tagging
       return results
         .filter(result => filterByKeywords(result, [interest])) // Filter per topic
-        .map(result => ({
-          title: result.title,
-          url: result.url,
-          summary: result.content, // Use Brave's description directly - already great quality!
-          source: extractSourceFromUrl(result.url),
-          publishedDate: result.published_date || new Date().toISOString().split('T')[0],
-          relevantTopics: [interest], // We know the topic from the search query!
-          imageUrl: undefined, // Will be enriched later with OG/Unsplash
-          extraSnippets: result.raw_content ? result.raw_content.split('\n\n') : undefined // Extra context for dialogue script
-        }));
+        .map(result => {
+          // Parse published date - page_age is ISO date, age is relative time
+          let publishedDate = new Date().toISOString().split('T')[0]; // Default to today
+          if (result.published_date) {
+            try {
+              // If it's already an ISO date (from page_age), use it
+              const parsed = new Date(result.published_date);
+              if (!isNaN(parsed.getTime())) {
+                publishedDate = parsed.toISOString().split('T')[0];
+              }
+            } catch {
+              // If parsing fails, keep default
+            }
+          }
+
+          return {
+            title: result.title,
+            url: result.url,
+            summary: result.content, // Use Brave's description directly - already great quality!
+            source: extractSourceFromUrl(result.url),
+            publishedDate,
+            relevantTopics: [interest], // We know the topic from the search query!
+            imageUrl: undefined, // Will be enriched later with OG/Unsplash
+            extraSnippets: result.raw_content ? result.raw_content.split('\n\n') : undefined // Extra context for dialogue script
+          };
+        });
     } catch (error) {
       console.error(`  ❌ ${interest}: ${error instanceof Error ? error.message : 'Error'}`);
       return [];

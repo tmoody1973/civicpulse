@@ -15,7 +15,8 @@ export async function GET() {
     const result = await executeQuery(
       `SELECT
         id, user_id, type, title, featured_image_url,
-        audio_url, duration, policy_areas, generated_at
+        audio_url, duration, policy_areas, generated_at,
+        headline, excerpt, category, author
       FROM briefs
       ${whereClause}
       ORDER BY generated_at DESC

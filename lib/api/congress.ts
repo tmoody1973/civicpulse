@@ -72,6 +72,16 @@ export async function fetchRecentBills(options: FetchBillsOptions = {}): Promise
 
     const data = await response.json();
 
+    // Log first bill to see what Congress.gov actually returns
+    if (data.bills && data.bills.length > 0) {
+      console.log('[fetchRecentBills] Sample raw bill from Congress.gov:', JSON.stringify(data.bills[0], null, 2));
+      console.log('[fetchRecentBills] Sponsor data available:', {
+        hasSponsors: !!data.bills[0].sponsors,
+        sponsorsArray: data.bills[0].sponsors,
+        firstSponsor: data.bills[0].sponsors?.[0]
+      });
+    }
+
     // Transform API response to our Bill interface
     return data.bills?.map((bill: any) => ({
       congress: bill.congress,
@@ -215,6 +225,55 @@ export async function fetchBillText(congress: number, billType: string, billNumb
   } catch (error) {
     console.warn(`Could not fetch full text for ${billType}${billNumber}:`, error);
     return null;
+  }
+}
+
+/**
+ * Fetch bill by ID (congress-type-number format) and transform to database schema
+ * This is the main function to use when fetching bills for the database
+ */
+export async function fetchBillById(
+  congress: number,
+  billType: string,
+  billNumber: number
+): Promise<any> {
+  try {
+    // Fetch bill details with summary and full text
+    const bill = await fetchBillDetails(congress, billType, billNumber, {
+      fetchSummary: true,
+      fetchFullText: true,
+    });
+
+    // Fetch additional metadata
+    const [subjects, cosponsors] = await Promise.all([
+      fetchBillSubjects(congress, billType, billNumber),
+      fetchBillCosponsors(congress, billType, billNumber),
+    ]);
+
+    // Transform to database schema format
+    return {
+      id: `${congress}-${billType}-${billNumber}`,
+      congress: bill.congress,
+      bill_type: bill.billType,
+      bill_number: bill.billNumber,
+      title: bill.title,
+      summary: bill.summary || null,
+      full_text: bill.fullText || null,
+      sponsor_name: bill.sponsorName,
+      sponsor_party: bill.sponsorParty,
+      sponsor_state: bill.sponsorState,
+      introduced_date: bill.introducedDate,
+      latest_action_date: bill.latestActionDate,
+      latest_action_text: bill.latestActionText,
+      status: 'introduced', // Default status
+      issue_categories: subjects?.legislativeSubjects || [],
+      cosponsor_count: cosponsors?.length || 0,
+      smartbucket_key: null, // Will be set when bill is analyzed
+      updated_at: new Date().toISOString(),
+    };
+  } catch (error) {
+    console.error(`Error fetching bill ${congress}-${billType}-${billNumber}:`, error);
+    throw error;
   }
 }
 

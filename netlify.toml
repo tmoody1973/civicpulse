@@ -25,6 +25,10 @@
   # Note: Function timeout is configured per-function in netlify.toml v2
   # Default is 10s (free tier), can be increased in Netlify UI
 
+# Scheduled Functions
+[functions."scheduled-brief-generation"]
+  schedule = "@daily"  # Runs every day at midnight UTC
+
 # Headers for security and caching
 [[headers]]
   for = "/*"
