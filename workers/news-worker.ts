@@ -38,20 +38,19 @@ async function processNewsJob(job: Job<NewsJobData>) {
   const startTime = Date.now();
 
   try {
-    // Step 1: Get profile data (10%)
+    // Step 1: Build profile from job data (10%)
     await job.updateProgress(10);
-    console.log('📋 Fetching user profile...');
+    console.log('📋 Building user profile...');
 
-    const { getProfile } = await import('../lib/news/personalized-news-profile');
+    const profile = {
+      policyInterests: job.data.interests,
+      location: job.data.state ? {
+        state: job.data.state,
+        district: job.data.district,
+      } : undefined,
+    };
 
-    const profile = await getProfile(
-      job.data.userId,
-      job.data.interests,
-      job.data.state,
-      job.data.district
-    );
-
-    console.log(`   Profile loaded: ${profile.policyInterests.length} interests`);
+    console.log(`   Profile built: ${profile.policyInterests.length} interests`);
 
     // Step 2: Check cache (15%)
     await job.updateProgress(15);
@@ -60,7 +59,7 @@ async function processNewsJob(job: Job<NewsJobData>) {
     const { getCachedNews } = await import('../lib/news/cache');
 
     if (!job.data.forceRefresh) {
-      const cached = await getCachedNews(job.data.userId);
+      const cached = await getCachedNews(job.data.userId, job.data.interests, job.data.limit);
       if (cached && cached.length > 0) {
         console.log(`✅ Found ${cached.length} cached articles (skipping fetch)`);
         await job.updateProgress(100);
@@ -79,7 +78,7 @@ async function processNewsJob(job: Job<NewsJobData>) {
     await job.updateProgress(25);
     console.log('📰 Fetching news from Brave Search API...');
 
-    const { getPersonalizedNewsFast } = await import('../lib/news/brave-news');
+    const { getPersonalizedNewsFast } = await import('../lib/api/cerebras-tavily');
 
     const freshArticles = await getPersonalizedNewsFast(
       profile.policyInterests,
@@ -97,7 +96,7 @@ async function processNewsJob(job: Job<NewsJobData>) {
       getTopicImages,
       getMissingTopicImages,
       saveTopicImages,
-    } = await import('../lib/news/topic-images');
+    } = await import('../lib/db/topic-images');
 
     // Get existing images from Netlify Blobs
     const existingImages = await getTopicImages(profile.policyInterests);
@@ -170,7 +169,7 @@ async function processNewsJob(job: Job<NewsJobData>) {
     await job.updateProgress(75);
     console.log('💾 Saving articles to database...');
 
-    const { saveNewsArticles } = await import('../lib/news/save');
+    const { saveNewsArticles } = await import('../lib/db/news-articles');
 
     interface NewsArticleInput {
       title: string;
@@ -207,8 +206,8 @@ async function processNewsJob(job: Job<NewsJobData>) {
     await job.updateProgress(90);
     console.log('💾 Caching results...');
 
-    const { setCachedNews } = await import('../lib/news/cache');
-    await setCachedNews(job.data.userId, savedArticles);
+    const { storeArticlesInCache } = await import('../lib/news/cache');
+    await storeArticlesInCache(job.data.userId, savedArticles, 24);
 
     // Done! (100%)
     await job.updateProgress(100);

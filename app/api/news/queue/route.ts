@@ -41,23 +41,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { interests, state, district, limit, forceRefresh } = requestSchema.parse(body);
 
-    // 3. Check for cached news (unless force refresh)
-    if (!forceRefresh) {
-      const { getCachedNews } = await import('@/lib/news/cache');
-      const cached = await getCachedNews(user.id);
-
-      if (cached && cached.length > 0) {
-        console.log(`✅ Found ${cached.length} cached articles for user ${user.id}`);
-        return NextResponse.json({
-          success: true,
-          articles: cached,
-          cached: true,
-          message: 'Using cached news from today',
-        });
-      }
-    }
-
-    // 4. Get user interests from profile if not provided
+    // 3. Get user interests from profile if not provided
     let userInterests = interests;
     if (!userInterests || userInterests.length === 0) {
       const { executeQuery } = await import('@/lib/db/client');
@@ -81,6 +65,22 @@ export async function POST(request: NextRequest) {
     // Default to general interests if none provided
     if (!userInterests || userInterests.length === 0) {
       userInterests = ['Politics', 'Healthcare', 'Education'];
+    }
+
+    // 4. Check for cached news (unless force refresh)
+    if (!forceRefresh) {
+      const { getCachedNews } = await import('@/lib/news/cache');
+      const cached = await getCachedNews(user.id, userInterests, limit);
+
+      if (cached && cached.length > 0) {
+        console.log(`✅ Found ${cached.length} cached articles for user ${user.id}`);
+        return NextResponse.json({
+          success: true,
+          articles: cached,
+          cached: true,
+          message: 'Using cached news from today',
+        });
+      }
     }
 
     // 5. Add job to queue for background processing
