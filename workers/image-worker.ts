@@ -74,19 +74,29 @@ async function processImageJob(job: Job<ImageJobData>) {
       await job.updateProgress(20);
       console.log('🔍 Searching Unsplash...');
 
-      image = await findBestImage(
+      const unsplashImage = await findBestImage(
         job.data.title,
         job.data.description,
         job.data.keywords
       );
 
-      if (!image) {
+      if (!unsplashImage) {
         console.log('⚠️  No suitable image found');
         return {
           success: false,
           reason: 'No image found',
         };
       }
+
+      // Convert UnsplashImage to our expected format (null -> undefined)
+      image = {
+        url: unsplashImage.url,
+        alt_description: unsplashImage.alt_description ?? undefined,
+        description: unsplashImage.description ?? undefined,
+        photographer: unsplashImage.photographer ?? undefined,
+        photographerUrl: unsplashImage.photographerUrl ?? undefined,
+        id: unsplashImage.id,
+      };
 
       console.log(`✅ Found Unsplash image by ${image.photographer}`);
       console.log(`   URL: ${image.url}`);
