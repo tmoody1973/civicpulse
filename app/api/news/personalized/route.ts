@@ -16,6 +16,12 @@ import {
   getRecentNewsArticles,
   type NewsArticleInput,
 } from '@/lib/db/news-articles';
+import {
+  getTopicImages,
+  getMissingTopicImages,
+  saveTopicImages,
+  initTopicImagesTable,
+} from '@/lib/db/topic-images';
 
 // Set a 20-second timeout for Netlify (26s limit)
 const API_TIMEOUT_MS = 20000;
@@ -24,6 +30,13 @@ export async function GET(req: NextRequest) {
   const startTime = Date.now();
 
   try {
+    // Initialize topic images table on first use
+    try {
+      initTopicImagesTable();
+    } catch (err) {
+      console.warn('Topic images table may already exist:', err);
+    }
+
     const { searchParams } = new URL(req.url);
     const limit = parseInt(searchParams.get('limit') || '20', 10);
     const forceRefresh = searchParams.get('refresh') === 'true';
@@ -112,9 +125,18 @@ export async function GET(req: NextRequest) {
           const latency = Date.now() - startTime;
           console.log(`✅ Serving ${cachedArticles.length} articles from database (${latency}ms)`);
 
-          // Skip topic images for cached data to avoid timeout
-          // Frontend will use cached images or show without images
-          console.log(`⚡ Returning cached articles without topic images (performance optimization)`);
+          // Get topic images from database (instant, already cached)
+          const topicImagesFromDb = getTopicImages(profile.policyInterests);
+          console.log(`📸 Retrieved ${topicImagesFromDb.length}/${profile.policyInterests.length} topic images from database`);
+
+          // Convert to API format
+          const topicImages = topicImagesFromDb.map(img => ({
+            topic: img.topic,
+            imageUrl: img.imageUrl,
+            imageAlt: img.imageAlt,
+            photographer: img.photographer,
+            photographerUrl: img.photographerUrl,
+          }));
 
           // Convert database format to API format
           const apiArticles = cachedArticles.map(article => ({
@@ -129,11 +151,11 @@ export async function GET(req: NextRequest) {
           return NextResponse.json({
             success: true,
             data: apiArticles,
-            topicImages: [], // Empty for cached data
+            topicImages,
             meta: {
               total: apiArticles.length,
               cached: true,
-              cacheSource: 'Database (news_articles table)',
+              cacheSource: 'Database (news_articles + topic_images table)',
               personalized: true,
               interests: profile.policyInterests,
               state: profile.location?.state,
@@ -156,34 +178,72 @@ export async function GET(req: NextRequest) {
       profile.location?.district
     );
 
-    // 5. Fetch topic header images (one per interest, max 8 requests)
-    console.log(`📸 Fetching topic header images for ${profile.policyInterests.length} interests...`);
+    // 5. Get existing topic images from database & fetch only missing ones
+    console.log(`📸 Checking topic images for ${profile.policyInterests.length} interests...`);
 
-    const { getRandomPhoto } = await import('@/lib/api/pexels');
+    // Get existing images from database
+    const existingImages = getTopicImages(profile.policyInterests);
+    console.log(`  ✅ Found ${existingImages.length} existing images in database`);
 
-    const topicImages = await Promise.all(
-      profile.policyInterests.map(async (interest: string) => {
-        try {
-          const image = await getRandomPhoto(interest);
-          if (image) {
-            console.log(`  ✅ Topic image for ${interest}: ${image.photographer}`);
-            return {
-              topic: interest,
-              imageUrl: image.url,
-              imageAlt: image.alt || `${interest} news`,
-              photographer: image.photographer,
-              photographerUrl: image.photographerUrl,
-            };
+    // Find topics that need images
+    const missingTopics = getMissingTopicImages(profile.policyInterests);
+    console.log(`  🔍 Need to fetch ${missingTopics.length} missing images`);
+
+    // Fetch only missing topic images from Pexels
+    let newTopicImages: Array<{
+      topic: string;
+      imageUrl: string;
+      imageAlt: string;
+      photographer: string;
+      photographerUrl: string;
+    }> = [];
+
+    if (missingTopics.length > 0) {
+      const { getRandomPhoto } = await import('@/lib/api/pexels');
+
+      const fetchedImages = await Promise.all(
+        missingTopics.map(async (interest: string) => {
+          try {
+            const image = await getRandomPhoto(interest);
+            if (image) {
+              console.log(`  ✅ Fetched topic image for ${interest}: ${image.photographer}`);
+              return {
+                topic: interest,
+                imageUrl: image.url,
+                imageAlt: image.alt || `${interest} news`,
+                photographer: image.photographer,
+                photographerUrl: image.photographerUrl,
+              };
+            }
+          } catch (error) {
+            console.log(`  ⚠️  Failed to fetch image for topic ${interest}`);
           }
-        } catch (error) {
-          console.log(`  ⚠️  Failed to get image for topic ${interest}`);
-        }
-        return null;
-      })
-    );
+          return null;
+        })
+      );
 
-    const validTopicImages = topicImages.filter((img): img is NonNullable<typeof img> => img !== null);
-    console.log(`✅ Fetched ${validTopicImages.length}/${profile.policyInterests.length} topic images`);
+      newTopicImages = fetchedImages.filter((img): img is NonNullable<typeof img> => img !== null);
+
+      // Save newly fetched images to database
+      if (newTopicImages.length > 0) {
+        saveTopicImages(newTopicImages);
+        console.log(`  💾 Saved ${newTopicImages.length} new topic images to database`);
+      }
+    }
+
+    // Combine existing + new images
+    const allTopicImages = [
+      ...existingImages.map(img => ({
+        topic: img.topic,
+        imageUrl: img.imageUrl,
+        imageAlt: img.imageAlt,
+        photographer: img.photographer,
+        photographerUrl: img.photographerUrl,
+      })),
+      ...newTopicImages
+    ];
+
+    console.log(`✅ Total topic images: ${allTopicImages.length}/${profile.policyInterests.length}`);
 
     // 6. Save articles to database (without individual images)
     console.log(`💾 Saving ${freshArticles.length} articles to database...`);
@@ -214,7 +274,7 @@ export async function GET(req: NextRequest) {
 
     // 7. Return articles with topic header images
     const latency = Date.now() - startTime;
-    console.log(`✅ Served ${savedArticles.length} fresh articles with ${validTopicImages.length} topic images (${latency}ms)`);
+    console.log(`✅ Served ${savedArticles.length} fresh articles with ${allTopicImages.length} topic images (${latency}ms)`);
 
     // Convert to API format
     const apiArticles = savedArticles.map(article => ({
@@ -229,7 +289,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       success: true,
       data: apiArticles,
-      topicImages: validTopicImages, // Topic header images for frontend
+      topicImages: allTopicImages, // Topic header images for frontend
       meta: {
         total: apiArticles.length,
         cached: false,
