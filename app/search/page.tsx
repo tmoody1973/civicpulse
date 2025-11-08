@@ -163,6 +163,11 @@ function SearchContent() {
     const checkAuth = async () => {
       try {
         const response = await fetch('/api/auth/session');
+
+        if (!response.ok) {
+          throw new Error('Auth check failed');
+        }
+
         const data = await response.json();
         if (!data.user) {
           // User not logged in, redirect to login
@@ -183,6 +188,11 @@ function SearchContent() {
     const loadTrackedBills = async () => {
       try {
         const response = await fetch(`/api/bills/track?userId=${userId}`);
+
+        if (!response.ok) {
+          throw new Error('Failed to load tracked bills');
+        }
+
         const data = await response.json();
         if (data.success) {
           setTrackedBills(new Set(data.trackedBills));
@@ -241,10 +251,25 @@ function SearchContent() {
       }
 
       const response = await fetch(`/api/search?${params}`);
+
+      // Check if response is OK before parsing JSON
+      if (!response.ok) {
+        // Try to parse error as JSON, fallback to status text
+        let errorMessage = `Search failed (${response.status})`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          // Response is not JSON, use status text
+          errorMessage = `Server error: ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
+      }
+
       const data: SearchResponse = await response.json();
 
       if (!data.success) {
-        throw new Error(data.meta?.strategy || 'Search failed');
+        throw new Error(data.error || 'Search failed');
       }
 
       setSearchResponse(data);
@@ -304,6 +329,10 @@ function SearchContent() {
         body: JSON.stringify({ userId, billId }),
       });
 
+      if (!response.ok) {
+        throw new Error('Failed to track bill');
+      }
+
       const data = await response.json();
 
       if (data.success) {
@@ -330,6 +359,10 @@ function SearchContent() {
       const response = await fetch(`/api/bills/track?userId=${userId}&billId=${billId}`, {
         method: 'DELETE',
       });
+
+      if (!response.ok) {
+        throw new Error('Failed to untrack bill');
+      }
 
       const data = await response.json();
 
@@ -641,11 +674,17 @@ function SearchContent() {
               }
 
               // issue_categories can be either an array (from Algolia) or a JSON string (from database)
-              const issueCategories = Array.isArray(bill.issue_categories)
-                ? bill.issue_categories
-                : bill.issue_categories
-                ? JSON.parse(bill.issue_categories)
-                : [];
+              let issueCategories: string[] = [];
+              if (Array.isArray(bill.issue_categories)) {
+                issueCategories = bill.issue_categories;
+              } else if (bill.issue_categories) {
+                try {
+                  issueCategories = JSON.parse(bill.issue_categories);
+                } catch (error) {
+                  console.warn('Failed to parse issue_categories:', error);
+                  issueCategories = [];
+                }
+              }
 
               const isTracked = trackedBills.has(bill.id);
               const isLoading = trackingLoading.has(bill.id);
