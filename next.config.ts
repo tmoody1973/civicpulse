@@ -7,12 +7,8 @@ const nextConfig: NextConfig = {
   // Enable strict mode for better error handling
   reactStrictMode: true,
 
-  // Disable Turbopack for production builds (use webpack)
-  // Netlify's @netlify/plugin-nextjs works better with webpack
-  // turbopack is only for dev mode
-
-  // Output mode for Netlify
-  output: 'standalone',
+  // Netlify deployment - let @netlify/plugin-nextjs handle everything
+  // DO NOT set output or publish directory
 
   // Image optimization for Vultr CDN and external sources
   images: {
