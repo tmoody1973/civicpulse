@@ -365,9 +365,9 @@ function SearchContent() {
     return (
       <>
         <ClientHeader />
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="min-h-screen bg-background flex items-center justify-center">
           <div className="text-center">
-            <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-gray-400" />
+            <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-muted-foreground" />
             <p className="text-muted-foreground">Loading...</p>
           </div>
         </div>
@@ -378,13 +378,13 @@ function SearchContent() {
   return (
     <>
       <ClientHeader />
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-background">
         {/* Search Bar */}
-        <div className="bg-white border-b sticky top-16 z-10">
+        <div className="bg-card border-b sticky top-16 z-10">
         <div className="container mx-auto px-4 py-4">
           <form onSubmit={handleSearch} className="flex gap-2">
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
               <Input
                 type="text"
                 placeholder="Search bills... (e.g., 'HR 1234', 'healthcare reform', 'climate change')"
@@ -606,9 +606,9 @@ function SearchContent() {
 
         {/* Error State */}
         {error && (
-          <Card className="border-red-200 bg-red-50">
+          <Card className="border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20">
             <CardContent className="pt-6">
-              <p className="text-red-800">{error}</p>
+              <p className="text-red-800 dark:text-red-200">{error}</p>
             </CardContent>
           </Card>
         )}
@@ -617,7 +617,7 @@ function SearchContent() {
         {!loading && !error && results.length === 0 && query && (
           <Card>
             <CardContent className="pt-12 pb-12 text-center">
-              <Search className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+              <Search className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
               <h3 className="text-lg font-semibold mb-2">No results found</h3>
               <p className="text-muted-foreground mb-4">
                 Try adjusting your search or filters
