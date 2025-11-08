@@ -73,35 +73,32 @@ export async function smartSearch(
       page,
     });
 
-    // Get client and log initialization
+    // Get client and initialize index (v4 API)
     const algoliaClient = getAlgoliaSearch();
-    console.log('[DEBUG] Algolia client obtained:', typeof algoliaClient);
+    const index = algoliaClient.initIndex(BILLS_INDEX);
+    console.log('[DEBUG] Algolia index initialized:', BILLS_INDEX);
 
-    const algoliaResponse = await algoliaClient.search({
-      requests: [{
-        indexName: BILLS_INDEX,
-        query: query.trim(),
-        filters,
-        facetFilters,
-        hitsPerPage,
-        page,
-        attributesToHighlight: ['title', 'summary', 'billNumber'],
-        attributesToSnippet: ['summary:30'],
-      }],
+    // Use v4 API: index.search(query, options)
+    const algoliaResponse = await index.search(query.trim(), {
+      filters,
+      facetFilters,
+      hitsPerPage,
+      page,
+      attributesToHighlight: ['title', 'summary', 'billNumber'],
+      attributesToSnippet: ['summary:30'],
     });
 
     console.log('[DEBUG] Algolia raw response:', JSON.stringify(algoliaResponse, null, 2));
 
     const algoliaTime = Date.now() - startTime;
-    const result = algoliaResponse.results[0] as AlgoliaSearchResponse<AlgoliaBill>;
-    const hits = result.hits;
-    const totalHits = result.nbHits || 0;
+    const hits = algoliaResponse.hits;
+    const totalHits = algoliaResponse.nbHits || 0;
 
     console.log('[DEBUG] Parsed results:', {
       hitsLength: hits.length,
       totalHits,
-      processingTimeMS: result.processingTimeMS,
-      exhaustiveNbHits: result.exhaustiveNbHits,
+      processingTimeMS: algoliaResponse.processingTimeMS,
+      exhaustiveNbHits: algoliaResponse.exhaustiveNbHits,
     });
 
     // If we found results in Algolia, return them
