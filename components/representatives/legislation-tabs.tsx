@@ -90,16 +90,16 @@ function BillList({ bills, title }: { bills: Bill[]; title: string }) {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Became Law':
-        return 'bg-green-100 text-green-800 border-green-200';
+        return 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800';
       case 'Passed House':
       case 'Passed Senate':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
+        return 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800';
       case 'Introduced':
-        return 'bg-gray-100 text-gray-800 border-gray-200';
+        return 'bg-muted text-muted-foreground border-border';
       case 'Failed':
-        return 'bg-red-100 text-red-800 border-red-200';
+        return 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800';
       default:
-        return 'bg-purple-100 text-purple-800 border-purple-200';
+        return 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-800';
     }
   };
 
@@ -136,8 +136,8 @@ function BillList({ bills, title }: { bills: Bill[]; title: string }) {
       {/* Header with filters */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h3 className="text-xl font-semibold text-gray-900">{title}</h3>
-          <p className="text-gray-600 mt-1">
+          <h3 className="text-xl font-semibold text-foreground">{title}</h3>
+          <p className="text-muted-foreground mt-1">
             Showing {startIndex + 1}-{Math.min(endIndex, sortedBills.length)} of {sortedBills.length} bills
             {sortedBills.length !== bills.length && ` (filtered from ${bills.length} total)`}
           </p>
@@ -175,7 +175,7 @@ function BillList({ bills, title }: { bills: Bill[]; title: string }) {
       {sortedBills.length === 0 ? (
         <Card>
           <CardContent className="p-12 text-center">
-            <p className="text-gray-500">No bills found matching the current filters.</p>
+            <p className="text-muted-foreground">No bills found matching the current filters.</p>
             <Button
               variant="outline"
               className="mt-4"
@@ -190,7 +190,7 @@ function BillList({ bills, title }: { bills: Bill[]; title: string }) {
           {paginatedBills.map((bill) => (
             <Card
               key={bill.billId}
-              className="hover:shadow-md transition-shadow border-l-4 border-l-blue-500"
+              className="hover:shadow-md transition-shadow border-l-4 border-l-primary"
             >
               <CardContent className="p-6">
                 <div className="space-y-3">
@@ -198,21 +198,21 @@ function BillList({ bills, title }: { bills: Bill[]; title: string }) {
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="font-mono text-sm font-medium text-blue-600">
+                        <span className="font-mono text-sm font-medium text-primary">
                           {getBillTypeDisplay(bill.billType)} {bill.billNumber}
                         </span>
                         <Badge variant="outline" className={getStatusColor(bill.status)}>
                           {bill.status}
                         </Badge>
                       </div>
-                      <h4 className="text-lg font-semibold text-gray-900 line-clamp-2">
+                      <h4 className="text-lg font-semibold text-foreground line-clamp-2">
                         {bill.title}
                       </h4>
                     </div>
                   </div>
 
                   {/* Bill metadata */}
-                  <div className="flex flex-wrap gap-4 text-sm text-gray-600">
+                  <div className="flex flex-wrap gap-4 text-sm text-subtle">
                     <div className="flex items-center gap-1">
                       <Calendar className="w-4 h-4" />
                       <span>Introduced {formatDate(bill.introducedDate)}</span>
@@ -231,11 +231,11 @@ function BillList({ bills, title }: { bills: Bill[]; title: string }) {
 
                   {/* Latest action */}
                   {bill.latestActionText && (
-                    <div className="bg-gray-50 rounded-lg p-3">
-                      <p className="text-xs font-medium text-gray-500 mb-1">
+                    <div className="bg-muted rounded-lg p-3">
+                      <p className="text-xs font-medium text-muted-foreground mb-1">
                         Latest Action
                       </p>
-                      <p className="text-sm text-gray-700 line-clamp-2">
+                      <p className="text-sm text-foreground line-clamp-2">
                         {bill.latestActionText}
                       </p>
                     </div>
@@ -264,8 +264,8 @@ function BillList({ bills, title }: { bills: Bill[]; title: string }) {
 
       {/* Pagination controls */}
       {sortedBills.length > 0 && totalPages > 1 && (
-        <div className="flex items-center justify-between border-t pt-4">
-          <div className="text-sm text-gray-600">
+        <div className="flex items-center justify-between border-t border-border pt-4">
+          <div className="text-sm text-muted-foreground">
             Page {currentPage} of {totalPages}
           </div>
 
@@ -331,8 +331,8 @@ export function LegislationTabs({ sponsoredBills, cosponsoredBills }: Legislatio
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-2xl font-bold text-gray-900">Legislation</h2>
-        <p className="text-gray-600 mt-1">
+        <h2 className="text-2xl font-bold text-foreground">Legislation</h2>
+        <p className="text-muted-foreground mt-1">
           View bills sponsored and co-sponsored by this representative
         </p>
       </div>
@@ -363,7 +363,7 @@ export function LegislationTabs({ sponsoredBills, cosponsoredBills }: Legislatio
           ) : (
             <Card>
               <CardContent className="p-12 text-center">
-                <p className="text-gray-500">No co-sponsored bills found.</p>
+                <p className="text-muted-foreground">No co-sponsored bills found.</p>
               </CardContent>
             </Card>
           )}

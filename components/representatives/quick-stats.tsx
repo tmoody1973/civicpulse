@@ -36,50 +36,50 @@ export function QuickStats({ stats }: QuickStatsProps) {
       title: 'Bills Sponsored',
       value: totalSponsored,
       icon: FileText,
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-50',
-      borderColor: 'border-blue-200'
+      color: 'text-blue-600 dark:text-blue-400',
+      bgColor: 'bg-blue-500/10',
+      borderColor: 'border-blue-200 dark:border-blue-800'
     },
     {
       title: 'Bills Co-Sponsored',
       value: totalCosponsored,
       icon: FileText,
-      color: 'text-indigo-600',
-      bgColor: 'bg-indigo-50',
-      borderColor: 'border-indigo-200'
+      color: 'text-indigo-600 dark:text-indigo-400',
+      bgColor: 'bg-indigo-500/10',
+      borderColor: 'border-indigo-200 dark:border-indigo-800'
     },
     {
       title: 'Laws Passed',
       value: lawsPassed,
       icon: CheckCircle,
-      color: 'text-green-600',
-      bgColor: 'bg-green-50',
-      borderColor: 'border-green-200',
+      color: 'text-green-600 dark:text-green-400',
+      bgColor: 'bg-green-500/10',
+      borderColor: 'border-green-200 dark:border-green-800',
       subtitle: `${successRate}% success rate`
     },
     {
       title: 'Active Bills',
       value: activeBills,
       icon: Activity,
-      color: 'text-purple-600',
-      bgColor: 'bg-purple-50',
-      borderColor: 'border-purple-200'
+      color: 'text-purple-600 dark:text-purple-400',
+      bgColor: 'bg-purple-500/10',
+      borderColor: 'border-purple-200 dark:border-purple-800'
     },
     {
       title: 'Policy Areas',
       value: policyAreas,
       icon: Tags,
-      color: 'text-orange-600',
-      bgColor: 'bg-orange-50',
-      borderColor: 'border-orange-200'
+      color: 'text-orange-600 dark:text-orange-400',
+      bgColor: 'bg-orange-500/10',
+      borderColor: 'border-orange-200 dark:border-orange-800'
     }
   ];
 
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-2xl font-bold text-gray-900">Legislative Activity</h2>
-        <p className="text-gray-600 mt-1">Key statistics and accomplishments</p>
+        <h2 className="text-2xl font-bold text-foreground">Legislative Activity</h2>
+        <p className="text-muted-foreground mt-1">Key statistics and accomplishments</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -93,14 +93,14 @@ export function QuickStats({ stats }: QuickStatsProps) {
               <CardContent className="p-6">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-600 mb-1">
+                    <p className="text-sm font-medium text-muted-foreground mb-1">
                       {stat.title}
                     </p>
-                    <p className="text-3xl font-bold text-gray-900 mb-1">
+                    <p className="text-3xl font-bold text-foreground mb-1">
                       {stat.value.toLocaleString()}
                     </p>
                     {stat.subtitle && (
-                      <p className="text-xs text-gray-500">{stat.subtitle}</p>
+                      <p className="text-xs text-subtle">{stat.subtitle}</p>
                     )}
                   </div>
                   <div className={`${stat.bgColor} p-3 rounded-lg`}>

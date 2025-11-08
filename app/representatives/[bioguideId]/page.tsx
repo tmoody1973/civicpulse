@@ -55,9 +55,9 @@ export default async function RepresentativePage({ params }: PageProps) {
   return (
     <>
       <AppHeader />
-      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+      <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
         {/* Navigation breadcrumb */}
-      <div className="bg-white border-b">
+      <div className="bg-card border-b border-border">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="sm" asChild>
@@ -66,7 +66,7 @@ export default async function RepresentativePage({ params }: PageProps) {
                 Home
               </Link>
             </Button>
-            <span className="text-gray-400">/</span>
+            <span className="text-muted-foreground">/</span>
             <Button variant="ghost" size="sm" asChild>
               <Link href="/search" className="gap-2">
                 <ArrowLeft className="w-4 h-4" />
