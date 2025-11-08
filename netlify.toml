@@ -30,6 +30,10 @@
 [functions."scheduled-brief-generation"]
   schedule = "@daily"  # Runs every day at midnight UTC
 
+# Background Function for brief processing (can run up to 15 min)
+[functions."process-brief-job"]
+  node_bundler = "esbuild"
+
 # Headers for security and caching
 [[headers]]
   for = "/*"

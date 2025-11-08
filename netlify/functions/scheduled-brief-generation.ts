@@ -2,7 +2,7 @@
  * Netlify Scheduled Function: Nightly Brief Generation
  *
  * Runs every night at midnight UTC (0 0 * * *)
- * Queues brief generation jobs for all active users
+ * Invokes background functions to generate briefs for all active users
  *
  * Configured in netlify.toml:
  * [functions."scheduled-brief-generation"]
@@ -11,7 +11,6 @@
 
 import { schedule, type HandlerEvent, type HandlerContext, type HandlerResponse } from '@netlify/functions';
 import { executeQuery } from '../../lib/db/client';
-import { addBriefJob } from '../../lib/queue/brief-queue';
 
 // Main handler function
 const handler = async (event: HandlerEvent, context: HandlerContext): Promise<HandlerResponse> => {
@@ -37,22 +36,32 @@ const handler = async (event: HandlerEvent, context: HandlerContext): Promise<Ha
     const users = result.rows;
     console.log(`   Found ${users.length} active users`);
 
-    // Step 2: Queue a brief generation job for each user
-    console.log('📥 Queuing brief generation jobs...');
+    // Step 2: Invoke background function for each user
+    console.log('📥 Invoking brief generation for each user...');
+
+    // Invoke background functions (can run for up to 15 minutes)
+    const backgroundFunctionUrl = `${process.env.URL}/.netlify/functions/process-brief-job`;
 
     for (const user of users) {
       try {
-        const jobId = await addBriefJob({
-          userId: user.id,
-          userEmail: user.email || 'unknown',
-          forceRegenerate: false, // Don't regenerate if already exists for today
+        // Invoke background function (fire and forget)
+        fetch(backgroundFunctionUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: user.id,
+            userEmail: user.email || 'unknown',
+            forceRegenerate: false,
+          }),
+        }).catch(err => {
+          console.error(`   ❌ Background invocation failed for ${user.email || user.id}:`, err);
         });
 
         queuedCount++;
-        console.log(`   ✅ Queued brief for ${user.email || user.id} (job: ${jobId})`);
+        console.log(`   ✅ Invoked brief generation for ${user.email || user.id}`);
       } catch (error: any) {
         failedCount++;
-        console.error(`   ❌ Failed to queue for ${user.email || user.id}:`, error.message);
+        console.error(`   ❌ Failed to invoke for ${user.email || user.id}:`, error.message);
       }
     }
 
@@ -67,9 +76,9 @@ const handler = async (event: HandlerEvent, context: HandlerContext): Promise<Ha
       timestamp: new Date().toISOString(),
     };
 
-    console.log('\n✅ Nightly generation complete:');
+    console.log('\n✅ Nightly generation invoked:');
     console.log(`   Total users: ${summary.totalUsers}`);
-    console.log(`   Queued: ${summary.queuedCount}`);
+    console.log(`   Invoked: ${summary.queuedCount}`);
     console.log(`   Failed: ${summary.failedCount}`);
     console.log(`   Duration: ${duration}ms`);
 
