@@ -1,0 +1,17 @@
+{
+  "name": "hakivo-workers",
+  "version": "1.0.0",
+  "description": "Raindrop workers for HakiVo - Daily brief generation and personalized news",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "deploy": "raindrop build deploy"
+  },
+  "dependencies": {
+    "raindrop": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}

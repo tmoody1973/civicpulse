@@ -1,0 +1,41 @@
+application "hakivo-workers" {
+
+  // Daily scheduler - triggers at midnight UTC to queue brief generation jobs
+  task "daily_brief_scheduler" {
+    type = "cron"
+    cron = "@daily"  // Runs at 00:00 UTC every day
+  }
+
+  // Brief generation queue - stores brief job requests
+  queue "brief_queue" {
+    // Handles long-running brief generation (5-10 minutes per job)
+    // No timeout constraints with Observer pattern
+  }
+
+  // News generation queue - stores news fetch requests
+  queue "news_queue" {
+    // Handles news fetching and image generation (20-30 seconds per job)
+  }
+
+  // Brief worker - processes brief generation jobs from queue
+  observer "brief_worker" {
+    queue = "brief_queue"
+    // Processes: fetch news, generate script, generate audio, upload to Vultr
+    // No execution time limit
+  }
+
+  // News worker - processes personalized news jobs from queue
+  observer "news_worker" {
+    queue = "news_queue"
+    // Processes: fetch news from Brave API, get topic images from Pexels
+    // No execution time limit
+  }
+
+  // Connect to existing Raindrop SQL database
+  sql "hakivo_db" {
+    // Uses existing database with users, briefs, news_articles tables
+  }
+
+  // Connect to existing Netlify Blobs for topic images
+  // (No direct Raindrop component - will use Netlify SDK in code)
+}
