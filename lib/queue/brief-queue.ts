@@ -53,7 +53,7 @@ export async function addBriefJob(data: BriefJobData): Promise<string> {
       throw new Error('RAINDROP_API_KEY environment variable not set');
     }
 
-    const response = await fetch(`${raindropApiUrl}/queue/brief_queue/send`, {
+    const response = await fetch(`${raindropApiUrl}/queue/brief-queue/send`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${raindropApiKey}`,
