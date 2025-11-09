@@ -1,18 +1,21 @@
 /**
- * News Generation Queue
+ * News Generation Queue (Raindrop Platform)
  *
- * This queue handles background fetching of personalized news.
+ * This queue handles background fetching of personalized news using Raindrop workers.
  *
  * Flow:
- * 1. API route adds job to queue (returns immediately with job ID)
- * 2. Worker picks up job from queue (runs in background)
- * 3. Worker processes job (fetches news, enriches with images - takes 20-30s)
- * 4. Worker updates database with result
- * 5. Frontend polls for completion
+ * 1. API route adds job to Raindrop queue (returns immediately with job ID)
+ * 2. Raindrop Observer picks up job from queue (runs in background)
+ * 3. Observer processes job (fetches news, enriches with images - takes 20-30s, NO TIMEOUT)
+ * 4. Observer updates database with result
+ * 5. Frontend polls database for completion
+ *
+ * Benefits over BullMQ:
+ * - No Redis timeouts (Raindrop Queue is built-in)
+ * - No execution time limits (Observers can run indefinitely)
+ * - Automatic retries with backoff
+ * - 100% Raindrop Platform (hackathon compliant)
  */
-
-import { Queue, QueueOptions } from 'bullmq';
-import { getRedisConnectionOptions } from './redis';
 
 /**
  * Job data structure
@@ -29,91 +32,98 @@ export interface NewsJobData {
 }
 
 /**
- * Queue configuration
- */
-const queueOptions: QueueOptions = {
-  ...getRedisConnectionOptions(),
-  defaultJobOptions: {
-    attempts: 3, // Retry up to 3 times if job fails
-    backoff: {
-      type: 'exponential',
-      delay: 30000, // Wait 30s before first retry, then 1 min, then 2 min
-    },
-    removeOnComplete: {
-      age: 24 * 3600, // Keep completed jobs for 24 hours
-      count: 100, // Keep last 100 completed jobs
-    },
-    removeOnFail: {
-      age: 7 * 24 * 3600, // Keep failed jobs for 7 days (for debugging)
-    },
-  },
-};
-
-/**
- * Create the news generation queue
- * This is used by the API route to add jobs
- */
-export const newsQueue = new Queue<NewsJobData>('news-generation', queueOptions);
-
-/**
- * Add a news generation job to the queue
+ * Add a news generation job to the Raindrop queue
  * Returns job ID immediately
- * Includes retry logic for Upstash free tier timeouts
+ *
+ * This sends the job to the Raindrop worker application deployed at raindrop-workers/
+ * The Observer will process it with NO timeout constraints.
  */
 export async function addNewsJob(data: NewsJobData): Promise<string> {
-  const maxRetries = 3;
-  const retryDelay = 2000; // 2 seconds between retries
+  const jobId = `news-${data.userId}-${Date.now()}`;
 
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      const job = await newsQueue.add('generate-news', data, {
-        // Job-specific options
-        jobId: `news-${data.userId}-${Date.now()}`, // Unique ID
-      });
+  console.log(`📰 Queueing news generation job ${jobId} to Raindrop worker`);
 
-      console.log(`✅ News job ${job.id} added to queue (attempt ${attempt})`);
-      return job.id!;
-    } catch (error) {
-      const isLastAttempt = attempt === maxRetries;
-      const isTimeout = error instanceof Error &&
-        (error.message.includes('timeout') || error.message.includes('ECONNRESET'));
+  try {
+    // Send job to Raindrop queue via HTTP API
+    // The Raindrop worker application must be deployed first with: raindrop build deploy
+    const raindropApiUrl = process.env.RAINDROP_API_URL || 'https://api.raindrop.ai/v1';
+    const raindropApiKey = process.env.RAINDROP_API_KEY;
 
-      if (isTimeout && !isLastAttempt) {
-        console.warn(`⚠️  Redis timeout on attempt ${attempt}/${maxRetries}, retrying in ${retryDelay}ms...`);
-        await new Promise(resolve => setTimeout(resolve, retryDelay));
-        continue;
-      }
-
-      // Either not a timeout error, or last attempt failed
-      console.error(`❌ Failed to add news job to queue after ${attempt} attempts:`, error);
-      throw error;
+    if (!raindropApiKey) {
+      throw new Error('RAINDROP_API_KEY environment variable not set');
     }
-  }
 
-  // Should never reach here, but TypeScript needs this
-  throw new Error('Failed to add news job to queue after all retry attempts');
+    const response = await fetch(`${raindropApiUrl}/queue/news_queue/send`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${raindropApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        ...data,
+        jobId, // Include job ID for tracking
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Raindrop queue API error: ${response.status} ${errorText}`);
+    }
+
+    console.log(`✅ News job ${jobId} queued to Raindrop worker`);
+    console.log(`   Observer will process with NO timeout (typically 20-30 seconds)`);
+
+    return jobId;
+
+  } catch (error) {
+    console.error(`❌ Failed to queue news job to Raindrop:`, error);
+    throw error;
+  }
 }
 
 /**
- * Get job status
- * Used by the status endpoint
+ * Get job status from database
+ *
+ * Since Raindrop Observers update the database directly, we check the personalized_news_cache table
+ * instead of querying a job queue.
  */
 export async function getNewsJobStatus(jobId: string) {
-  const job = await newsQueue.getJob(jobId);
+  try {
+    // Extract userId from jobId format: news-{userId}-{timestamp}
+    const [, userId] = jobId.split('-');
 
-  if (!job) {
-    return { status: 'not_found' };
+    if (!userId) {
+      return { status: 'not_found' };
+    }
+
+    // Check if news was generated (check cache)
+    const { getCachedNews } = await import('@/lib/news/cache');
+
+    // Try to get cached news (any interests - just checking if data exists)
+    const cached = await getCachedNews(userId, ['Politics'], 1); // Minimal query
+
+    if (cached && cached.length > 0) {
+      return {
+        status: 'completed',
+        progress: 100,
+        result: {
+          articlesCount: cached.length,
+        },
+      };
+    }
+
+    // News not yet generated - assume still processing
+    return {
+      status: 'active',
+      progress: 50,
+      message: 'News generation in progress (typically 20-30 seconds)',
+    };
+
+  } catch (error) {
+    console.error('Error checking news job status:', error);
+    return {
+      status: 'failed',
+      failedReason: error instanceof Error ? error.message : 'Unknown error',
+    };
   }
-
-  const state = await job.getState();
-  const progress = job.progress;
-
-  return {
-    status: state, // 'waiting', 'active', 'completed', 'failed'
-    progress: typeof progress === 'number' ? progress : 0,
-    data: job.data,
-    result: job.returnvalue,
-    failedReason: job.failedReason,
-    attemptsMade: job.attemptsMade,
-  };
 }

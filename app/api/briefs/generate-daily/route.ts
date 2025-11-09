@@ -86,19 +86,34 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 4. Add job to queue for background processing
+    // 4. Get user preferences for brief generation
+    const userPreferences = await getUserPreferences(user.id);
+    const policyInterests = userPreferences.length > 0 ? userPreferences : ['Politics', 'Healthcare', 'Education'];
+
+    // Get user location from database
+    const userResult = await executeQuery(
+      `SELECT name, state, district FROM users WHERE id = '${user.id.replace(/'/g, "''")}'`,
+      'users'
+    );
+    const userData = userResult.rows[0];
+
+    // 5. Add job to Raindrop queue for background processing
     console.log(`🎙️  Queueing daily brief generation for user ${user.id}`);
 
     const jobId = await addBriefJob({
       userId: user.id,
       userEmail: user.email,
+      userName: userData?.name || null,
+      state: userData?.state || null,
+      district: userData?.district || null,
+      policyInterests,
       forceRegenerate: force_regenerate,
     });
 
     const duration = Date.now() - startTime;
-    console.log(`✅ Job ${jobId} added to queue in ${duration}ms`);
+    console.log(`✅ Job ${jobId} added to Raindrop queue in ${duration}ms`);
 
-    // 5. Return job ID immediately for status polling
+    // 6. Return job ID immediately for status polling
     return NextResponse.json({
       success: true,
       jobId,
