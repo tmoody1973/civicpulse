@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { RepresentativeHeader } from '@/components/representatives/representative-header';
 import { QuickStats } from '@/components/representatives/quick-stats';
 import { LegislationTabs } from '@/components/representatives/legislation-tabs';
-import { PressReleases } from '@/components/representative/press-releases';
+import { ActivityTabs } from '@/components/representatives/activity-tabs';
 import { AppHeader } from '@/components/shared/app-header';
 import { getSession } from '@/lib/auth/session';
 import { getRepresentativeData } from '@/lib/congress/get-representative-data';
@@ -99,9 +99,14 @@ export default async function RepresentativePage({ params }: PageProps) {
           </div>
 
           {/* Right column: Sidebar (1/3 width on desktop) */}
-          <div className="space-y-6">
-            {/* Press Releases */}
-            <PressReleases bioguideId={bioguideId} limit={5} />
+          <div>
+            {/* Activity Tabs: Voting History + Press Releases */}
+            <ActivityTabs
+              bioguideId={bioguideId}
+              chamber={representative.chamber}
+              votesLimit={10}
+              pressLimit={5}
+            />
           </div>
         </div>
       </div>
