@@ -1,39 +1,89 @@
-application "hakivo-workers" {
+application "civic-pulse" {
+
+  // Environment Variables / Secrets
+  env "ANTHROPIC_API_KEY" {
+    secret = true
+  }
+
+  env "ELEVENLABS_API_KEY" {
+    secret = true
+  }
+
+  env "ELEVENLABS_SARAH_VOICE_ID" {
+    secret = true
+  }
+
+  env "ELEVENLABS_JAMES_VOICE_ID" {
+    secret = true
+  }
+
+  env "VULTR_STORAGE_ENDPOINT" {
+    secret = true
+  }
+
+  env "VULTR_ACCESS_KEY" {
+    secret = true
+  }
+
+  env "VULTR_SECRET_KEY" {
+    secret = true
+  }
+
+  env "VULTR_CDN_URL" {
+    secret = true
+  }
+
+  env "BRAVE_SEARCH_API_KEY" {
+    secret = true
+  }
+
+  env "PEXELS_API_KEY" {
+    secret = true
+  }
+
+  // Test service - sends test messages to queues for testing
+  service "test-service" {
+    visibility = "public"
+  }
 
   // Daily scheduler - triggers at midnight UTC to queue brief generation jobs
-  task "daily_brief_scheduler" {
+  task "daily-brief-scheduler" {
     type = "cron"
     cron = "@daily"  // Runs at 00:00 UTC every day
   }
 
   // Brief generation queue - stores brief job requests
-  queue "brief_queue" {
+  queue "brief-queue" {
     // Handles long-running brief generation (5-10 minutes per job)
     // No timeout constraints with Observer pattern
   }
 
   // News generation queue - stores news fetch requests
-  queue "news_queue" {
+  queue "news-queue" {
     // Handles news fetching and image generation (20-30 seconds per job)
   }
 
   // Brief worker - processes brief generation jobs from queue
-  observer "brief_worker" {
-    queue = "brief_queue"
+  observer "brief-worker" {
+    source {
+      queue = "brief-queue"
+    }
     // Processes: fetch news, generate script, generate audio, upload to Vultr
     // No execution time limit
   }
 
   // News worker - processes personalized news jobs from queue
-  observer "news_worker" {
-    queue = "news_queue"
+  observer "news-worker" {
+    source {
+      queue = "news-queue"
+    }
     // Processes: fetch news from Brave API, get topic images from Pexels
     // No execution time limit
   }
 
-  // Connect to existing Raindrop SQL database
-  sql "hakivo_db" {
-    // Uses existing database with users, briefs, news_articles tables
+  // Connect to existing civic-db (READ ONLY - no migrations, no schema changes)
+  sql_database "civic-db" {
+    // Shared database - workers will only READ from bills/users, WRITE to briefs
   }
 
   // Connect to existing Netlify Blobs for topic images

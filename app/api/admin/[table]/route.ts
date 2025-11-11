@@ -16,6 +16,7 @@ const VALID_TABLES = [
   'podcasts',
   'briefs',
   'rss_articles',
+  'news_articles', // Personalized news from Perplexity
   'vote_records',
   'sync_history'
 ];

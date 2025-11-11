@@ -1,4 +1,4 @@
-globalThis.__RAINDROP_GIT_COMMIT_SHA = "5df3173d35cca1ae18e70780d027ff6e48124af1"; 
+globalThis.__RAINDROP_GIT_COMMIT_SHA = "d1ae57f18adae2ce7b0b9c57e09b23ccb53ceeff"; 
 var __defProp = Object.defineProperty;
 var __export = (target, all) => {
   for (var name in all)
@@ -4803,7 +4803,7 @@ var PreferencesService = class extends Service {
       });
     }
     try {
-      const { USER_MEMORY, ANALYTICS, CIVIC_DB } = this.env;
+      const { USER_MEMORY, ANALYTICS, HAKIVO_DB } = this.env;
       if (url.pathname === "/api/preferences/profile" && request.method === "GET") {
         const userId = url.searchParams.get("userId");
         if (!userId) {
@@ -4816,7 +4816,7 @@ var PreferencesService = class extends Service {
             400
           );
         }
-        const profile = await getUserProfile(ANALYTICS, USER_MEMORY, userId, CIVIC_DB);
+        const profile = await getUserProfile(ANALYTICS, USER_MEMORY, userId, HAKIVO_DB);
         if (!profile) {
           return this.jsonResponse(
             {
@@ -4859,7 +4859,7 @@ var PreferencesService = class extends Service {
           ANALYTICS,
           USER_MEMORY,
           validatedData.userId,
-          CIVIC_DB
+          HAKIVO_DB
         );
         return this.jsonResponse({
           success: true,

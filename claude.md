@@ -26,6 +26,92 @@
 - ✅ Progressive git commits (no big bang)
 - ✅ Launch-ready (auth, payments, error handling)
 
+---
+
+## Database Configuration (CRITICAL - READ THIS FIRST)
+
+### Raindrop SQL Database
+**Database Name:** `civic_db`
+**Service URL:** `https://svc-01k8kf2fkj3423r7zpm53cfkgz.01k66gywmx8x4r0w31fdjjfekf.lmapp.run`
+**Environment Variable:** `RAINDROP_SERVICE_URL`
+
+### Tables Available
+- `users` - User accounts and profiles
+- `bills` - Congressional bills
+- `representatives` - Elected officials
+- `briefs` - Generated daily/weekly briefs (audio + transcript)
+- `podcasts` - Legacy podcast storage
+- `rss_articles` - News articles
+- `vote_records` - Voting records
+- `sync_history` - Sync status tracking
+- `user_bills` - User-saved bills
+- `user_interactions` - User activity tracking
+- `widget_preferences` - Dashboard widget settings
+- `system_prompts` - AI prompt templates
+
+### Briefs Table Schema (Most Commonly Used)
+```sql
+CREATE TABLE briefs (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  type TEXT NOT NULL CHECK(type IN ('daily', 'weekly')),
+  audio_url TEXT NOT NULL,
+  transcript TEXT NOT NULL,
+  written_digest TEXT NOT NULL,
+  news_articles TEXT,           -- JSON array
+  bills_covered TEXT NOT NULL,  -- JSON array
+  policy_areas TEXT NOT NULL,   -- JSON array
+  duration INTEGER NOT NULL,
+  sections TEXT,                -- JSON array
+  generated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  scheduled_for DATETIME,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+```
+
+### Database Client Usage
+```typescript
+import { executeQuery } from '@/lib/db/client';
+
+// IMPORTANT: executeQuery signature
+executeQuery(sql: string, table: string = 'default'): Promise<QueryResult>
+
+// The 'table' parameter is used for admin API routing, NOT the SQL table name
+// Use 'briefs' as table parameter for briefs operations
+// Use 'users' as table parameter for user operations
+
+// Example: Inserting into briefs table
+const result = await executeQuery(
+  `INSERT INTO briefs (id, user_id, type, audio_url, ...) VALUES (...)`,
+  'briefs'  // <-- This routes to the briefs admin API, not SQL table name
+);
+
+// Example: Querying briefs table
+const result = await executeQuery(
+  `SELECT * FROM briefs WHERE user_id = '${userId}'`,
+  'briefs'  // <-- Table parameter for routing
+);
+```
+
+### Common Mistakes to AVOID
+- ❌ Don't use 'users' as table parameter when working with briefs
+- ❌ Don't use 'civic_db' as table parameter (that's the database name)
+- ❌ Don't try to insert into `created_at` column (has DEFAULT)
+- ❌ Don't forget to escape SQL values when building inline queries
+- ❌ executeQuery does NOT support parameterized queries - use manual escaping
+
+### SQL Escaping Helper
+```typescript
+const escapeSQL = (val: any) => {
+  if (val === null || val === undefined) return 'NULL';
+  if (typeof val === 'number') return val.toString();
+  return `'${String(val).replace(/'/g, "''")}'`;
+};
+```
+
+---
+
 # Mintlify documentation
 
 ## Working relationship

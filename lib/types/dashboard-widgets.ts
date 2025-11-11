@@ -8,9 +8,11 @@ export type WidgetId =
   | 'legislation'
   | 'representatives'
   | 'podcast-queue'
+  | 'daily-brief'
   | 'news'
   | 'civic-impact'
-  | 'latest-actions';
+  | 'latest-actions'
+  | 'house-votes';
 
 export interface WidgetConfig {
   id: WidgetId;
@@ -46,6 +48,12 @@ export const DEFAULT_WIDGET_CONFIG: Record<WidgetId, Omit<WidgetConfig, 'isVisib
     description: 'AI-generated audio briefs',
     canHide: true,
   },
+  'daily-brief': {
+    id: 'daily-brief',
+    title: 'Today\'s Daily Brief',
+    description: 'Your personalized audio and written digest',
+    canHide: false, // Core widget, always visible
+  },
   'news': {
     id: 'news',
     title: 'News Feed',
@@ -62,6 +70,12 @@ export const DEFAULT_WIDGET_CONFIG: Record<WidgetId, Omit<WidgetConfig, 'isVisib
     id: 'latest-actions',
     title: 'Latest Actions',
     description: 'Recent bill actions from Congress.gov',
+    canHide: true,
+  },
+  'house-votes': {
+    id: 'house-votes',
+    title: 'House Votes',
+    description: 'Recent roll call votes from the House of Representatives',
     canHide: true,
   },
 };

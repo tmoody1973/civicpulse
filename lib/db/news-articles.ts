@@ -29,6 +29,7 @@ export interface NewsArticleInput {
   summary: string;
   source: string;
   publishedDate: string;
+  imageUrl?: string | null;
   relevantTopics: string[];
 }
 
@@ -64,10 +65,19 @@ export async function saveNewsArticles(
     const topicsJson = JSON.stringify(article.relevantTopics);
 
     try {
-      // Try to insert (will fail if URL already exists)
+      // Check if article already exists by URL
+      const existing = await getNewsArticleByUrl(article.url);
+
+      if (existing) {
+        // Article already exists, skip insert
+        savedArticles.push(existing);
+        continue;
+      }
+
+      // Article doesn't exist, insert it
       const sql = `
         INSERT INTO news_articles (
-          id, title, url, summary, source, published_date, relevant_topics
+          id, title, url, summary, source, published_date, relevant_topics, image_url
         ) VALUES (
           ${escapeSql(id)},
           ${escapeSql(article.title)},
@@ -75,28 +85,22 @@ export async function saveNewsArticles(
           ${escapeSql(article.summary)},
           ${escapeSql(article.source)},
           ${escapeSql(article.publishedDate)},
-          ${escapeSql(topicsJson)}
+          ${escapeSql(topicsJson)},
+          ${escapeSql(article.imageUrl || null)}
         )
       `;
 
-      await executeQuery(sql, 'users');
+      await executeQuery(sql, 'news_articles');
 
       savedArticles.push({
         id,
         ...article,
+        imageUrl: article.imageUrl || undefined,
         createdAt: new Date(),
         updatedAt: new Date(),
       });
     } catch (error: any) {
-      // If duplicate, fetch existing article
-      if (error.message.includes('UNIQUE constraint failed')) {
-        const existing = await getNewsArticleByUrl(article.url);
-        if (existing) {
-          savedArticles.push(existing);
-        }
-      } else {
-        console.error(`Failed to save article ${article.title}:`, error.message);
-      }
+      console.error(`Failed to save article ${article.title.substring(0, 50)}:`, error.message);
     }
   }
 
@@ -111,7 +115,7 @@ export async function getNewsArticleByUrl(url: string): Promise<NewsArticle | nu
     SELECT * FROM news_articles WHERE url = ${escapeSql(url)} LIMIT 1
   `;
 
-  const result = await executeQuery(sql, 'users');
+  const result = await executeQuery(sql, 'news_articles');
 
   if (result.rows.length === 0) {
     return null;
@@ -149,7 +153,7 @@ export async function getRecentNewsArticles(
     LIMIT ${limit}
   `;
 
-  const result = await executeQuery(sql, 'users');
+  const result = await executeQuery(sql, 'news_articles');
 
   return result.rows.map(parseNewsArticleRow);
 }
@@ -166,7 +170,7 @@ export async function deleteOldNewsArticles(maxAgeDays: number = 7): Promise<num
     WHERE created_at < ${escapeSql(cutoffTimestamp)}
   `;
 
-  const result = await executeQuery(sql, 'users');
+  const result = await executeQuery(sql, 'news_articles');
 
   // SQLite returns changes in result
   return (result as any).changes || 0;

@@ -7,7 +7,8 @@ import { Loader2 } from 'lucide-react';
 
 interface Brief {
   id: string;
-  title: string;
+  title: string | null;
+  headline: string | null;
   featured_image_url: string | null;
   audio_url: string;
   duration: number;
@@ -35,7 +36,9 @@ export default function BriefsPage() {
       }
 
       const data = await response.json();
-      setBriefs(data.briefs || []);
+      // Filter out briefs with no ID
+      const validBriefs = (data.briefs || []).filter((b: Brief) => b.id);
+      setBriefs(validBriefs);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load briefs');
       console.error('Error fetching briefs:', err);
@@ -53,7 +56,7 @@ export default function BriefsPage() {
     // Download the audio file
     const link = document.createElement('a');
     link.href = brief.audio_url;
-    link.download = `${brief.title}.mp3`;
+    link.download = `${brief.title || brief.headline || 'brief'}.mp3`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -110,7 +113,7 @@ export default function BriefsPage() {
               <BriefCard
                 key={brief.id}
                 id={brief.id}
-                title={brief.title}
+                title={brief.title || brief.headline || 'Daily Brief'}
                 featuredImage={
                   brief.featured_image_url || '/images/policy-icons/default.svg'
                 }
@@ -142,7 +145,7 @@ export default function BriefsPage() {
               <BriefCard
                 key={brief.id}
                 id={brief.id}
-                title={brief.title}
+                title={brief.title || brief.headline || 'Weekly Deep Dive'}
                 featuredImage={
                   brief.featured_image_url || '/images/policy-icons/default.svg'
                 }

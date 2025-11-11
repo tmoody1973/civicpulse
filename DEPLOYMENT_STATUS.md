@@ -1,182 +1,136 @@
-# Civic Pulse Deployment Status
+# HakiVo Deployment Status - January 10, 2025
 
-**Date**: October 26, 2025
-**Latest Version**: `01k8gmweyac8jht3xd4xv4t8ps` (unsandboxed)
-**Status**: Service deployed but not routing requests - **Platform Issue**
+## Current Situation
 
----
+### Deployment Blocker
+We are **completely blocked** from deploying any code updates due to a phantom Raindrop version (`01k9qgfw0ekhnza2rpwmry7k6z`) stuck in "branching" state.
 
-## Current Status
-
-### Deployment ✅
-- **Application**: civic-pulse
-- **Version**: 01k8gmdj9ce0sjtphzbdbw3rar
-- **Status**: All 6 modules running
-- **Visibility**: Public
-
-### Service URL
+**Error:**
 ```
-http://svc-web.01k8gmweyac8jht3xd4xv4t8ps.lmapp.run
+[internal] Application civic-pulse@01k9qgfw0ekhnza2rpwmry7k6z is currently branching from this version, please wait until it deploys
 ```
 
-### Code Fixes Applied ✅
-1. **Database initialization fix**: Changed from running on every request to only once on first request
-2. **Test file removed**: Removed vitest test file that was blocking deployment
+### What This Means
+1. ❌ **Cannot deploy updated admin-api** with `news_articles` in whitelist
+2. ❌ **Cannot deploy test-service** to create the table via workaround
+3. ❌ **Cannot fix personalized news dashboard** feature
+4. ❌ **Cannot update ANY code** in production
 
-### Problem ⚠️
-**Platform Routing Issue**
-- Service is deployed and running ✅
-- DNS resolves correctly ✅ (Cloudflare IPs: 104.18.4.149, 104.18.5.149)
-- HTTP requests timeout after 15-20 seconds ❌
-- **No logs generated** - `fetch()` method never called ❌
-- **Root cause**: Raindrop platform not routing HTTP requests to service worker
-
-This is a **platform-level issue**, not a code issue. The service code is correct but requests aren't reaching it.
+### Current Running Version
+- **Version:** `01k8kf2b9x7snxw0gya5zfvmya`  
+- **Status:** Running (38 modules)
+- **Problem:** Old code without `news_articles` table support
 
 ---
 
-## What's Working
+## What We've Done
 
-1. ✅ **Frontend (Next.js 16)**
-   - Running at: `http://localhost:3000`
-   - Onboarding flow complete
-   - Dashboard UI complete
-   - Admin panel complete
+### ✅ Completed
+1. **Identified the root cause:** news_articles table doesn't exist in CIVIC_DB
+2. **Updated source code:** admin-api whitelist includes news_articles (line 23 of src/admin-api/index.ts)
+3. **Built locally:** dist files have correct whitelist (verified)
+4. **Created test-service:** Service with /create-news-table endpoint to bypass whitelist
+5. **Documented deployment issue:** Created RAINDROP_SUPPORT_ISSUE.md with all details
+6. **Researched documentation:** Found relevant info about branching and locked states
 
-2. ✅ **Backend Code**
-   - All API endpoints implemented
-   - Database schema defined
-   - CORS enabled
-   - Admin endpoints added
-
-3. ✅ **Raindrop Deployment**
-   - Service deployed successfully
-   - All modules running
-   - Version unsandboxed
+### ❌ Blocked
+- Deploying any code changes (blocked by phantom version)
+- Creating news_articles table in remote CIVIC_DB (requires deployment)
+- Testing dashboard with remote database (table doesn't exist)
 
 ---
 
-## What's Not Working
+## Possible Solutions
 
-1. ❌ **HTTP Access to Deployed Service**
-   - Error 522 on all endpoints
-   - Service not responding to requests
-   - Possible causes:
-     - Service worker not initializing
-     - fetch() method issue
-     - Unhandled async operation
-     - Database initialization blocking
+### Solution 1: Wait for Raindrop Support ⏳
+**Status:** Support request documented in `RAINDROP_SUPPORT_ISSUE.md`  
+**Timeline:** Unknown  
+**Risk:** High - hackathon deadline approaching
 
----
+### Solution 2: Work with Local Database 🏠
+**Status:** Could implement immediately  
+**Approach:**
+1. Create `news_articles` table in local SQLite (`civic_db.sqlite`)
+2. Test dashboard functionality locally
+3. Deploy when Raindrop support resolves blocker
 
-## Modules Deployed
+**Pros:**
+- Can continue development
+- Test full feature locally
+- Ready to deploy when blocker cleared
 
-| Module | Status | Type |
-|--------|--------|------|
-| web | running | Service (public) |
-| civic_db | running | SmartSQL |
-| podcast-audio | running | Bucket |
-| annotation-service | running | Service (internal) |
-| annotation-bucket | running | Bucket |
-| _mem | running | KV Cache |
+**Cons:**
+- Not testing against real production database
+- May have schema differences
 
----
+### Solution 3: Recreate Raindrop Application 🔄
+**Status:** Last resort option  
+**Approach:**
+1. Create completely new Raindrop app with different name
+2. Migrate all data from old CIVIC_DB
+3. Update all environment variables and URLs
 
-## Troubleshooting Steps Attempted
+**Pros:**
+- Would bypass phantom version entirely
+- Fresh start with no corruption
 
-1. ✅ Deployed service with `raindrop build deploy --start`
-2. ✅ Checked service status - all modules running
-3. ✅ Unsandboxed version to enable public URL
-4. ✅ Tested multiple version IDs
-5. ✅ Verified manifest has `visibility = "public"`
-6. ✅ Confirmed DNS resolution works
-7. ❌ Service still returns error 522
-
----
-
-## Next Steps (Recommended)
-
-### 1. Check Raindrop Logs
-```bash
-raindrop logs query --last 1h --status error
-raindrop logs tail
-```
-
-### 2. Test Service Locally (if possible)
-The Raindrop platform doesn't support local dev server, but we can:
-- Review the fetch() implementation in `src/web/index.ts`
-- Check for blocking operations
-- Verify async/await patterns
-
-### 3. Review Service Code
-Look for:
-- Missing `return` statements in fetch()
-- Unhandled promise rejections
-- Database initialization blocking request handling
-- CORS configuration issues
-
-### 4. Contact Raindrop Support
-Since this is a hackathon project using Raindrop:
-- Check Raindrop Discord #support channel
-- Report error 522 timeout issue
-- Share version ID: `01k8gmdj9ce0sjtphzbdbw3rar`
-
-### 5. Alternative: Mock Backend
-For demo purposes, could use:
-- JSON Server for mock API
-- Vercel Functions for quick deployment
-- Netlify Functions as alternative
+**Cons:**
+- Time-consuming during hackathon
+- Risk of data loss during migration
+- All frontend code needs URL updates
+- Lose deployment history
 
 ---
 
-## API Endpoints (When Service is Available)
+## Next Steps
 
-See full documentation in `API_ENDPOINTS.md`:
+### Immediate Action
+1. **Use local database for development:**
+   ```bash
+   sqlite3 civic_db.sqlite < db/create_news_articles_table.sql
+   ```
 
-- `GET /api/health` - Health check
-- `POST /api/users` - Create user
-- `GET /api/users?email={email}` - Get user
-- `PUT /api/users/preferences` - Update preferences
-- `POST /api/bills` - Create bill
-- `GET /api/bills` - List bills
-- `POST /api/representatives` - Create representative
-- `GET /api/representatives` - List representatives
-- `POST /api/rss` - Save RSS article
-- `GET /api/rss` - Get RSS articles
-- `POST /api/admin/query` - Execute admin query
-- `POST /api/admin/count` - Get table count
+2. **Test dashboard locally:**
+   - Verify news articles save correctly
+   - Confirm widget displays properly
+   - Test all functionality end-to-end
 
----
+3. **Monitor Raindrop support:**
+   - Check for responses
+   - Be ready to deploy immediately when cleared
 
-## For Demo/Testing
-
-**Temporary Solution**: Use local mock server
-```bash
-# In src/web/index.ts, add console.log statements
-# Or use Next.js API routes to mock backend temporarily
-```
-
-**Frontend is fully functional** - can demo:
-- Onboarding flow
-- Dashboard UI
-- Admin panel (with mock data)
-- All UI components
+### When Deployment Unblocked
+1. Run `raindrop build deploy --amend --start`
+2. Verify admin-api whitelist updated
+3. Run test-service /create-news-table endpoint
+4. Verify remote database has table
+5. Test production dashboard
 
 ---
 
-## Version History
+## Files Created During Investigation
 
-| Version | Date | Status | Notes |
-|---------|------|--------|-------|
-| 01k8ghwja5k2hc91w7k3vheszz | Oct 26 | Sandboxed | Initial deployment |
-| 01k8gkmt5gryfsqm0r8dkr2w53 | Oct 26 | Sandboxed | Redeployment attempt |
-| 01k8gmdj9ce0sjtphzbdbw3rar | Oct 26 | Unsandboxed | Latest (error 522) |
+1. **RAINDROP_SUPPORT_ISSUE.md** - Detailed support request
+2. **DEPLOYMENT_STATUS.md** - This file
+3. **scripts/create-news-articles-table.ts** - Table creation script
+4. **scripts/test-remote-news-articles.ts** - Remote database test script
+5. **src/test-service/index.ts** - Test service with table creation endpoint
 
 ---
 
-## Support Resources
+## Timeline
 
-- Raindrop Docs: https://docs.liquidmetal.ai
-- Raindrop Discord: https://discord.gg/raindrop
-- Error 522 Info: Cloudflare origin server timeout
-- Project GitHub: (add your repo URL)
+- **Started:** Previous session (identified missing table)
+- **Today:** Attempted deployment, discovered blocker, documented issue
+- **Next:** Use local database while waiting for support
+- **Deadline:** Hackathon submission deadline approaching
+
+---
+
+## Contact
+
+**Support Request:** RAINDROP_SUPPORT_ISSUE.md  
+**Project:** HakiVo (civic-pulse)  
+**Service URL:** https://svc-01k8kf2fkj3423r7zpm53cfkgz.01k66gywmx8x4r0w31fdjjfekf.lmapp.run  
+**Version:** 01k8kf2b9x7snxw0gya5zfvmya (running, but outdated)  
+**Phantom Version:** 01k9qgfw0ekhnza2rpwmry7k6z (blocking all deployments)

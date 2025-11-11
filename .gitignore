@@ -48,3 +48,4 @@ public/podcasts/
 
 # SQLite databases (local development)
 /data/
+docs/env-vars-backup.sh

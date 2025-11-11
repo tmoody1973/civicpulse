@@ -1,4 +1,4 @@
-globalThis.__RAINDROP_GIT_COMMIT_SHA = "5df3173d35cca1ae18e70780d027ff6e48124af1"; 
+globalThis.__RAINDROP_GIT_COMMIT_SHA = "d1ae57f18adae2ce7b0b9c57e09b23ccb53ceeff"; 
 
 // node_modules/@liquidmetal-ai/raindrop-framework/dist/core/cors.js
 var matchOrigin = (request, env, config) => {
@@ -157,6 +157,32 @@ var QueueAPIService = class extends Service {
           status: response.status,
           headers: { ...response.headers, ...corsHeaders }
         });
+      }
+      if (path === "/test-brief" && request.method === "POST") {
+        try {
+          const payload = await request.json();
+          console.log("[QueueAPI] Sending test brief generation request");
+          await env.BRIEF_QUEUE.send({
+            userId: payload.userId || "test-user-123",
+            userEmail: payload.userEmail || "test@example.com",
+            userName: payload.userName || "Test User",
+            state: payload.state || "CA",
+            district: payload.district || "12",
+            policyInterests: payload.policyInterests || ["healthcare", "education"],
+            forceRegenerate: false
+          }, { contentType: "json" });
+          console.log("[QueueAPI] Test brief request sent to brief-queue");
+          return new Response(
+            JSON.stringify({ success: true, message: "Test brief generation started" }),
+            { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+          );
+        } catch (error) {
+          console.error("[QueueAPI] Test brief failed:", error);
+          return new Response(
+            JSON.stringify({ error: `Failed to start test: ${error.message}` }),
+            { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+          );
+        }
       }
       return new Response("Not Found", {
         status: 404,

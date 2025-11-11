@@ -101,6 +101,39 @@ export default class QueueAPIService extends Service<Env> {
         });
       }
 
+      // Route: Test brief generation (for testing multi-worker pipeline)
+      if (path === '/test-brief' && request.method === 'POST') {
+        try {
+          const payload = await request.json() as any;
+
+          console.log('[QueueAPI] Sending test brief generation request');
+
+          // Send to brief-queue (orchestrator-worker will pick it up)
+          await env.BRIEF_QUEUE.send({
+            userId: payload.userId || 'test-user-123',
+            userEmail: payload.userEmail || 'test@example.com',
+            userName: payload.userName || 'Test User',
+            state: payload.state || 'CA',
+            district: payload.district || '12',
+            policyInterests: payload.policyInterests || ['healthcare', 'education'],
+            forceRegenerate: false
+          }, { contentType: 'json' });
+
+          console.log('[QueueAPI] Test brief request sent to brief-queue');
+
+          return new Response(
+            JSON.stringify({ success: true, message: 'Test brief generation started' }),
+            { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+          );
+        } catch (error: any) {
+          console.error('[QueueAPI] Test brief failed:', error);
+          return new Response(
+            JSON.stringify({ error: `Failed to start test: ${error.message}` }),
+            { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+          );
+        }
+      }
+
       return new Response('Not Found', {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'text/plain' },

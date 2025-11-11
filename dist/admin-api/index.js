@@ -1,4 +1,4 @@
-globalThis.__RAINDROP_GIT_COMMIT_SHA = "5df3173d35cca1ae18e70780d027ff6e48124af1"; 
+globalThis.__RAINDROP_GIT_COMMIT_SHA = "d1ae57f18adae2ce7b0b9c57e09b23ccb53ceeff"; 
 
 // node_modules/@liquidmetal-ai/raindrop-framework/dist/core/cors.js
 var matchOrigin = (request, env, config) => {
@@ -108,7 +108,9 @@ var CIVIC_DB_TABLES = [
   "rss_articles",
   "vote_records",
   "sync_history",
-  "briefs"
+  "briefs",
+  "news_articles"
+  // Shared news pool (Perplexity via Inngest)
 ];
 var ANALYTICS_TABLES = [
   "user_interactions",
@@ -148,7 +150,7 @@ var AdminApiService = class extends Service {
             rows = JSON.parse(result.results);
           }
         } else {
-          const result = await this.env.CIVIC_DB.prepare(sqlQuery).all();
+          const result = await this.env.HAKIVO_DB.prepare(sqlQuery).all();
           rows = result.results || [];
         }
         return this.jsonResponse({
@@ -189,7 +191,7 @@ var AdminApiService = class extends Service {
             count = rows[0]?.count || 0;
           }
         } else {
-          const result = await this.env.CIVIC_DB.prepare(
+          const result = await this.env.HAKIVO_DB.prepare(
             `SELECT COUNT(*) as count FROM ${table}`
           ).all();
           const rows = result.results || [];

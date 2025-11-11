@@ -74,19 +74,132 @@ async function processNewsJob(job: Job<NewsJobData>) {
 
     console.log('   No cache found, fetching fresh news...');
 
-    // Step 3: Fetch news from Brave Search (50%)
+    // Step 3: Fetch news from Perplexity API (50%)
     await job.updateProgress(25);
-    console.log('📰 Fetching news from Brave Search API...');
+    console.log('📰 Fetching personalized news from Perplexity API...');
 
-    const { getPersonalizedNewsFast } = await import('../lib/api/cerebras-tavily');
+    // Map policy interests to government domains
+    const interestDomainMap: Record<string, string> = {
+      'Education': 'ed.gov',
+      'Healthcare': 'hhs.gov',
+      'Environment': 'epa.gov',
+      'Technology': 'fcc.gov',
+      'Science': 'nsf.gov',
+      'Energy': 'energy.gov',
+      'Defense': 'defense.gov',
+      'Agriculture': 'usda.gov',
+      'Transportation': 'transportation.gov',
+      'Housing': 'hud.gov'
+    };
 
-    const freshArticles = await getPersonalizedNewsFast(
-      profile.policyInterests,
-      profile.location?.state,
-      profile.location?.district
+    const freshArticles = [];
+
+    for (const interest of profile.policyInterests) {
+      const govDomain = interestDomainMap[interest] || 'usa.gov';
+
+      // Build domain list (add rollcall.com for all, edweek.org for Education)
+      const baseDomains = [govDomain, 'npr.org', 'politico.com', 'thehill.com', 'rollcall.com'];
+      const domainList = interest === 'Education'
+        ? [...baseDomains, 'edweek.org']
+        : baseDomains;
+
+      const domainListText = domainList.map(d => `- ${d}`).join('\n');
+
+      const prompt = `Give me an extended summary (5 items) of the latest U.S. ${interest.toLowerCase()} policy and legislation from the past 7 days. For each item, include:
+- date
+- type (e.g., Federal Regulation, Legal Ruling, Congressional Oversight, Official Statement, Legislative Agenda)
+- title
+- detailed summary
+- source_url (for each item)
+
+Output the result as a valid JSON array.
+
+Search only the following websites for source material:
+${domainListText}
+
+Fetch only news and policy published in the last 7 days and exclude duplicates and outdated items.`;
+
+      console.log(`   🔍 Querying Perplexity for: "${interest}"`);
+
+      try {
+        const response = await fetch('https://api.perplexity.ai/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${process.env.PERPLEXITY_API_KEY!}`
+          },
+          body: JSON.stringify({
+            model: 'sonar',
+            messages: [
+              {
+                role: 'system',
+                content: 'You are a precise policy news aggregator. Always return valid JSON arrays with complete source URLs.'
+              },
+              {
+                role: 'user',
+                content: prompt
+              }
+            ],
+            temperature: 0.2,
+            max_tokens: 2000,
+            search_domain_filter: domainList,
+            search_recency_filter: 'week',
+            return_images: true,
+            image_domain_filter: domainList,
+            image_format_filter: ['jpeg', 'png', 'webp']
+          })
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.warn(`   ⚠️  Perplexity API error for "${interest}": ${response.status}`);
+          console.warn(`      Error details: ${errorText.substring(0, 200)}`);
+          continue;
+        }
+
+        const data = await response.json() as any;
+        const content = data.choices?.[0]?.message?.content || '';
+
+        // Extract images from Perplexity response (if available)
+        const images = data.images || [];
+        if (images.length > 0) {
+          console.log(`   🖼️  Found ${images.length} images from Perplexity for "${interest}"`);
+        }
+
+        // Extract JSON array from response
+        const jsonMatch = content.match(/\[[\s\S]*\]/);
+        if (!jsonMatch) {
+          console.warn(`   ⚠️  Failed to extract JSON for "${interest}"`);
+          continue;
+        }
+
+        const items = JSON.parse(jsonMatch[0]);
+        console.log(`   ✅ Found ${items.length} items for "${interest}"`);
+
+        // Transform to consistent format with images
+        const articles = items.map((item: any, index: number) => ({
+          title: item.title,
+          url: item.source_url,
+          summary: item.detailed_summary?.substring(0, 300) || '',
+          source: new URL(item.source_url).hostname,
+          publishedDate: item.date || new Date().toISOString(),
+          relevantTopics: [interest],
+          type: item.type || 'Policy News',
+          thumbnail: images[index]?.image_url || null
+        }));
+
+        freshArticles.push(...articles);
+      } catch (error: any) {
+        console.warn(`   ⚠️  Error fetching "${interest}": ${error.message}`);
+      }
+    }
+
+    // Remove duplicates by URL
+    const uniqueArticles = Array.from(
+      new Map(freshArticles.map(a => [a.url, a])).values()
     );
 
-    console.log(`   Found ${freshArticles.length} articles`);
+    console.log(`   ✅ Fetched ${uniqueArticles.length} total articles (${profile.policyInterests.length} topics queried)`);
 
     // Step 4: Get topic images from Netlify Blobs (75%)
     await job.updateProgress(50);
@@ -180,7 +293,7 @@ async function processNewsJob(job: Job<NewsJobData>) {
       relevantTopics: string[];
     }
 
-    const newsArticleInputs: NewsArticleInput[] = freshArticles.map(article => ({
+    const newsArticleInputs: NewsArticleInput[] = uniqueArticles.map(article => ({
       title: article.title,
       url: article.url,
       summary: article.summary || '',
@@ -195,8 +308,8 @@ async function processNewsJob(job: Job<NewsJobData>) {
       console.log(`   ✅ Saved ${savedArticles.length} articles`);
     } catch (saveError: any) {
       console.error('   ⚠️  Failed to save articles (non-fatal):', saveError.message);
-      // If save fails, return fresh articles anyway
-      savedArticles = freshArticles.map((article, index) => ({
+      // If save fails, return unique articles anyway
+      savedArticles = uniqueArticles.map((article, index) => ({
         id: `temp-${index}`,
         ...article,
       }));

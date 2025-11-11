@@ -127,8 +127,8 @@ export default class PreferencesService extends Service<Env> {
     }
 
     try {
-      // ✅ Access Raindrop services via this.env (including CIVIC_DB for migration)
-      const { USER_MEMORY, ANALYTICS, CIVIC_DB } = this.env;
+      // ✅ Access Raindrop services via this.env (including HAKIVO_DB for migration)
+      const { USER_MEMORY, ANALYTICS, HAKIVO_DB } = this.env;
 
       // Route: GET /api/preferences/profile
       if (url.pathname === '/api/preferences/profile' && request.method === 'GET') {
@@ -145,8 +145,8 @@ export default class PreferencesService extends Service<Env> {
           );
         }
 
-        // ✅ Pass CIVIC_DB to enable automatic migration for existing users
-        const profile = await getUserProfile(ANALYTICS, USER_MEMORY, userId, CIVIC_DB);
+        // ✅ Pass HAKIVO_DB to enable automatic migration for existing users
+        const profile = await getUserProfile(ANALYTICS, USER_MEMORY, userId, HAKIVO_DB);
 
         if (!profile) {
           return this.jsonResponse(
@@ -193,12 +193,12 @@ export default class PreferencesService extends Service<Env> {
           metadata: validatedData.metadata,
         });
 
-        // Get updated profile (with CIVIC_DB for potential migration)
+        // Get updated profile (with HAKIVO_DB for potential migration)
         const updatedProfile = await getUserProfile(
           ANALYTICS,
           USER_MEMORY,
           validatedData.userId,
-          CIVIC_DB
+          HAKIVO_DB
         );
 
         return this.jsonResponse({

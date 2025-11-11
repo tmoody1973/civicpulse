@@ -1,0 +1,6 @@
+# Exclude the old raindrop-workers subdirectory from build
+raindrop-workers/
+
+# Exclude test scripts
+test-*.ts
+send-test-message.ts

@@ -10,10 +10,10 @@ import { Badge } from '@/components/ui/badge';
 import { BillCard } from '@/components/dashboard/bill-card';
 import type { Bill } from '@/components/dashboard/bill-card';
 import { BriefCard } from '@/components/dashboard/brief-card';
-import { FeaturedBriefCard } from '@/components/dashboard/featured-brief-card';
 import { Representative } from '@/components/dashboard/representative-card';
 import { PersonalizedNewsWidget } from '@/components/dashboard/personalized-news-widget';
 import { LatestActionsWidget } from '@/components/dashboard/latest-actions-widget';
+import { HouseVotesWidget } from '@/components/dashboard/house-votes-widget';
 import { BillFilters, type BillFilterOptions } from '@/components/dashboard/bill-filters';
 import { filterBills, getUniqueBillCategories } from '@/lib/utils/filter-bills';
 import { getFeedsForInterests } from '@/lib/rss/the-hill-feeds';
@@ -21,6 +21,7 @@ import { useAudioPlayer, type Brief } from '@/contexts/audio-player-context';
 import { DashboardWidget } from '@/components/dashboard/dashboard-widget';
 import { CustomizeDashboardModal } from '@/components/dashboard/customize-dashboard-modal';
 import { useWidgetPreferences } from '@/hooks/use-widget-preferences';
+import { DailyBriefDisplay } from '@/components/dashboard/daily-brief-display';
 
 interface NewsArticle {
   title: string;
@@ -68,10 +69,6 @@ export default function DashboardPage() {
   const [podcasts, setPodcasts] = useState<Brief[]>([]);
   const [generatingPodcast, setGeneratingPodcast] = useState(false);
   const [podcastError, setPodcastError] = useState<string | null>(null);
-
-  // Today's featured brief
-  const [todayBrief, setTodayBrief] = useState<Brief | null>(null);
-  const [briefLoading, setBriefLoading] = useState(true);
 
   // Bill filtering state
   const [billFilters, setBillFilters] = useState<BillFilterOptions>({
@@ -258,39 +255,6 @@ export default function DashboardPage() {
 
     fetchData();
   }, []);
-
-  // Fetch today's brief for featured card
-  useEffect(() => {
-    if (authChecking) return; // Wait for auth check
-
-    const fetchTodayBrief = async () => {
-      try {
-        setBriefLoading(true);
-        const response = await fetch('/api/briefs');
-        const data = await response.json();
-
-        if (data.success && data.briefs && data.briefs.length > 0) {
-          // Get the most recent brief (first in the sorted list)
-          const latestBrief = data.briefs[0];
-
-          // Check if it's from today
-          const briefDate = new Date(latestBrief.generated_at);
-          const today = new Date();
-          const isToday = briefDate.toDateString() === today.toDateString();
-
-          if (isToday) {
-            setTodayBrief(latestBrief);
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching today\'s brief:', error);
-      } finally {
-        setBriefLoading(false);
-      }
-    };
-
-    fetchTodayBrief();
-  }, [authChecking]);
 
   const handleGeneratePodcast = async (type: 'daily' | 'weekly') => {
     setGeneratingPodcast(true);
@@ -601,8 +565,28 @@ export default function DashboardPage() {
           </DashboardWidget>
         )}
 
-        {/* Today's Featured Brief - Full Width */}
-        {todayBrief && <FeaturedBriefCard brief={todayBrief} />}
+        {/* Today's Daily Brief - Full Width */}
+        <DashboardWidget
+          widgetId="daily-brief"
+          title={
+            podcasts.length > 0 && podcasts[0].generated_at
+              ? `Today's Daily Brief: ${new Date(podcasts[0].generated_at).toLocaleString('en-US', {
+                  weekday: 'long',
+                  month: 'long',
+                  day: 'numeric',
+                  year: 'numeric',
+                  hour: 'numeric',
+                  minute: '2-digit',
+                  hour12: true
+                })}`
+              : "Today's Daily Brief"
+          }
+          description="Your personalized audio and written digest"
+          canHide={false}
+          className="mb-8"
+        >
+          <DailyBriefDisplay />
+        </DashboardWidget>
 
         {/* Two-Column Newspaper Layout */}
         <div className="grid lg:grid-cols-5 gap-6 lg:gap-8">
@@ -630,6 +614,19 @@ export default function DashboardPage() {
                 canHide={true}
               >
                 <LatestActionsWidget limit={5} />
+              </DashboardWidget>
+            )}
+
+            {/* House Votes */}
+            {visibleWidgets.find(w => w.id === 'house-votes') && (
+              <DashboardWidget
+                widgetId="house-votes"
+                title="House Votes"
+                description="Recent roll call votes from the House of Representatives"
+                onHide={() => toggleWidget('house-votes')}
+                canHide={true}
+              >
+                <HouseVotesWidget />
               </DashboardWidget>
             )}
           </div>

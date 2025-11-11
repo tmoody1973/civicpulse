@@ -19,7 +19,8 @@ const CIVIC_DB_TABLES = [
   'rss_articles',
   'vote_records',
   'sync_history',
-  'briefs'
+  'briefs',
+  'news_articles' // Shared news pool (Perplexity via Inngest)
 ];
 
 const ANALYTICS_TABLES = [
@@ -79,7 +80,7 @@ export default class AdminApiService extends Service<Env> {
           }
         } else {
           // SqlDatabase uses prepare().all()
-          const result = await this.env.CIVIC_DB.prepare(sqlQuery).all();
+          const result = await this.env.HAKIVO_DB.prepare(sqlQuery).all();
           rows = result.results || [];
         }
 
@@ -133,7 +134,7 @@ export default class AdminApiService extends Service<Env> {
           }
         } else {
           // SqlDatabase uses prepare().all()
-          const result = await this.env.CIVIC_DB.prepare(
+          const result = await this.env.HAKIVO_DB.prepare(
             `SELECT COUNT(*) as count FROM ${table}`
           ).all();
 

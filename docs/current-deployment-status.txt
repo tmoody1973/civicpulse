@@ -1,0 +1,44 @@
+CivicPulse Raindrop Deployment Status - Pre-Migration
+=====================================================
+Generated: 2025-11-10
+Purpose: Document current state before migration to fresh deployment
+
+CURRENT APPLICATION STATUS
+--------------------------
+Application Name: civic-pulse
+Total Versions: 2
+Status: RUNNING (with FK constraint errors)
+
+VERSION DETAILS
+--------------
+Version 1 (ACTIVE - BROKEN):
+  Version ID: 01k8kf2b3gre3k5my2x4mnrn58
+  Status: running
+  Created: 10/27/2025
+  Issue: D1_ERROR: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT
+  Note: This is the broken deployment we're migrating FROM
+
+Version 2 (PENDING):
+  Version ID: 01k9qwx4w08byaapx29qp202tn
+  Status: pending
+  Created: 11/10/2025
+  Branch: main
+  Note: Appears to be a newer version, checking status...
+
+SERVICE URL (Current)
+--------------------
+From .env.local:
+RAINDROP_SERVICE_URL=https://svc-01k8kf2fkj3423r7zpm53cfkgz.01k66gywmx8x4r0w31fdjjfekf.lmapp.run
+
+MIGRATION PLAN
+--------------
+Strategy: Create fresh branch (production-v2) from version 01k9qwx4w08byaapx29qp202tn
+Reason: Cannot fix FK constraints in existing deployment
+Solution: Clean database + data re-sync from external APIs
+
+NEXT STEPS
+----------
+1. Check status of version 01k9qwx4w08byaapx29qp202tn
+2. Export environment variables
+3. Create new branch for migration
+4. Re-sync all data (60,000 bills from 118th + 119th Congress)

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Clear News Cache</title>
+</head>
+<body>
+    <h1>Clearing News Cache...</h1>
+    <script>
+        // Clear all personalized news cache
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('personalized-news-')) {
+                console.log('Clearing:', key);
+                localStorage.removeItem(key);
+                i--; // Adjust index after removal
+            }
+        }
+
+        // Also clear any memory cache by reloading
+        console.log('✅ Cache cleared! Redirecting to dashboard...');
+        alert('Cache cleared! You will be redirected to the dashboard.');
+        window.location.href = '/dashboard';
+    </script>
+</body>
+</html>

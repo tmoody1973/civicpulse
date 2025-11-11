@@ -20,7 +20,7 @@ export default class extends Service<Env> {
    */
   async initializeDatabase(): Promise<void> {
     // Create users table
-    await this.env.CIVIC_DB.exec(`
+    await this.env.HAKIVO_DB.exec(`
       CREATE TABLE IF NOT EXISTS users (
         id TEXT PRIMARY KEY,
         email TEXT UNIQUE NOT NULL,
@@ -40,11 +40,11 @@ export default class extends Service<Env> {
       )
     `);
 
-    await this.env.CIVIC_DB.exec('CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)');
-    await this.env.CIVIC_DB.exec('CREATE INDEX IF NOT EXISTS idx_users_zip ON users(zip_code)');
+    await this.env.HAKIVO_DB.exec('CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)');
+    await this.env.HAKIVO_DB.exec('CREATE INDEX IF NOT EXISTS idx_users_zip ON users(zip_code)');
 
     // Create bills table with enhanced metadata fields
-    await this.env.CIVIC_DB.exec(`
+    await this.env.HAKIVO_DB.exec(`
       CREATE TABLE IF NOT EXISTS bills (
         id TEXT PRIMARY KEY,
         congress INTEGER NOT NULL,
@@ -75,14 +75,14 @@ export default class extends Service<Env> {
     `);
 
     // Create indexes for bills table
-    await this.env.CIVIC_DB.exec('CREATE INDEX IF NOT EXISTS idx_bills_congress_date ON bills(congress, latest_action_date DESC)');
-    await this.env.CIVIC_DB.exec('CREATE INDEX IF NOT EXISTS idx_bills_sponsor ON bills(sponsor_bioguide_id)');
-    await this.env.CIVIC_DB.exec('CREATE INDEX IF NOT EXISTS idx_bills_status ON bills(status, congress)');
-    await this.env.CIVIC_DB.exec('CREATE INDEX IF NOT EXISTS idx_bills_impact ON bills(impact_score DESC, latest_action_date DESC)');
-    await this.env.CIVIC_DB.exec('CREATE INDEX IF NOT EXISTS idx_bills_sync ON bills(synced_to_algolia_at)');
+    await this.env.HAKIVO_DB.exec('CREATE INDEX IF NOT EXISTS idx_bills_congress_date ON bills(congress, latest_action_date DESC)');
+    await this.env.HAKIVO_DB.exec('CREATE INDEX IF NOT EXISTS idx_bills_sponsor ON bills(sponsor_bioguide_id)');
+    await this.env.HAKIVO_DB.exec('CREATE INDEX IF NOT EXISTS idx_bills_status ON bills(status, congress)');
+    await this.env.HAKIVO_DB.exec('CREATE INDEX IF NOT EXISTS idx_bills_impact ON bills(impact_score DESC, latest_action_date DESC)');
+    await this.env.HAKIVO_DB.exec('CREATE INDEX IF NOT EXISTS idx_bills_sync ON bills(synced_to_algolia_at)');
 
     // Create representatives table
-    await this.env.CIVIC_DB.exec(`
+    await this.env.HAKIVO_DB.exec(`
       CREATE TABLE IF NOT EXISTS representatives (
         bioguide_id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
@@ -112,14 +112,14 @@ export default class extends Service<Env> {
     // Migration: Add rss_url column if it doesn't exist
     // Check if column exists by querying table info
     try {
-      const columnCheck = await this.env.CIVIC_DB.prepare(`PRAGMA table_info(representatives)`).all();
+      const columnCheck = await this.env.HAKIVO_DB.prepare(`PRAGMA table_info(representatives)`).all();
 
       if (columnCheck.results) {
         const hasRssUrl = columnCheck.results.some((col: any) => col.name === 'rss_url');
 
         if (!hasRssUrl) {
           console.log('🔄 Migration: Adding rss_url column to representatives table');
-          await this.env.CIVIC_DB.exec(`ALTER TABLE representatives ADD COLUMN rss_url TEXT`);
+          await this.env.HAKIVO_DB.exec(`ALTER TABLE representatives ADD COLUMN rss_url TEXT`);
           console.log('✅ Migration: rss_url column added successfully');
         } else {
           console.log('✅ rss_url column already exists, skipping migration');
@@ -132,7 +132,7 @@ export default class extends Service<Env> {
     }
 
     // Create user_bills tracking table
-    await this.env.CIVIC_DB.exec(`
+    await this.env.HAKIVO_DB.exec(`
       CREATE TABLE IF NOT EXISTS user_bills (
         user_id TEXT NOT NULL,
         bill_id TEXT NOT NULL,
@@ -142,7 +142,7 @@ export default class extends Service<Env> {
     `);
 
     // Create podcasts table
-    await this.env.CIVIC_DB.exec(`
+    await this.env.HAKIVO_DB.exec(`
       CREATE TABLE IF NOT EXISTS podcasts (
         id TEXT PRIMARY KEY,
         user_id TEXT,
@@ -157,7 +157,7 @@ export default class extends Service<Env> {
     `);
 
     // Create rss_articles table
-    await this.env.CIVIC_DB.exec(`
+    await this.env.HAKIVO_DB.exec(`
       CREATE TABLE IF NOT EXISTS rss_articles (
         id TEXT PRIMARY KEY,
         feed_id TEXT NOT NULL,
@@ -173,7 +173,7 @@ export default class extends Service<Env> {
     `);
 
     // Create vote_records table
-    await this.env.CIVIC_DB.exec(`
+    await this.env.HAKIVO_DB.exec(`
       CREATE TABLE IF NOT EXISTS vote_records (
         id TEXT PRIMARY KEY,
         bill_id TEXT NOT NULL,
@@ -186,7 +186,7 @@ export default class extends Service<Env> {
     `);
 
     // Create sync_history table for tracking automated bill syncs
-    await this.env.CIVIC_DB.exec(`
+    await this.env.HAKIVO_DB.exec(`
       CREATE TABLE IF NOT EXISTS sync_history (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         sync_type TEXT NOT NULL,
@@ -202,9 +202,11 @@ export default class extends Service<Env> {
       )
     `);
 
-    await this.env.CIVIC_DB.exec('CREATE INDEX IF NOT EXISTS idx_sync_history_status ON sync_history(status)');
-    await this.env.CIVIC_DB.exec('CREATE INDEX IF NOT EXISTS idx_sync_history_started_at ON sync_history(started_at DESC)');
-    await this.env.CIVIC_DB.exec('CREATE INDEX IF NOT EXISTS idx_sync_history_type ON sync_history(sync_type)');
+    await this.env.HAKIVO_DB.exec('CREATE INDEX IF NOT EXISTS idx_sync_history_status ON sync_history(status)');
+    await this.env.HAKIVO_DB.exec('CREATE INDEX IF NOT EXISTS idx_sync_history_started_at ON sync_history(started_at DESC)');
+    await this.env.HAKIVO_DB.exec('CREATE INDEX IF NOT EXISTS idx_sync_history_type ON sync_history(sync_type)');
+
+    console.log('✅ Database schema initialized');
   }
 
   async fetch(request: Request): Promise<Response> {
@@ -294,7 +296,7 @@ export default class extends Service<Env> {
 
         // If ID is provided, fetch single bill with sponsor details
         if (id) {
-          const billResult = await this.env.CIVIC_DB.prepare(`
+          const billResult = await this.env.HAKIVO_DB.prepare(`
             SELECT
               b.*,
               r.party as sponsor_party,
@@ -400,7 +402,7 @@ export default class extends Service<Env> {
           }, corsHeaders, 400);
         }
 
-        const result = await this.env.CIVIC_DB.prepare(query).all();
+        const result = await this.env.HAKIVO_DB.prepare(query).all();
 
         return this.jsonResponse({ rows: result.results || [] }, corsHeaders);
       }
@@ -418,7 +420,7 @@ export default class extends Service<Env> {
           }, corsHeaders, 400);
         }
 
-        const result = await this.env.CIVIC_DB.prepare(query).first<{ count: number }>();
+        const result = await this.env.HAKIVO_DB.prepare(query).first<{ count: number }>();
 
         const count = result?.count || 0;
         return this.jsonResponse({ count }, corsHeaders);
@@ -429,7 +431,7 @@ export default class extends Service<Env> {
         const { limit = 10 } = await request.json().catch(() => ({}));
 
         // Get bills with full_text that haven't been synced yet (fetch ALL metadata)
-        const bills = await this.env.CIVIC_DB.prepare(`
+        const bills = await this.env.HAKIVO_DB.prepare(`
           SELECT
             b.id, b.congress, b.bill_type, b.bill_number, b.title, b.summary, b.full_text,
             b.sponsor_name, b.sponsor_bioguide_id,
@@ -505,7 +507,7 @@ ${bill.full_text}
             );
 
             // Update database with sync info
-            await this.env.CIVIC_DB.prepare(`
+            await this.env.HAKIVO_DB.prepare(`
               UPDATE bills
               SET smartbucket_key = ?,
                   synced_to_smartbucket_at = CURRENT_TIMESTAMP
@@ -565,7 +567,7 @@ ${bill.full_text}
         }
 
         // Get bill from database to check if it has full text
-        const billResult = await this.env.CIVIC_DB.prepare(`
+        const billResult = await this.env.HAKIVO_DB.prepare(`
           SELECT id, congress, bill_type, bill_number, title, summary, full_text, smartbucket_key
           FROM bills
           WHERE id = ?
@@ -634,7 +636,7 @@ ${bill.full_text}
         }
 
         // Get current bill
-        const billResult = await this.env.CIVIC_DB.prepare(`
+        const billResult = await this.env.HAKIVO_DB.prepare(`
           SELECT id, congress, bill_type, bill_number, title, summary, smartbucket_key
           FROM bills
           WHERE id = ?
@@ -677,7 +679,7 @@ ${bill.full_text}
             const match = result.source?.match(/bills\/(\d+)\/([a-z]+)(\d+)\.txt/);
             if (match) {
               const [, congress, billType, billNumber] = match;
-              const bill = await this.env.CIVIC_DB.prepare(`
+              const bill = await this.env.HAKIVO_DB.prepare(`
                 SELECT id, title, summary, sponsor_name, sponsor_party, sponsor_state,
                        status, introduced_date, latest_action_text
                 FROM bills
@@ -756,7 +758,7 @@ ${bill.full_text}
     audioEnabled?: boolean;
     audioFrequencies?: ('daily' | 'weekly')[];
   }): Promise<void> {
-    await this.env.CIVIC_DB.prepare(`
+    await this.env.HAKIVO_DB.prepare(`
       INSERT INTO users (
         id, email, name, zip_code, interests,
         email_notifications, audio_enabled, audio_frequencies
@@ -774,7 +776,7 @@ ${bill.full_text}
   }
 
   async getUserByEmail(email: string) {
-    const result = await this.env.CIVIC_DB.prepare(`
+    const result = await this.env.HAKIVO_DB.prepare(`
       SELECT * FROM users WHERE email = ? LIMIT 1
     `).bind(email).first();
 
@@ -811,7 +813,7 @@ ${bill.full_text}
       updates.push('updated_at = CURRENT_TIMESTAMP');
       values.push(userId);
 
-      await this.env.CIVIC_DB.prepare(`
+      await this.env.HAKIVO_DB.prepare(`
         UPDATE users SET ${updates.join(', ')} WHERE id = ?
       `).bind(...values).run();
     }
@@ -846,7 +848,7 @@ ${bill.full_text}
     congressGovUrl?: string;
     searchableText?: string;
   }): Promise<void> {
-    await this.env.CIVIC_DB.prepare(`
+    await this.env.HAKIVO_DB.prepare(`
       INSERT OR REPLACE INTO bills (
         id, congress, bill_type, bill_number, title, summary, full_text,
         sponsor_bioguide_id, sponsor_name, sponsor_party, sponsor_state, sponsor_district,
@@ -882,7 +884,7 @@ ${bill.full_text}
   }
 
   async getBillsByCategory(category: string, limit = 20) {
-    const result = await this.env.CIVIC_DB.prepare(`
+    const result = await this.env.HAKIVO_DB.prepare(`
       SELECT * FROM bills
       WHERE issue_categories LIKE ?
       ORDER BY latest_action_date DESC
@@ -896,7 +898,7 @@ ${bill.full_text}
   }
 
   async getRecentBills(limit = 50) {
-    const result = await this.env.CIVIC_DB.prepare(`
+    const result = await this.env.HAKIVO_DB.prepare(`
       SELECT * FROM bills
       ORDER BY latest_action_date DESC
       LIMIT ?
@@ -931,7 +933,7 @@ ${bill.full_text}
     instagramHandle?: string;
     committees?: string[];
   }): Promise<void> {
-    await this.env.CIVIC_DB.prepare(`
+    await this.env.HAKIVO_DB.prepare(`
       INSERT OR REPLACE INTO representatives (
         bioguide_id, name, party, chamber, state, district,
         image_url, office_address, phone, website_url, twitter_handle, committees,
@@ -967,7 +969,7 @@ ${bill.full_text}
       params.push(district);
     }
 
-    const result = await this.env.CIVIC_DB.prepare(query).bind(...params).all();
+    const result = await this.env.HAKIVO_DB.prepare(query).bind(...params).all();
 
     return (result.results || []).map((row: any) => ({
       ...row,
@@ -990,7 +992,7 @@ ${bill.full_text}
     imageUrl?: string;
     categories?: string[];
   }): Promise<void> {
-    await this.env.CIVIC_DB.prepare(`
+    await this.env.HAKIVO_DB.prepare(`
       INSERT OR IGNORE INTO rss_articles (
         id, feed_id, title, description, url, author, published_at, image_url, categories
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -1008,7 +1010,7 @@ ${bill.full_text}
   }
 
   async getRssArticlesByFeed(feedId: string, limit = 20) {
-    const result = await this.env.CIVIC_DB.prepare(`
+    const result = await this.env.HAKIVO_DB.prepare(`
       SELECT * FROM rss_articles
       WHERE feed_id = ?
       ORDER BY published_at DESC

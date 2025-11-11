@@ -42,6 +42,10 @@
     "tests/**/*.ts",
     "**/*.test.ts",
     "**/*.test.tsx",
-    "playwright.config.ts"
+    "playwright.config.ts",
+    "raindrop-workers/**/*.ts",
+    "test-brave-query.ts",
+    "netlify/**/*.ts",
+    "src/inngest/**/*.ts"
   ]
 }

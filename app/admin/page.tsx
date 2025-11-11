@@ -80,6 +80,12 @@ const TABLES: TableInfo[] = [
     color: 'bg-orange-500'
   },
   {
+    name: 'news_articles',
+    icon: <Newspaper className="h-5 w-5" />,
+    description: '🆕 Personalized news articles (Perplexity)',
+    color: 'bg-amber-500'
+  },
+  {
     name: 'vote_records',
     icon: <Vote className="h-5 w-5" />,
     description: 'Representative voting history',

@@ -1,4 +1,48 @@
-application "civic-pulse" {
+application "hakivo" {
+
+  // ============================================================================
+  // ENVIRONMENT VARIABLES / SECRETS (for all services)
+  // ============================================================================
+
+  env "ANTHROPIC_API_KEY" {
+    secret = true
+  }
+
+  env "ELEVENLABS_API_KEY" {
+    secret = true
+  }
+
+  env "ELEVENLABS_SARAH_VOICE_ID" {
+    secret = true
+  }
+
+  env "ELEVENLABS_JAMES_VOICE_ID" {
+    secret = true
+  }
+
+  env "VULTR_STORAGE_ENDPOINT" {
+    secret = true
+  }
+
+  env "VULTR_ACCESS_KEY" {
+    secret = true
+  }
+
+  env "VULTR_SECRET_KEY" {
+    secret = true
+  }
+
+  env "VULTR_CDN_URL" {
+    secret = true
+  }
+
+  env "BRAVE_SEARCH_API_KEY" {
+    secret = true
+  }
+
+  env "PEXELS_API_KEY" {
+    secret = true
+  }
 
   // Main web service - serves Next.js frontend and API endpoints
   service "web" {
@@ -42,7 +86,8 @@ application "civic-pulse" {
   }
 
   // SQL database - SQLite for persistent data storage
-  sql_database "civic-db" {
+  // Renamed from civic-db to hakivo-db for fresh deployment (2025-11-10)
+  sql_database "hakivo-db" {
     // Database initialized via service startup
     // Tables: users, bills, representatives, user-bills, podcasts, rss-articles, vote-records
   }
@@ -51,6 +96,14 @@ application "civic-pulse" {
   bucket "podcast-audio" {
     // Stores generated podcast MP3 files
     // Accessed via Vultr S3-compatible API
+  }
+
+  // Bucket for temporary brief generation job data
+  bucket "brief-job-storage" {
+    // Stores temporary data between pipeline stages
+    // Keys: job:{jobId}:metadata, job:{jobId}:bills, job:{jobId}:news,
+    //       job:{jobId}:script, job:{jobId}:audio
+    // Automatically cleaned up by upload-worker after brief is saved to database
   }
 
   // SmartBucket for bill full text - enables semantic search
@@ -162,5 +215,103 @@ application "civic-pulse" {
   // KV Cache for notification state
   kv_cache "notification-state" {
     // Stores pending notifications and read status
+  }
+
+  // ============================================================================
+  // DAILY BRIEF GENERATION SYSTEM (Queues + Observers + Scheduler)
+  // ============================================================================
+
+  // Test service - sends test messages to queues for testing
+  service "test-service" {
+    visibility = "public"
+  }
+
+  // Daily scheduler - triggers at 9am UTC to queue brief generation jobs
+  task "daily-brief-scheduler" {
+    type = "cron"
+    cron = "0 9 * * *"  // Runs at 9:00 AM UTC daily
+  }
+
+  // ===========================================================================
+  // BRIEF GENERATION PIPELINE (Memory-Optimized Multi-Worker Architecture)
+  // ===========================================================================
+  // Split into 5 specialized workers to stay within memory limits
+
+  // Step 1: Initial request (from scheduler or API)
+  queue "brief-queue" {
+    // Entry point for brief generation requests
+  }
+
+  observer "orchestrator-worker" {
+    source {
+      queue = "brief-queue"
+    }
+    // Creates job ID, stores metadata in SmartMemory, sends to data-queue
+  }
+
+  // Step 2: Data fetching
+  queue "data-queue" {
+    // Fetch bills and news
+  }
+
+  observer "data-fetcher-worker" {
+    source {
+      queue = "data-queue"
+    }
+    // Fetches bills from civic-db and news from Brave Search
+    // Stores results in SmartMemory with job ID
+  }
+
+  // Step 3: Script generation
+  queue "script-queue" {
+    // Generate dialogue script
+  }
+
+  observer "script-generator-worker" {
+    source {
+      queue = "script-queue"
+    }
+    // Reads bills+news from SmartMemory, generates dialogue with Claude
+    // Stores script in SmartMemory with job ID
+  }
+
+  // Step 4: Audio generation
+  queue "audio-queue" {
+    // Generate podcast audio
+  }
+
+  observer "audio-generator-worker" {
+    source {
+      queue = "audio-queue"
+    }
+    // Reads script from SmartMemory, generates audio with ElevenLabs
+    // Stores audio buffer in SmartMemory with job ID
+  }
+
+  // Step 5: Upload and finalize
+  queue "upload-queue" {
+    // Upload to CDN and save to database
+  }
+
+  observer "upload-worker" {
+    source {
+      queue = "upload-queue"
+    }
+    // Reads audio from SmartMemory, uploads to Vultr CDN
+    // Saves brief to database, cleans up SmartMemory
+  }
+
+  // News generation queue - stores news fetch requests
+  queue "news-queue" {
+    // Handles news fetching and image generation (20-30 seconds per job)
+  }
+
+  // News worker - processes personalized news jobs from queue
+  observer "news-worker" {
+    source {
+      queue = "news-queue"
+    }
+    // Processes: fetch news from Brave API, get topic images from Pexels
+    // No execution time limit
   }
 }

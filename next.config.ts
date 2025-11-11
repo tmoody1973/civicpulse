@@ -90,6 +90,40 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'kubrick.htvapps.com',
       },
+      // YouTube thumbnails (common in news embeds)
+      {
+        protocol: 'https',
+        hostname: '**.ytimg.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'i.ytimg.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'img.youtube.com',
+      },
+      // Common image CDNs and news source images
+      {
+        protocol: 'https',
+        hostname: '**.wp.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.amazonaws.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.cloudfront.net',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.texastribune.org',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.collegeaidservices.net',
+      },
     ],
   },
 

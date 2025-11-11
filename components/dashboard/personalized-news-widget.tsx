@@ -76,12 +76,12 @@ interface PersonalizedNewsWidgetProps {
 
 const CACHE_CONFIG = {
   // Cache version - increment when data structure changes
-  VERSION: 'v3-persistent',
+  VERSION: 'v4-with-thumbnails',
 
   // Cache durations
-  STALE_TIME: 30 * 60 * 1000,      // 30 minutes - show cached data without indicator
-  CACHE_TIME: 24 * 60 * 60 * 1000,  // 24 hours - keep in cache before deletion
-  REVALIDATE_TIME: 5 * 60 * 1000,   // 5 minutes - background revalidate interval
+  STALE_TIME: 5 * 60 * 1000,       // 5 minutes - show cached data without indicator
+  CACHE_TIME: 1 * 60 * 60 * 1000,  // 1 hour - keep in cache before deletion
+  REVALIDATE_TIME: 5 * 60 * 1000,  // 5 minutes - background revalidate interval
 };
 
 // In-memory cache (survives between component mounts within same session)

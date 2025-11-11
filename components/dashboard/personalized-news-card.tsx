@@ -11,6 +11,7 @@ export interface PersonalizedArticle {
   publishedDate: string;
   summary: string;
   source: string;
+  imageUrl?: string;
   relevantTopics: string[];
 }
 
@@ -81,39 +82,55 @@ export function PersonalizedNewsCard({ article }: PersonalizedNewsCardProps) {
         href={article.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="block p-3"
+        className="block"
       >
-        {/* Category and Follow button */}
-        <div className="flex items-center gap-2 mb-2">
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-foreground">
-            {categoryDisplay}
-          </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleFollowToggle}
-            className={`rounded-full px-2 h-5 text-xs ${
-              isFollowing
-                ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                : 'hover:bg-muted'
-            }`}
-          >
-            {isFollowing ? 'Following' : 'Follow'}
-          </Button>
-        </div>
+        <div className="flex gap-3 p-3">
+          {/* Thumbnail */}
+          {article.imageUrl && (
+            <div className="w-20 h-20 flex-shrink-0 rounded overflow-hidden bg-muted">
+              <img
+                src={article.imageUrl}
+                alt={article.title}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+              />
+            </div>
+          )}
 
-        {/* Article headline */}
-        <h3 className="text-sm font-semibold text-foreground leading-snug group-hover:text-primary transition-colors line-clamp-2 mb-2">
-          {article.title}
-        </h3>
+          {/* Content */}
+          <div className="flex-1 min-w-0">
+            {/* Category and Follow button */}
+            <div className="flex items-center gap-2 mb-2">
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-foreground">
+                {categoryDisplay}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleFollowToggle}
+                className={`rounded-full px-2 h-5 text-xs ${
+                  isFollowing
+                    ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                    : 'hover:bg-muted'
+                }`}
+              >
+                {isFollowing ? 'Following' : 'Follow'}
+              </Button>
+            </div>
 
-        {/* Source and Date */}
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <span className="font-medium truncate">{article.source}</span>
-          <span>•</span>
-          <div className="flex items-center gap-1">
-            <Clock className="w-3 h-3" />
-            <span>{formatTimeAgo(article.publishedDate)}</span>
+            {/* Article headline */}
+            <h3 className="text-sm font-semibold text-foreground leading-snug group-hover:text-primary transition-colors line-clamp-2 mb-2">
+              {article.title}
+            </h3>
+
+            {/* Source and Date */}
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span className="font-medium truncate">{article.source}</span>
+              <span>•</span>
+              <div className="flex items-center gap-1">
+                <Clock className="w-3 h-3" />
+                <span>{formatTimeAgo(article.publishedDate)}</span>
+              </div>
+            </div>
           </div>
         </div>
       </a>
